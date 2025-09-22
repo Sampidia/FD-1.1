@@ -29,7 +29,7 @@ async function getBasicPlanId(): Promise<string> {
 
   basicPlanId = basicPlan.id
   console.log('🔍 Found basic plan ID:', basicPlanId)
-  return basicPlanId
+  return basicPlanId as string
 }
 
 const authOptions = NextAuth({
