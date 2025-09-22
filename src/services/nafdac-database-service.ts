@@ -106,7 +106,18 @@ export class NafdacDatabaseService {
         take: limit
       })
 
-      return alerts.map(alert => ({
+      return alerts.map((alert: {
+        id: string;
+        title: string;
+        excerpt: string;
+        url: string;
+        batchNumbers: string[];
+        manufacturer: string | null;
+        alertType: string;
+        severity: string;
+        scrapedAt: Date;
+        productNames: string[];
+      }) => ({
         ...alert,
         scrapedAt: alert.scrapedAt
       }))
