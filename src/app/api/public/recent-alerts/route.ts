@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Transform the data for the frontend
-    const alerts = recentAlerts.map(alert => ({
+    const alerts = recentAlerts.map((alert: any) => ({
       id: alert.id,
       productName: alert.productCheck.productName,
       alertType: alert.alertType,

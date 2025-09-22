@@ -138,7 +138,7 @@ export function BetaModal({ isOpen, onClose }: BetaModalProps) {
                     id="name"
                     type="text"
                     value={formData.name}
-                    onChange={(e) => handleInputChange("name", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("name", e.target.value)}
                     placeholder="Enter your full name"
                     className="mt-1"
                     disabled={isSubmitting}
@@ -184,7 +184,7 @@ export function BetaModal({ isOpen, onClose }: BetaModalProps) {
                     id="whatsapp"
                     type="tel"
                     value={formData.whatsapp}
-                    onChange={(e) => handleInputChange("whatsapp", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("whatsapp", e.target.value)}
                     placeholder="+234XXXXXXXXXX"
                     className="mt-1"
                     disabled={isSubmitting}

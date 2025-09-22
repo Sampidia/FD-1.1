@@ -199,7 +199,7 @@ export default function SignInPage() {
                     id="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                     placeholder="your@email.com"
                     disabled={isLoading}
                     required
@@ -213,7 +213,7 @@ export default function SignInPage() {
                       id="password"
                       type={showPassword ? "text" : "password"}
                       value={formData.password}
-                      onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, password: e.target.value }))}
                       placeholder="Enter your password"
                       disabled={isLoading}
                       className="pr-10"

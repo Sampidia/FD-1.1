@@ -918,7 +918,7 @@ export function BatchUploadForm({ userPlan, userBalance }: BatchUploadFormProps)
                     type="text"
                     placeholder="Product Name (optional)"
                     value={slot.productName}
-                    onChange={(e) => {
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                       console.log(`📝 Manual update: Product name for slot ${slot.id}: "${e.target.value}"`)
                       setBatchSlots(prev => prev.map(s =>
                         s.id === slot.id ? {
@@ -955,7 +955,7 @@ export function BatchUploadForm({ userPlan, userBalance }: BatchUploadFormProps)
                     type="text"
                     placeholder="Batch Number (optional)"
                     value={slot.batchNumber}
-                    onChange={(e) => {
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                       console.log(`🔢 Manual update: Batch number for slot ${slot.id}: "${e.target.value}"`)
                       setBatchSlots(prev => prev.map(s =>
                         s.id === slot.id ? {

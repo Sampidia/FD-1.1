@@ -145,7 +145,7 @@ export default function EnhancedDashboard({
         <div className="flex gap-4">
           <select
             value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTimeRange(e.target.value)}
             className="px-4 py-2 border rounded-md"
           >
             <option value="7d">Last 7 Days</option>

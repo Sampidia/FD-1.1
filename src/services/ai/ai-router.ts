@@ -10,13 +10,19 @@ import { systemHealthMonitor } from '../system-health-monitor'
 import { securityMonitor } from '../security-monitor'
 import { PharmaceuticalOCRPrompts, getEnhancedPharmaPrompt, detectPharmaForm } from '@/services/pharmaceutical-ocr-prompts'
 
+interface TesseractService {
+  processText: (request: AIRequest) => Promise<AIResponse>
+  processVision: (request: AIRequest) => Promise<AIResponse>
+  checkHealth: () => Promise<boolean>
+}
+
 interface AIProviderInstance {
   gemini?: GeminiService
   googleVision?: GoogleVisionService
   openai?: OpenAIService
   claude?: AnthropicClaudeService
   claudeVision?: ClaudeVisionOCR
-  tesseract?: any
+  tesseract?: TesseractService
 }
 
 interface PlanAIAssignment {
@@ -69,7 +75,7 @@ export class AIServiceRouter {
             id: provider.id,
             apiKey,
             modelName: provider.modelName,
-            provider: provider.provider as any,
+            provider: provider.provider as 'google' | 'google-vision' | 'openai' | 'anthropic',
             temperature: 0.7, // Default temperature
             maxTokens: 2048, // Default max tokens
             costInput: 0.00000025, // Default cost
@@ -113,7 +119,7 @@ export class AIServiceRouter {
             id: 'google-vision-fallback',
             apiKey: googleVisionApiKey,
             modelName: 'google-vision-ocr',
-            provider: 'google-vision' as any,
+            provider: 'google-vision' as const,
             temperature: 0.1,
             maxTokens: 2048,
             costInput: 0.00175,
@@ -203,7 +209,7 @@ export class AIServiceRouter {
               return false
             }
           }
-        } as any
+        }
       }
 
       // Health check all providers
@@ -347,11 +353,11 @@ export class AIServiceRouter {
 
     // For business plan: Different logic could be added here
     if (planId === 'business') {
-      return requestTask as 'ocr' | 'verification' | 'extraction' || 'verification'
+      return (requestTask as 'ocr' | 'verification' | 'extraction') || 'verification'
     }
 
     // Default: Use provider as is
-    return requestTask as 'ocr' | 'verification' | 'extraction' || 'verification'
+    return (requestTask as 'ocr' | 'verification' | 'extraction') || 'verification'
   }
 
   // Get user's plan from database
@@ -452,7 +458,7 @@ export class AIServiceRouter {
       const formattedAssignments: PlanAIAssignment[] = assignments.map(assignment => ({
         planId: assignment.planId,
         aiType: this.assignAIBasedOnTask(assignment.aiProvider.provider, planId, requestTask), // Dynamic assignment
-        provider: assignment.aiProvider.provider as 'google' | 'openai' | 'anthropic',
+        provider: assignment.aiProvider.provider as 'google' | 'google-vision' | 'openai' | 'anthropic',
         priority: assignment.priority,
         config: {
           apiKey: '', // Will be filled by getAPIKey()
@@ -497,7 +503,7 @@ export class AIServiceRouter {
     if (this.aiInstances.gemini) {
       assignments.push({
         planId: 'free',
-        aiType: task as any,
+        aiType: task as 'ocr' | 'verification' | 'extraction',
         provider: 'google',
         priority: 1,
         config: {

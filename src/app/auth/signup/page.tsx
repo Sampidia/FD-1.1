@@ -165,7 +165,7 @@ export default function SignUpPage() {
                   id="name"
                   type="text"
                   value={formData.name}
-                  onChange={(e) => handleInputChange("name", e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("name", e.target.value)}
                   className={errors.name ? "border-red-500" : ""}
                   placeholder="John Doe"
                   disabled={isLoading}
@@ -179,7 +179,7 @@ export default function SignUpPage() {
                   id="email"
                   type="email"
                   value={formData.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("email", e.target.value)}
                   className={errors.email ? "border-red-500" : ""}
                   placeholder="john@example.com"
                   disabled={isLoading}
@@ -194,7 +194,7 @@ export default function SignUpPage() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     value={formData.password}
-                    onChange={(e) => handleInputChange("password", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("password", e.target.value)}
                     className={errors.password ? "border-red-500 pr-10" : "pr-10"}
                     placeholder="Minimum 6 characters"
                     disabled={isLoading}
@@ -217,7 +217,7 @@ export default function SignUpPage() {
                   id="confirmPassword"
                   type={showPassword ? "text" : "password"}
                   value={formData.confirmPassword}
-                  onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("confirmPassword", e.target.value)}
                   className={errors.confirmPassword ? "border-red-500" : ""}
                   placeholder="Confirm your password"
                   disabled={isLoading}

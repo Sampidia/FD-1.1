@@ -672,7 +672,7 @@ export function UploadForm() {
               <input
                 type="text"
                 value={formData.productName}
-                onChange={(e) => setFormData(prev => ({
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({
                   ...prev,
                   productName: e.target.value
                 }))}
@@ -696,7 +696,7 @@ export function UploadForm() {
               <input
                 type="text"
                 value={formData.userBatchNumber}
-                onChange={(e) => setFormData(prev => ({
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({
                   ...prev,
                   userBatchNumber: e.target.value
                 }))}
@@ -721,7 +721,7 @@ export function UploadForm() {
             </label>
             <textarea
               value={formData.productDescription}
-              onChange={(e) => setFormData(prev => ({
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormData(prev => ({
                 ...prev,
                 productDescription: e.target.value
               }))}

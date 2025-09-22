@@ -128,7 +128,7 @@ export function UploadZone({
         <div className="flex flex-col gap-2 mb-2">
           <button
             type="button"
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
               e.stopPropagation()
               fileInputRef.current?.click()
             }}
@@ -139,7 +139,7 @@ export function UploadZone({
           </button>
           <button
             type="button"
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
               e.stopPropagation()
               handleCameraCapture()
             }}

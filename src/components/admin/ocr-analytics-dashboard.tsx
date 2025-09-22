@@ -92,7 +92,7 @@ export default function OCRAnalyticsDashboard() {
         <div className="flex items-center gap-4">
           <select
             value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTimeRange(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded"
           >
             <option value="1h">Last Hour</option>

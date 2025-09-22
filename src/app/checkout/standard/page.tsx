@@ -240,7 +240,7 @@ export default function StandardCheckoutPage() {
                   min="10"
                   max="1000"
                   value={pointsToBuy}
-                  onChange={(e) => setPointsToBuy(Math.max(10, Number(e.target.value)))}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPointsToBuy(Math.max(10, Number(e.target.value)))}
                   className="w-full p-3 border border-gray-300 rounded-lg"
                   placeholder="Custom amount"
                 />

@@ -3,7 +3,7 @@ export interface AIProviderConfig {
   id: string
   apiKey: string
   modelName: string
-  provider: 'google' | 'openai' | 'anthropic'
+  provider: 'google' | 'google-vision' | 'openai' | 'anthropic'
   temperature?: number
   maxTokens: number
   costInput: number
