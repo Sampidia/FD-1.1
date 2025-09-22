@@ -144,7 +144,7 @@ export default function SearchPage() {
                       <div>
                         <p className="text-sm font-medium text-gray-600">Verified Products</p>
                         <p className="text-2xl font-bold text-gray-900">
-                          {results.filter(r => !r.isCounterfeit).length}
+                          {results.filter((r: ScanResult) => !r.isCounterfeit).length}
                         </p>
                       </div>
                     </div>
@@ -156,7 +156,7 @@ export default function SearchPage() {
                       <div
                         className="bg-gradient-to-r from-green-400 to-green-600 h-3 rounded-full transition-all duration-1000"
                         style={{
-                          width: results.length > 0 ? `${(results.filter(r => !r.isCounterfeit).length / results.length) * 100}%` : '0%'
+                          width: results.length > 0 ? `${(results.filter((r: ScanResult) => !r.isCounterfeit).length / results.length) * 100}%` : '0%'
                         }}
                       />
                     </div>
@@ -179,7 +179,7 @@ export default function SearchPage() {
                       <div>
                         <p className="text-sm font-medium text-gray-600">Detected Counterfeit</p>
                         <p className="text-2xl font-bold text-gray-900">
-                          {results.filter(r => r.isCounterfeit).length}
+                          {results.filter((r: ScanResult) => r.isCounterfeit).length}
                         </p>
                       </div>
                     </div>
@@ -191,7 +191,7 @@ export default function SearchPage() {
                       <div
                         className="bg-gradient-to-r from-red-400 to-red-600 h-3 rounded-full transition-all duration-1000"
                         style={{
-                          width: results.length > 0 ? `${(results.filter(r => r.isCounterfeit).length / results.length) * 100}%` : '0%'
+                          width: results.length > 0 ? `${(results.filter((r: ScanResult) => r.isCounterfeit).length / results.length) * 100}%` : '0%'
                         }}
                       />
                     </div>
@@ -215,7 +215,7 @@ export default function SearchPage() {
                         <p className="text-sm font-medium text-gray-600">Average Confidence</p>
                         <p className="text-2xl font-bold text-gray-900">
                           {results.length > 0
-                            ? Math.round(results.reduce((sum, r) => sum + r.confidence, 0) / results.length)
+                            ? Math.round(results.reduce((sum: number, r: ScanResult) => sum + r.confidence, 0) / results.length)
                             : 0}%
                         </p>
                       </div>
@@ -239,20 +239,20 @@ export default function SearchPage() {
                             a 15.9155 15.9155 0 0 1 0 31.831
                             a 15.9155 15.9155 0 0 1 0 -31.831"
                           fill="none"
-                          stroke={results.length > 0 && Math.round(results.reduce((sum, r) => sum + r.confidence, 0) / results.length) >= 80 ? '#10B981' :
-                                  results.length > 0 && Math.round(results.reduce((sum, r) => sum + r.confidence, 0) / results.length) >= 60 ? '#F59E0B' : '#EF4444'}
+                          stroke={results.length > 0 && Math.round(results.reduce((sum: number, r: ScanResult) => sum + r.confidence, 0) / results.length) >= 80 ? '#10B981' :
+                                  results.length > 0 && Math.round(results.reduce((sum: number, r: ScanResult) => sum + r.confidence, 0) / results.length) >= 60 ? '#F59E0B' : '#EF4444'}
                           strokeWidth="2"
-                          strokeDasharray={`${results.length > 0 ? (Math.round(results.reduce((sum, r) => sum + r.confidence, 0) / results.length) / 100) * 100 : 0}, 100`}
+                          strokeDasharray={`${results.length > 0 ? (Math.round(results.reduce((sum: number, r: ScanResult) => sum + r.confidence, 0) / results.length) / 100) * 100 : 0}, 100`}
                           className="transition-all duration-1000"
                         />
                       </svg>
                       <div className="absolute inset-0 flex items-center justify-center">
                         <span className={`text-lg font-bold ${
-                          results.length > 0 && Math.round(results.reduce((sum, r) => sum + r.confidence, 0) / results.length) >= 80 ? 'text-green-600' :
-                          results.length > 0 && Math.round(results.reduce((sum, r) => sum + r.confidence, 0) / results.length) >= 60 ? 'text-yellow-600' : 'text-red-600'
+                          results.length > 0 && Math.round(results.reduce((sum: number, r: ScanResult) => sum + r.confidence, 0) / results.length) >= 80 ? 'text-green-600' :
+                          results.length > 0 && Math.round(results.reduce((sum: number, r: ScanResult) => sum + r.confidence, 0) / results.length) >= 60 ? 'text-yellow-600' : 'text-red-600'
                         }`}>
                           {results.length > 0
-                            ? Math.round(results.reduce((sum, r) => sum + r.confidence, 0) / results.length)
+                            ? Math.round(results.reduce((sum: number, r: ScanResult) => sum + r.confidence, 0) / results.length)
                             : 0}
                         </span>
                       </div>

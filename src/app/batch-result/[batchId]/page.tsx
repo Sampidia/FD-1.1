@@ -176,11 +176,11 @@ export default function BatchResultPage({ params }: PageProps) {
     ? Math.round((batchResult.successfulScans / batchResult.totalScans) * 100)
     : 0
 
-  const genuineProducts = batchResult.results.filter(r =>
+  const genuineProducts = batchResult.results.filter((r: BatchScanResult['results'][0]) =>
     r.success && r.result?.isCounterfeit === false
   ).length
 
-  const counterfeitProducts = batchResult.results.filter(r =>
+  const counterfeitProducts = batchResult.results.filter((r: BatchScanResult['results'][0]) =>
     r.success && r.result?.isCounterfeit === true
   ).length
 
