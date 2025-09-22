@@ -15,7 +15,7 @@ import { securityMonitor } from "../services/security-monitor"
 // Cache the basic plan ID to avoid repeated database queries
 let basicPlanId: string | null = null
 
-async function getBasicPlanId() {
+async function getBasicPlanId(): Promise<string> {
   if (basicPlanId) return basicPlanId
 
   // Find the basic plan by name (not ID)
