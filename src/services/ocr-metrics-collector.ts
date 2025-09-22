@@ -312,7 +312,7 @@ export class OCRMetricsCollector {
 
       for (let time = startDate.getTime(); time <= Date.now(); time += intervalMs) {
         const intervalEnd = time + intervalMs
-        const intervalMetrics = metrics.filter(m =>
+        const intervalMetrics = metrics.filter((m: { timestamp: Date; success: boolean }) =>
           m.timestamp.getTime() >= time && m.timestamp.getTime() < intervalEnd
         )
 
