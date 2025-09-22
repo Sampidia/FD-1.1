@@ -1,6 +1,6 @@
 # Fake Products Detector
 
-FD is a Next.js web application that helps users identify counterfeit products by checking against xxxx database. Features user authentication, image upload, product scanning, and point-based usage system.
+FD is a Next.js web application that helps users identify counterfeit products by checking against xxxx database. Features user authentication, image upload, product scanning, and point-based usage system. 
 
 ## 🚀 Features
 
@@ -30,14 +30,14 @@ FD is a Next.js web application that helps users identify counterfeit products b
 
 - Node.js 18+
 - PostgreSQL database
-- Google OAuth credentials
+- Google OAuth credentials 
 - Paystack/Flutterwave credentials
 - SMTP email service
 
 ## 🚀 Getting Started
 
 1. **Clone the repository**
-   
+   Cone or build
 2. **Install dependencies**
    ```bash
    npm install
