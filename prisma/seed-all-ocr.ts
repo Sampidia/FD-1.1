@@ -133,7 +133,7 @@ async function main() {
   })
 
   const planMap: Record<string, string> = {}
-  planRecords.forEach(plan => {
+  planRecords.forEach((plan: any) => {
     planMap[plan.name] = plan.id
   })
 
