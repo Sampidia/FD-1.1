@@ -24,6 +24,17 @@ interface CheckResultItem {
   scrapedAt: Date | null;
 }
 
+interface ScanResult {
+  id: string;
+  productCheckId: string;
+  productName: string;
+  batchNumber?: string;
+  createdAt: string;
+  isCounterfeit: boolean;
+  confidence: number;
+  alertType: string;
+}
+
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user
@@ -99,8 +110,8 @@ export async function GET(request: NextRequest) {
     const stats = {
       totalScans: scans.length,
       recentScans: scans.slice(0, 5), // Latest 5 for dashboard
-      genuineProducts: scans.filter(s => !s.isCounterfeit).length,
-      counterfeitDetected: scans.filter(s => s.isCounterfeit).length
+      genuineProducts: scans.filter((s: ScanResult) => !s.isCounterfeit).length,
+      counterfeitDetected: scans.filter((s: ScanResult) => s.isCounterfeit).length
     }
 
     console.log(`🏠 Dashboard: ${session.user.email} has ${stats.totalScans} scans`)
