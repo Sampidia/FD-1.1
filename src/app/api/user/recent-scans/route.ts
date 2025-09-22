@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
       // Find the latest CheckResult for this ProductCheck
       const latestResult = checkResults
         .filter((cr: CheckResultItem) => cr.productCheckId === productCheck.id)
-        .sort((a, b) => new Date(b.scrapedAt || new Date(0)).getTime() - new Date(a.scrapedAt || new Date(0)).getTime())[0]
+        .sort((a: CheckResultItem, b: CheckResultItem) => new Date(b.scrapedAt || new Date(0)).getTime() - new Date(a.scrapedAt || new Date(0)).getTime())[0]
 
       return {
         id: productCheck.id,
