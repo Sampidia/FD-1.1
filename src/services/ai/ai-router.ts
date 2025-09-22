@@ -455,7 +455,16 @@ export class AIServiceRouter {
       })
 
       // Transform to expected format with dynamic AI type assignment
-      const formattedAssignments: PlanAIAssignment[] = assignments.map(assignment => ({
+      const formattedAssignments: PlanAIAssignment[] = assignments.map((assignment: {
+        planId: string;
+        priority: number;
+        aiProvider: {
+          id: string;
+          name: string;
+          provider: string;
+          modelName: string;
+        }
+      }) => ({
         planId: assignment.planId,
         aiType: this.assignAIBasedOnTask(assignment.aiProvider.provider, planId, requestTask), // Dynamic assignment
         provider: assignment.aiProvider.provider as 'google' | 'google-vision' | 'openai' | 'anthropic',
