@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 
     // Get today's usage data for each provider
     const providerStats = await Promise.all(
-      aiProviders.map(async (provider) => {
+      aiProviders.map(async (provider: any) => {
         // Count requests today
         const todayUsage = await prisma.aIUsageRecord.aggregate({
           where: {
