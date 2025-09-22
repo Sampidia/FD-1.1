@@ -58,6 +58,17 @@ interface RecentPayment {
   paymentGateway: string
 }
 
+interface ScanItem {
+  id: string
+  productCheckId: string
+  productName: string
+  isCounterfeit: boolean
+  confidence: number
+  createdAt: string
+  batchNumber?: string
+  alertType: string
+}
+
 export default function DashboardPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -110,8 +121,8 @@ export default function DashboardPage() {
             setRecentScans(data.scans.slice(0, 5)) // Show only 5 most recent
             // Update stats based on recent data
             const totalScans = data.scans.length
-            const genuineProduct = data.scans.filter((s: any) => !s.isCounterfeit).length
-            const counterfeitCount = data.scans.filter((s: any) => s.isCounterfeit).length
+            const genuineProduct = data.scans.filter((s: ScanItem) => !s.isCounterfeit).length
+            const counterfeitCount = data.scans.filter((s: ScanItem) => s.isCounterfeit).length
 
             setStats(prev => ({
               ...prev,

@@ -23,6 +23,15 @@ import {
   Minus
 } from "lucide-react"
 
+interface ScanResult {
+  isCounterfeit: boolean
+  confidence: number
+  summary: string
+  resultId?: string
+  // Add other properties that might be present in the result
+  [key: string]: unknown
+}
+
 interface BatchScanResult {
   batchId: string
   totalScans: number
@@ -30,7 +39,7 @@ interface BatchScanResult {
   failedScans: number
   results: Array<{
     slotId: string
-    result?: any
+    result?: ScanResult
     error?: string
     success: boolean
     // ✅ NEW: Input data contains original OCR/product details for display

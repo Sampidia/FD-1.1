@@ -5,7 +5,7 @@ import prisma from '@/lib/prisma'
 // Force dynamic rendering for this route (required for auth)
 export const dynamic = 'force-dynamic'
 
-// Type definition for ProductCheck from Prisma query
+// Type definitions for Prisma query results
 interface ProductCheckItem {
   id: string;
   productName: string | null;
@@ -13,6 +13,15 @@ interface ProductCheckItem {
   createdAt: Date;
   images: string[] | null;
   productDescription: string | null;
+}
+
+interface CheckResultItem {
+  productCheckId: string;
+  isCounterfeit: boolean;
+  confidence: number;
+  alertType: string | null;
+  batchNumber: string | null;
+  scrapedAt: Date | null;
 }
 
 export async function GET(request: NextRequest) {
@@ -70,7 +79,7 @@ export async function GET(request: NextRequest) {
     const scans = productChecks.map((productCheck: ProductCheckItem) => {
       // Find the latest CheckResult for this ProductCheck
       const latestResult = checkResults
-        .filter(cr => cr.productCheckId === productCheck.id)
+        .filter((cr: CheckResultItem) => cr.productCheckId === productCheck.id)
         .sort((a, b) => new Date(b.scrapedAt || new Date(0)).getTime() - new Date(a.scrapedAt || new Date(0)).getTime())[0]
 
       return {
