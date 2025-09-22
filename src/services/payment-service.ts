@@ -53,7 +53,7 @@ interface AxiosErrorResponse {
 type PaymentError = Error & AxiosErrorResponse
 
 export class PaymentService {
-  private baseURL = process.env.NEXTAUTH_URL || 'https://fake-detector.vercel.app'
+  private baseURL = process.env.NEXTAUTH_URL || 'https://scan.sampidia.com'
 
   /**
    * Initialize Paystack Payment

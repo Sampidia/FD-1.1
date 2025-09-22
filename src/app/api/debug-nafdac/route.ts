@@ -85,7 +85,7 @@ export async function GET() {
       select: { title: true, productNames: true, batchNumbers: true }
     })
     console.log(`  Found with title contains: ${testExact.length}`)
-    testExact.forEach(alert => console.log(`    - Title: ${alert.title}, Products: ${alert.productNames}, Batches: ${alert.batchNumbers}`))
+    testExact.forEach((alert: any) => console.log(`    - Title: ${alert.title}, Products: ${alert.productNames}, Batches: ${alert.batchNumbers}`))
 
     // Test 2: Product names array search like in the API
     const testProductArr = await prisma.nafdacAlert.findMany({
@@ -97,7 +97,7 @@ export async function GET() {
     })
     console.log(`\n🔍 TEST 2: Product names array search:`)
     console.log(`  Found with productNames.hasSome(['postinor 2']): ${testProductArr.length}`)
-    testProductArr.forEach(alert => console.log(`    - Title: ${alert.title}, Products: ${alert.productNames}, Batches: ${alert.batchNumbers}`))
+    testProductArr.forEach((alert: any) => console.log(`    - Title: ${alert.title}, Products: ${alert.productNames}, Batches: ${alert.batchNumbers}`))
 
     // Test 3: Individual keyword search like in the API
     const testKeywords = await prisma.nafdacAlert.findMany({
@@ -112,7 +112,7 @@ export async function GET() {
     })
     console.log(`\n🔍 TEST 3: Keyword search:`)
     console.log(`  Found with keyword 'postinor': ${testKeywords.length}`)
-    testKeywords.forEach(alert => console.log(`    - Title: ${alert.title}, Products: ${alert.productNames}, Batches: ${alert.batchNumbers}`))
+    testKeywords.forEach((alert: any) => console.log(`    - Title: ${alert.title}, Products: ${alert.productNames}, Batches: ${alert.batchNumbers}`))
 
     // Test 4: Check if batch search would work
     console.log('\n🔍 TEST 4: Batch number search:')
@@ -124,7 +124,7 @@ export async function GET() {
       select: { title: true, productNames: true, batchNumbers: true }
     })
     console.log(`  Found with batch 'TXXXXXB': ${testBatch.length}`)
-    testBatch.forEach(alert => console.log(`    - Title: ${alert.title}, Products: ${alert.productNames}, Batches: ${alert.batchNumbers}`))
+    testBatch.forEach((alert: any) => console.log(`    - Title: ${alert.title}, Products: ${alert.productNames}, Batches: ${alert.batchNumbers}`))
 
     return NextResponse.json({
       totalAlerts,

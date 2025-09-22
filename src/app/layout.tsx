@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_NG",
-    url: "https://fake-detector.vercel.app",
+    url: "https://scan.sampidia.com",
     title: "Fake Products Detector - Verify Before You Buy",
     description: "Discover counterfeit products before you buy. Scan, verify authenticity with NAFDAC integration and protect your health.",
     siteName: "Fake Products Detector",
