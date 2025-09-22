@@ -197,7 +197,7 @@ export class OptimizedNafdacQueries {
     })
 
     // Add fuzzy similarity scoring approximation
-    return alerts.map(alert => ({
+    return alerts.map((alert: any) => ({
       ...alert,
       title_similarity: this.calculateStringSimilarity(alert.title, searchTerm),
       excerpt_similarity: this.calculateStringSimilarity(alert.excerpt, searchTerm)
