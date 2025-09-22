@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "package.json", "use": "@vercel/next" }
+  ],
+  "crons": [
+    {
+      "path": "/api/reset-free-points",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/scraper/cron",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}

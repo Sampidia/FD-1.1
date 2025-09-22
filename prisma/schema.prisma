@@ -1,0 +1,558 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// ============ PERFECT PRISMA SCHEMA - BI-DIRECTIONAL RELATIONS ============
+// Following ALL Prisma best practices for production-grade architecture
+// Every relation has its exact opposite - no ambiguous naming
+
+model UserPlan {
+  id                    String   @id @default(cuid()) @map("_id")
+  name                  String   @unique
+  displayName           String
+  price                 Float    @default(0)
+  currency              String   @default("NGN")
+  maxScansPerMonth      Int      @default(10)
+  maxAIRequestsPerMonth Int      @default(10)
+  priority              Int      @default(1)
+  isActive              Boolean  @default(true)
+
+  // Bidirectional relations - exact matches required
+  users                 User[] @relation("PlanToUsers")
+  subscriptions         Subscription[] @relation("SubscriptionToPlan") // ✅ Added for bidirectional validation
+  planAssignments       PlanAssignment[]
+
+  @@index([isActive, priority])
+}
+
+// ============ PERFECT USER MODEL - ALL RELATIONS BI-DIRECTIONAL ============
+
+model User {
+  id                String      @id @default(cuid()) @map("_id")
+  name              String?
+  email             String      @unique
+  emailVerified     DateTime?
+  image             String?
+  password          String?     // Hashed password for email auth, null for OAuth users
+  // Legacy balance (keep for backward compatibility during transition)
+  pointsBalance     Int         @default(0)
+
+  // Plan-isolated point balances
+  planBasicPoints       Int     @default(0)    // Points purchased at basic tier (75₦)
+  planStandardPoints    Int     @default(0)    // Points purchased at standard tier (100₦)
+  planBusinessPoints    Int     @default(0)    // Points purchased at business tier (130₦)
+  planFreePoints        Int     @default(0)    // Free daily points (reset daily at 9 AM UTC)
+  dailyPointsLastGiven String   @default("")
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  planId            String?     // Temporarily optional while we fix
+
+  // All bidirectional relations with exact matching names
+  planUsers         UserPlan?   @relation("PlanToUsers", fields: [planId], references: [id])
+  userProductChecks ProductCheck[] @relation("UserProductChecks")
+  userCheckResults  CheckResult[] @relation("CheckResultToUser")
+  userPayments      Payment[] @relation("UserToPayments")
+  userSubscriptions Subscription[] @relation("UserToSubscriptions")
+  aiUsageRecords    AIUsageRecord[] @relation("AIUsageToUser") // ✅ Added for bidirectional validation
+  accounts           Account[] @relation("AccountToUser")
+  userSessions      Session[] @relation("SessionToUser")
+  processedImages   ProcessedImageFile[] @relation("UserProcessedImages")
+  deviceTokens      DeviceToken[] @relation("DeviceToUser")   // ✅ Mobile push notifications
+  mobileSessions    MobileSession[] @relation("MobileSessionToUser") // ✅ Mobile analytics
+}
+
+// NOTE: AI Providers, Usage Tracking, and Plan Assignments
+// are COMMENTED OUT for quick launch. They work in your services/
+// but database relations will be added post-launch when you have revenue
+
+// ============ AI PROVIDER MANAGEMENT ============
+// Critical for admin panel AI provider management
+
+model AIProvider {
+  id                  String   @id @default(cuid()) @map("_id")
+  name                String
+  provider            String   // "openai", "anthropic", "google", etc.
+  modelName           String
+  costPerRequest      Float    @default(0.002)
+  maxRequestsPerHour  Int      @default(1000)
+  maxRequestsPerDay   Int      @default(10000)
+  priority            Int      @default(1)
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+
+  // Many-to-many relation with UserPlan via PlanAssignment
+  planAssignments     PlanAssignment[]
+  aiUsageRecords      AIUsageRecord[] @relation("AIUsageToProvider") // ✅ Added matching relation
+
+  // Indexes for performance
+  @@index([isActive])
+  @@index([priority])
+}
+
+model PlanAssignment {
+  id              String     @id @default(cuid()) @map("_id")
+  aiProviderId    String
+  planId          String
+  isActive        Boolean    @default(true)
+  maxRequestsPerHour Int     @default(100)  // Plan-specific limits
+  priority        Int        @default(1)
+  createdAt       DateTime   @default(now())
+
+  // Bidirectional relations
+  aiProvider      AIProvider @relation(fields: [aiProviderId], references: [id])
+  plan            UserPlan   @relation(fields: [planId], references: [id])
+
+  // Unique constraint - one assignment per provider-plan combination
+  @@unique([aiProviderId, planId])
+  @@index([isActive])
+}
+
+// ============ VERIFICATION MODELS ============
+
+model ProductCheck {
+  id                String       @id @default(cuid()) @map("_id")
+  userId            String
+  productName       String
+  productDescription String
+  images            String[]
+  batchNumber       String?      // ✅ Added for optimized queries compatibility
+  pointsUsed        Int          @default(0)
+  createdAt         DateTime     @default(now())
+
+  // Bidirectional relations - exact matches required
+  checkUser         User         @relation("UserProductChecks", fields: [userId], references: [id])
+  checkResults      CheckResult[] @relation("CheckResultToCheck")
+
+  @@index([userId, createdAt])
+}
+
+model CheckResult {
+  id                String      @id @default(cuid()) @map("_id")
+  userId            String
+  productCheckId    String
+  isCounterfeit     Boolean     @default(false)
+  summary           String?
+  source            String?     @default("NAFDAC")  // ✅ Added for NAFDAC source tracking
+  sourceUrl         String?
+  batchNumber       String?
+  confidence        Float       @default(0)
+  alertType         String?     // ✅ Added for optimized queries
+  scrapedAt         DateTime?   // ✅ Added for optimized queries
+  createdAt         DateTime    @default(now())
+
+  // 🆕 AI ANALYSIS FIELDS - PERSIST DATA LIKE FREE TIER RESULTS
+  aiEnhanced        Boolean     @default(false)  // ✅ AI analysis performed
+  aiProductName     String?                     // ✅ AI-extracted clean product name
+  aiBatchNumbers    Json?                       // ✅ AI-extracted batch analysis array
+  aiReason          String?                     // ✅ AI detailed reasoning
+  aiConfidence      Float?                      // ✅ AI confidence score
+  aiAlertType       String?                     // ✅ AI classification: FAKE/RECALL/EXPIRED
+
+  // Bidirectional relations - exact matches required
+  checkUser         User        @relation("CheckResultToUser", fields: [userId], references: [id])
+  productCheck      ProductCheck @relation("CheckResultToCheck", fields: [productCheckId], references: [id])
+
+  @@index([isCounterfeit])
+}
+
+// ============ EXISTING NAFDAC SYSTEM ============
+
+model NafdacAlert {
+  id               String   @id @default(cuid()) @map("_id")
+  title            String
+  url              String   @unique
+  excerpt          String
+  date             String
+  fullContent      String
+  productNames     String[]
+  batchNumbers     String[]
+  manufacturer     String?
+  alertType        String
+  category         String   @default("recalls")
+  severity         String
+  similarity_score Float    @default(0)  // ✅ Added for optimized query compatibility
+  scrapedAt        DateTime @default(now())
+  active           Boolean  @default(true)
+
+  // AI enhancements
+  aiExtracted     Boolean @default(false)
+  aiProductNames  String[]
+  aiBatchNumbers  String[]
+  aiReason        String?
+  aiConfidence    Float   @default(0)
+
+  @@index([active])
+  @@index([scrapedAt])
+  @@index([batchNumbers])
+  @@index([similarity_score])  // ✅ Index for optimized search ordering
+}
+
+// ============ AUTH MODELS ============
+
+model Account {
+  id               String @id @default(cuid()) @map("_id")
+  userId           String
+  type             String
+  provider         String
+  providerAccountId String
+  refresh_token    String?
+  access_token     String?
+  expires_at       Int?
+  token_type       String?
+  scope            String?
+  id_token         String?
+  session_state    String?
+
+  // ✅ FIXED: Standard NextAuth relation name (adapter expects `user`)
+  user User @relation("AccountToUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  // ✅ CRITICAL: Add compound unique constraint required by NextAuth PrismaAdapter
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid()) @map("_id")
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  // Bidirectional relation - exact match required
+  sessionUser User @relation("SessionToUser", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ============ PAYMENT & REVENUE MODELS ============
+// Essential for payment processing and revenue tracking
+
+model Payment {
+  id                String   @id @default(cuid()) @map("_id")
+  userId            String
+  transactionId     String   @unique
+  amount            Float
+  currency          String   @default("NGN")
+  status            String   @default("pending")
+  pointsPurchased   Int?
+  paymentGateway    String   @default("paystack")
+  gatewayResponse   Json?
+  processedAt       DateTime?
+  webhookProcessed  Boolean  @default(false)
+  // Plan isolation tracking
+  planTier          String   @default("basic")  // Which plan tier these points were purchased for
+  pointsAddedTo     String?  // Which point balance these went to (planBasicPoints, etc.)
+  createdAt         DateTime @default(now())
+
+  // Bidirectional relation with User
+  user              User     @relation("UserToPayments", fields: [userId], references: [id])
+}
+
+model ScraperStatus {
+  id            String   @id @map("_id")
+  isScraping    Boolean  @default(false)
+  lastScrapedAt DateTime?
+  lastError     String?
+  lastUpdated   DateTime @default(now())
+
+  // Indexes for performance
+  @@index([lastUpdated])
+}
+
+model Subscription {
+  id              String   @id @default(cuid()) @map("_id")
+  userId          String
+  planId          String
+  status          String   @default("active")
+  currentPeriodStart DateTime @default(now())
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  // Relations
+  user            User     @relation("UserToSubscriptions", fields: [userId], references: [id])
+  plan            UserPlan @relation("SubscriptionToPlan", fields: [planId], references: [id])
+
+  // Indexes
+  @@index([userId])
+  @@index([planId])
+  @@index([status])
+}
+
+// ============ AI USAGE TRACKING ============
+// Needed for AI optimization and cost tracking
+
+model AIUsageRecord {
+  id                  String   @id @default(cuid()) @map("_id")
+  aiProviderId        String?  // Optional for records before AIProvider system
+  userId              String
+  planId              String
+  requestType         String   @default("verification")
+  modelUsed           String?
+  requestTokens       Int      @default(0)
+  responseTokens      Int      @default(0)
+  cost                Float    @default(0)
+  responseTime        Float    @default(0) // in seconds
+  success             Boolean  @default(true)
+  errorMessage        String?
+  createdAt           DateTime @default(now())
+
+  // Full relations available now
+  user                User        @relation("AIUsageToUser", fields: [userId], references: [id])
+  aiProvider          AIProvider? @relation("AIUsageToProvider", fields: [aiProviderId], references: [id], onDelete: SetNull)
+
+  // Indexes for performance
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@index([success])
+  @@index([aiProviderId])
+}
+
+// ============ PLAN USAGE ANALYTICS ============
+// For revenue optimization and customer insights
+
+model PlanUsageTracker {
+  id                  String   @id @default(cuid()) @map("_id")
+  planId              String
+  period              DateTime  // YYYY-MM-01 format
+  totalUsers          Int       @default(0)
+  totalScans          Int       @default(0)
+  totalAIRequests     Int       @default(0)
+  totalCost           Float     @default(0)
+  revenueGenerated    Float     @default(0)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Composite unique key
+  @@unique([planId, period])
+  @@index([planId])
+  @@index([period])
+}
+
+model VerificationToken {
+  id         String   @id @default(cuid()) @map("_id")
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ============ AUTHENTICATION ATTEMPT TRACKING MODELS ============
+// For rate limiting and security monitoring
+
+model LoginAttempt {
+  id            String   @id @default(cuid()) @map("_id")
+  email         String
+  ipAddress     String?
+  userAgent     String?
+  attemptCount  Int      @default(1)
+  firstAttempt  DateTime @default(now())
+  lastAttempt   DateTime @default(now())
+  blockedUntil  DateTime?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([email, createdAt])
+  @@index([isActive, blockedUntil])
+  @@index([email, lastAttempt])
+}
+
+model SignupAttempt {
+  id            String   @id @default(cuid()) @map("_id")
+  email         String
+  ipAddress     String?
+  userAgent     String?
+  attemptCount  Int      @default(1)
+  firstAttempt  DateTime @default(now())
+  lastAttempt   DateTime @default(now())
+  blockedUntil  DateTime?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([email, createdAt])
+  @@index([isActive, blockedUntil])
+  @@index([email, lastAttempt])
+}
+
+
+enum SubscriptionStatus {
+  FREE
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  SUSPENDED
+  EXPIRED
+}
+
+// ============ OCR PERFORMANCE MONITORING ============
+// For admin analytics and system health monitoring
+
+model OCRMetrics {
+  id                    String   @id @default(cuid()) @map("_id")
+  requestId             String   @unique
+  timestamp             DateTime @default(now())
+  strategy              String   // 'claude', 'gemini', 'openai', 'tesseract', 'preprocessing_retry'
+  userPlan              String   @default("free")
+  imageCount            Int      @default(1)
+  processingTime        Int      // milliseconds
+  confidence            Float?
+  success               Boolean  @default(false)
+  errorType             String?  // 'api_error', 'timeout', 'low_quality', 'parsing_error', 'rate_limit', 'auth_error', 'network_error', 'unknown'
+  errorMessage          String?
+  preprocessingUsed     Boolean  @default(false)
+  pharmaceuticalForm    String?
+  batchDetected         Boolean  @default(false)
+  expiryDetected        Boolean  @default(false)
+  manufacturerDetected  Boolean  @default(false)
+  cost                  Float    @default(0) // API cost in USD
+  rawOcrText            String?
+  createdAt             DateTime @default(now())
+
+  // Indexes for performance
+  @@index([timestamp])
+  @@index([strategy])
+  @@index([success])
+  @@index([userPlan])
+}
+
+model SystemHealth {
+  id            String    @id @default(cuid()) @map("_id")
+  metricName    String    // 'cpu_usage', 'memory_usage', 'api_response_time', 'db_connection_pool', 'error_rate'
+  value         Float
+  timestamp     DateTime  @default(now())
+  metadata      Json?     // Additional context data
+
+  // Indexes for performance
+  @@index([metricName, timestamp])
+  @@index([timestamp])
+}
+
+// ============ SYSTEM NOTIFICATIONS ============
+// Enhanced security monitoring and system health notifications
+
+model SystemNotification {
+  id            String    @id @default(cuid()) @map("_id")
+  type          String    // 'security_alert', 'ai_quota_error', 'system_error', 'billing_alert', 'performance_warning'
+
+  // Alert Information
+  title         String
+  message       String
+  severity      String    @default("medium") // 'low', 'medium', 'high', 'critical'
+  status        String    @default("unread") // 'read', 'unread', 'archived'
+
+  // User & Service Context
+  userId          String?   // Affected user ID
+  userEmail       String?   // User email for notifications
+  serviceName     String?   // 'auth', 'ocr', 'payment', 'ai', 'admin'
+  resourceId      String?   // Related resource ID (payment, checkResult, etc.)
+
+  // Geographic & Network Context
+  ipAddress       String?   // Client IP address
+  countryISO      String?   // Country code (NG, US, etc.)
+  userAgent       String?   // Browser/user agent string
+  deviceType      String?   // 'mobile', 'desktop', 'tablet'
+  browserName     String?   // 'Chrome', 'Safari', etc.
+  osName          String?   // Operating system
+
+  // Response & Action Tracking
+  autoResolved    Boolean   @default(false) // Was this auto-resolved?
+  resolutionAction String?  // 'block_ip', 'suspend_user', 'notify_admin', 'ignore'
+  estimatedImpact  String?  // 'low', 'medium', 'high', 'critical'
+  falsePositive    Boolean  @default(false) // Marked as false positive
+
+  // Scoring & ML Enhancement
+  threatScore     Float?    // AI-calculated threat score (0-100)
+  confidence       Float?   // System confidence in alert (0-1)
+  patternId       String?   // Detected attack pattern ID
+  similarEventCount Int    @default(1) // How many similar events
+
+  // Resolution Tracking
+  metadata      Json?     // Additional context data (provider, userId, error details, etc.)
+  isResolved    Boolean   @default(false)
+  resolvedAt    DateTime?
+  resolvedBy    String?   // Admin user ID who resolved it
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Indexes for performance
+  @@index([type])
+  @@index([severity])
+  @@index([status])
+  @@index([createdAt])
+  @@index([isResolved])
+  @@index([userId])
+  @@index([serviceName])
+  @@index([ipAddress])
+  @@index([threatScore])
+}
+
+// ============ FILE UPLOAD SECURITY ============
+// Track processed images for security compliance and abuse prevention
+
+model ProcessedImageFile {
+  id            String   @id @default(cuid()) @map("_id")
+  userId        String
+  originalName  String   // Original filename uploaded by user
+  fileName      String   // Sanitized/renamed filename on server
+  fileSize      Int      // File size in bytes
+  mimeType      String   // MIME type (image/jpeg, image/png, etc.)
+  hash          String   // SHA-256 hash for uniqueness and integrity
+  uploadStatus  String   @default("processing") // processing, verified, rejected, failed
+  securityCheck Boolean  @default(false) // Passed malware scan
+  ocrProcessed  Boolean  @default(false) // OCR analysis completed
+  virustotalResult String? // VirusTotal scan result if applicable
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Bidirectional relation with User
+  user          User     @relation("UserProcessedImages", fields: [userId], references: [id])
+
+  // Indexes for performance and security queries
+  @@index([userId, createdAt])
+  @@index([hash]) // Prevent duplicate uploads
+  @@index([securityCheck, uploadStatus])
+  @@index([createdAt])
+}
+
+// ============ MOBILE APP ENHANCEMENT MODELS (Optional - Future Implementation) ============
+// Support for push notifications and mobile-specific analytics/features
+
+model DeviceToken {
+  id        String   @id @default(cuid()) @map("_id")
+  userId    String
+  token     String   // Push notification token from device
+  platform  String   // 'ios' | 'android'
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Bidirectional relation
+  user      User     @relation("DeviceToUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Prevent duplicate tokens per user
+  @@unique([userId, token])
+  @@index([platform])
+  @@index([enabled])
+}
+
+model MobileSession {
+  id         String    @id @default(cuid()) @map("_id")
+  userId     String
+  deviceInfo Json?     // Screen size, OS version, device model, etc.
+  appVersion String?
+  lastActive DateTime  @default(now())
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  // Bidirectional relation
+  user       User      @relation("MobileSessionToUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, lastActive])
+  @@index([appVersion])
+}
