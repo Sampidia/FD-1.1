@@ -117,7 +117,7 @@ export async function GET(request: Request) {
 
     // Combine and sort recent activity
     const recentActivity = [
-      ...recentAIRequests.map(req => ({
+      ...recentAIRequests.map((req: any) => ({
         id: req.id,
         type: 'ai_request' as const,
         title: 'AI Analysis Completed',
