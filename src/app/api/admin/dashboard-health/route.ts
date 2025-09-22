@@ -124,14 +124,14 @@ export async function GET(request: Request) {
         message: `Processed request for user ${req.user?.email?.split('@')[0]}***`,
         timeAgo: getTimeAgo(req.createdAt)
       })),
-      ...recentScans.map(scan => ({
+      ...recentScans.map((scan: any) => ({
         id: scan.id,
         type: 'scan' as const,
         title: 'Product Verified',
         message: `Scan completed - ${scan.isCounterfeit ? 'Counterfeit detected' : 'Product appears genuine'}`,
         timeAgo: getTimeAgo(scan.createdAt)
       })),
-      ...recentPayments.map(payment => ({
+      ...recentPayments.map((payment: any) => ({
         id: payment.id,
         type: 'payment' as const,
         title: 'Payment Received',
