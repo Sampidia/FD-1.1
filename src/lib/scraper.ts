@@ -445,7 +445,7 @@ export class NafdacSimpleScraper {
 
       // Convert to simple object
       const severityDistribution: Record<string, number> = {}
-      severityStats.forEach(item => {
+      severityStats.forEach((item: { severity: string; _count: { severity: number } }) => {
         severityDistribution[item.severity] = item._count.severity
       })
 
