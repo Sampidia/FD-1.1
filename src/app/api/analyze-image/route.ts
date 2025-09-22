@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
         include: { aiProvider: true, plan: true }
       })
       console.log(`🔍 DEBUG: Found ${planAssignments.length} plan assignments for plan "${userPlan}":`,
-        planAssignments.map(pa => `${pa.aiProvider.name} (${pa.aiProvider.provider})`))
+        planAssignments.map((pa: any) => `${pa.aiProvider.name} (${pa.aiProvider.provider})`))
 
       if (planAssignments.length === 0) {
         console.log('⚠️ No plan assignments found - OCR will use free tier defaults')
