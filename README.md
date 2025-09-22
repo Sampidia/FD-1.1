@@ -121,7 +121,7 @@ Built for Vercel deployment with:
 - Environment variable management
 - PostgreSQL integration
 - Static asset optimization
-Andriod and IOS
+- Andriod and IOS
 
 ## 📝 License
 
