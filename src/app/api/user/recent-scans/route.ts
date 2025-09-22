@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Fetch corresponding CheckResults for the user's scans
-    const productCheckIds = productChecks.map(pc => pc.id)
+    const productCheckIds = productChecks.map((pc: { id: string }) => pc.id)
     const checkResults = await prisma.checkResult.findMany({
       where: {
         productCheckId: {
