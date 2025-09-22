@@ -317,7 +317,7 @@ export class OCRMetricsCollector {
         )
 
         const errorRate = intervalMetrics.length > 0
-          ? (intervalMetrics.filter(m => !m.success).length / intervalMetrics.length) * 100
+          ? (intervalMetrics.filter((m: { timestamp: Date; success: boolean }) => !m.success).length / intervalMetrics.length) * 100
           : 0
 
         trends.push({
