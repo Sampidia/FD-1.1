@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     const aiProviders = await prisma.aIProvider.findMany({
       select: { id: true, isActive: true }
     })
-    const activeAIProviders = aiProviders.filter(p => p.isActive).length
+    const activeAIProviders = aiProviders.filter((p: any) => p.isActive).length
     const systemHealthPercent = Math.round((activeAIProviders / aiProviders.length) * 100 * 0.99) // 99% uptime factor
 
     // Calculate average response time from OCR metrics or AI usage
