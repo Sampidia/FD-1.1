@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
           responseTime: Math.round((todayUsage._avg.responseTime || 0) * 1000), // Convert to ms
           costToday: todayUsage._sum.cost || 0,
           totalCost: totalUsage._sum.cost || 0,
-          plans: provider.planAssignments.map(pa => ({
+          plans: provider.planAssignments.map((pa: any) => ({
             name: pa.plan.name,
             displayName: pa.plan.displayName
           }))
