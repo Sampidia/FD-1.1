@@ -99,22 +99,22 @@ export async function GET(request: Request) {
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
 
     // Count blocked users
-    const blockedLoginUsers = loginAttempts.filter(a => a.blockedUntil && a.blockedUntil > now).length
-    const blockedSignupUsers = signupAttempts.filter(a => a.blockedUntil && a.blockedUntil > now).length
+    const blockedLoginUsers = loginAttempts.filter((a: any) => a.blockedUntil && a.blockedUntil > now).length
+    const blockedSignupUsers = signupAttempts.filter((a: any) => a.blockedUntil && a.blockedUntil > now).length
 
     // Count today's failed attempts
-    const todaysLoginAttempts = loginAttempts.filter(a => a.lastAttempt > oneDayAgo).length
-    const todaysSignupAttempts = signupAttempts.filter(a => a.lastAttempt > oneDayAgo).length
+    const todaysLoginAttempts = loginAttempts.filter((a: any) => a.lastAttempt > oneDayAgo).length
+    const todaysSignupAttempts = signupAttempts.filter((a: any) => a.lastAttempt > oneDayAgo).length
 
     // Count current hour's activity
-    const hourlyLoginAttempts = loginAttempts.filter(a => a.lastAttempt > oneHourAgo).length
-    const hourlySignupAttempts = signupAttempts.filter(a => a.lastAttempt > oneHourAgo).length
+    const hourlyLoginAttempts = loginAttempts.filter((a: any) => a.lastAttempt > oneHourAgo).length
+    const hourlySignupAttempts = signupAttempts.filter((a: any) => a.lastAttempt > oneHourAgo).length
 
     // Get unique suspicious IPs (multiple failed attempts from same IP in short time)
     const suspiciousIPs = new Set<string>()
 
     // Check for IPs with 3+ attempts in last hour
-    const recentAttempts = [...loginAttempts, ...signupAttempts].filter(a => a.lastAttempt > oneHourAgo)
+    const recentAttempts = [...loginAttempts, ...signupAttempts].filter((a: any) => a.lastAttempt > oneHourAgo)
     const ipCountMap = new Map<string, number>()
 
     recentAttempts.forEach(attempt => {

@@ -37,7 +37,7 @@ export async function GET() {
     })
 
     console.log('🔍 Sample active alerts:')
-    sampleAlerts.forEach(alert => {
+    sampleAlerts.forEach((alert: any) => {
       console.log(`  - ${alert.title}`)
       console.log(`    Product names: ${alert.productNames}`)
       console.log(`    Batch numbers: ${alert.batchNumbers}`)

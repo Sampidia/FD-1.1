@@ -93,20 +93,20 @@ export async function GET(request: NextRequest) {
     )
 
     // Calculate overall statistics
-    const totalRequests = providerStats.reduce((sum, p) => sum + p.usageToday, 0)
-    const totalCost = providerStats.reduce((sum, p) => sum + p.costToday, 0)
+    const totalRequests = providerStats.reduce((sum, p: any) => sum + p.usageToday, 0)
+    const totalCost = providerStats.reduce((sum, p: any) => sum + p.costToday, 0)
     const avgResponseTime = providerStats.length > 0 ?
-      Math.round(providerStats.reduce((sum, p) => sum + p.responseTime, 0) / providerStats.length) : 0
+      Math.round(providerStats.reduce((sum, p: any) => sum + p.responseTime, 0) / providerStats.length) : 0
 
     return NextResponse.json({
       providers: providerStats,
       summary: {
         totalProviders: providerStats.length,
-        activeProviders: providerStats.filter(p => p.status === 'healthy').length,
+        activeProviders: providerStats.filter((p: any) => p.status === 'healthy').length,
         totalRequestsToday: totalRequests,
         totalCostToday: totalCost,
         avgResponseTime,
-        systemHealth: providerStats.filter(p => p.status === 'healthy').length / providerStats.length * 100
+        systemHealth: providerStats.filter((p: any) => p.status === 'healthy').length / providerStats.length * 100
       }
     })
 
