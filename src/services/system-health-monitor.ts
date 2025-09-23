@@ -110,7 +110,7 @@ export class SystemHealthMonitor {
       }
 
       const totalMetrics = recentMetrics.length
-      const successfulMetrics = recentMetrics.filter(m => m.confidence && m.confidence >= 0.5).length
+      const successfulMetrics = recentMetrics.filter((m: { confidence: number | null }) => m.confidence && m.confidence >= 0.5).length
       const accuracy = successfulMetrics / totalMetrics
 
       const status = accuracy < this.thresholds.ocr_accuracy.critical ? 'critical' :
