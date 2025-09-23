@@ -161,8 +161,8 @@ export class VectorSimilaritySearch {
 
         // Exact product name match check
         if (productName && alert.productNames.some(
-          name => name.toLowerCase().includes(productName.toLowerCase()) ||
-                 productName.toLowerCase().includes(name.toLowerCase())
+          (name: string) => name.toLowerCase().includes(productName.toLowerCase()) ||
+                           productName.toLowerCase().includes(name.toLowerCase())
         )) {
           matchType = 'HYBRID'
           confidence = 0.9
@@ -171,8 +171,8 @@ export class VectorSimilaritySearch {
 
         // Exact batch number match check
         if (batchNumber && alert.batchNumbers.some(
-          batch => batch.toUpperCase().includes(batchNumber.toUpperCase()) ||
-                  batchNumber.toUpperCase().includes(batch.toUpperCase())
+          (batch: string) => batch.toUpperCase().includes(batchNumber.toUpperCase()) ||
+                            batchNumber.toUpperCase().includes(batch.toUpperCase())
         )) {
           matchType = maxSimilarity > 0.8 ? 'HYBRID' : 'BATCH'
           confidence = 1.0
@@ -356,7 +356,7 @@ export class VectorSimilaritySearch {
       // Risk assessment algorithm
       const riskAssessment = this.assessRiskLevel(searchResult.matches, {
         strictMode,
-        hasExactBatchMatch: searchResult.matches.some(m =>
+        hasExactBatchMatch: searchResult.matches.some((m: { matchType: string }) =>
           m.matchType === 'BATCH' || m.matchType === 'HYBRID'),
         highestSimilarity: searchResult.matches[0]?.similarity || 0
       })
@@ -510,8 +510,8 @@ export class VectorSimilaritySearch {
 
       // Find exact matches
       for (const alert of alerts) {
-        const matchingBatches = alert.batchNumbers.filter(batch =>
-          upperBatches.some(search => search.includes(batch) || batch.includes(search))
+        const matchingBatches = alert.batchNumbers.filter((batch: string) =>
+          upperBatches.some((search: string) => search.includes(batch) || batch.includes(search))
         )
 
         if (matchingBatches.length > 0) {
