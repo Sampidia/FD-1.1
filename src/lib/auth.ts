@@ -1,6 +1,6 @@
 import NextAuth, { type Session } from "next-auth"
 import type { JWT } from "next-auth/jwt"
-import { PrismaAdapter } from "@auth/prisma-adapter"
+import { PrismaAdapter } from "@next-auth/prisma-adapter"
 import "@/types/nextauth"
 import Google from "next-auth/providers/google"
 import Email from "next-auth/providers/email"
