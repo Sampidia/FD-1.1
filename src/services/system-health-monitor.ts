@@ -155,7 +155,7 @@ export class SystemHealthMonitor {
         }
       }
 
-      const avgResponseTime = recentUsage.reduce((sum, record) =>
+      const avgResponseTime = recentUsage.reduce((sum: number, record: { responseTime: number | null }) =>
         sum + (record.responseTime || 0), 0) / recentUsage.length
 
       const status = avgResponseTime > this.thresholds.api_response_time.critical ? 'critical' :
