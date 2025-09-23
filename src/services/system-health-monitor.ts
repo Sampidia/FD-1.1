@@ -206,8 +206,8 @@ export class SystemHealthMonitor {
         }
       }
 
-      const failedOperations = ocrMetrics.filter(m => !m.success).length +
-                              aiUsage.filter(u => !u.success).length
+      const failedOperations = ocrMetrics.filter((m: { success: boolean }) => !m.success).length +
+                              aiUsage.filter((u: { success: boolean }) => !u.success).length
       const errorRate = (failedOperations / totalOperations) * 100
 
       const status = errorRate > this.thresholds.error_rate.critical ? 'critical' :
