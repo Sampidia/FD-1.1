@@ -1,4 +1,4 @@
-import NextAuth, { type Session } from "next-auth"
+import NextAuth, { type Session, type User } from "next-auth"
 import type { JWT } from "next-auth/jwt"
 import { PrismaAdapter } from "@next-auth/prisma-adapter"
 import "@/types/nextauth"
@@ -39,39 +39,42 @@ async function getBasicPlanId(): Promise<string> {
   return fallbackId
 }
 
-const providers = [
-  // Include Google provider only if environment variables are set
-  ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    })
-  ] : []),
-  // Include Email provider only if SMTP host is configured
-  ...(process.env.SMTP_HOST ? [
-    Email({
-      server: {
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT ?? "587"),
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
-        secure: false,
-        tls: {
-          ciphers: "SSLv3",
-          rejectUnauthorized: false,
-        },
-      },
-      from: process.env.SMTP_FROM_EMAIL,
-      async sendVerificationRequest({
-        identifier: email,
-        url,
-        provider: { server, from },
-      }) {
-        const { sendEmail, emailTemplates } = await import('@/lib/email')
+// Build providers array conditionally to ensure it's always valid and iterable
+const providers = []
 
-        const verificationTemplate = `<!DOCTYPE html>
+// Add Google provider if environment variables are available
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  providers.push(Google({
+    clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  }))
+}
+
+// Add Email provider if SMTP configuration is available
+if (process.env.SMTP_HOST) {
+  providers.push(Email({
+    server: {
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT ?? "587"),
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+      secure: false,
+      tls: {
+        ciphers: "SSLv3",
+        rejectUnauthorized: false,
+      },
+    },
+    from: process.env.SMTP_FROM_EMAIL,
+    async sendVerificationRequest({
+      identifier: email,
+      url,
+      provider: { server, from },
+    }) {
+      const { sendEmail, emailTemplates } = await import('@/lib/email')
+
+      const verificationTemplate = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -114,82 +117,82 @@ const providers = [
 </body>
 </html>`
 
-        await sendEmail({
-          to: email,
-          subject: "Sign in to Fake Product Detector",
-          html: verificationTemplate,
-        })
-      },
-    })
-  ] : []),
-  // Always include Credentials provider
-  Credentials({
-    name: "credentials",
-    credentials: {
-      email: { label: "Email", type: "email" },
-      password: { label: "Password", type: "password" },
-      recaptchaToken: { label: "reCAPTCHA Token", type: "text" }
+      await sendEmail({
+        to: email,
+        subject: "Sign in to Fake Product Detector",
+        html: verificationTemplate,
+      })
     },
-    authorize: async (credentials, request) => {
-      try {
-        const { email, password, recaptchaToken } = z.object({
-          email: z.string().email(),
-          password: z.string().min(6),
-          recaptchaToken: z.string().min(1, "reCAPTCHA verification required")
-        }).parse(credentials)
+  }))
+}
 
-        // Verify reCAPTCHA for sign-in attempts
-        const recaptchaResult = await verifyRecaptchaForSignIn(recaptchaToken, email)
-        if (!recaptchaResult.success) {
-          throw new Error(recaptchaResult.error || "reCAPTCHA verification failed")
-        }
+// Always include Credentials provider
+providers.push(Credentials({
+  name: "credentials",
+  credentials: {
+    email: { label: "Email", type: "email" },
+    password: { label: "Password", type: "password" },
+    recaptchaToken: { label: "reCAPTCHA Token", type: "text" }
+  },
+  authorize: async (credentials, request) => {
+    try {
+      const { email, password, recaptchaToken } = z.object({
+        email: z.string().email(),
+        password: z.string().min(6),
+        recaptchaToken: z.string().min(1, "reCAPTCHA verification required")
+      }).parse(credentials)
 
-        // Extract IP address and user agent for security monitoring
-        const ipAddress = request?.headers?.get('x-forwarded-for') ||
-                         request?.headers?.get('x-real-ip') ||
-                         'unknown'
-        const userAgent = request?.headers?.get('user-agent') || 'unknown'
-
-        // Find user by email
-        const user = await prisma.user.findUnique({
-          where: { email }
-        })
-
-        if (!user) {
-          // User not found - record failed login attempt
-          await securityMonitor.recordFailedLogin(email, ipAddress, userAgent)
-          return null // User not found
-        }
-
-        // Check if user has a password (i.e., registered via email)
-        if (!user.password) {
-          // User registered via OAuth, no password set - record failed login attempt
-          await securityMonitor.recordFailedLogin(email, ipAddress, userAgent)
-          return null // User registered via OAuth, no password set
-        }
-
-        // Verify password
-        const isValidPassword = await bcrypt.compare(password, user.password)
-        if (!isValidPassword) {
-          // Invalid password - record failed login attempt
-          await securityMonitor.recordFailedLogin(email, ipAddress, userAgent)
-          return null // Invalid password
-        }
-
-        // Successful login - return user object for session (must match NextAuth User type)
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name || undefined,
-          image: user.image || undefined,
-        }
-      } catch (error) {
-        console.error("Credentials auth error:", error)
-        return null
+      // Verify reCAPTCHA for sign-in attempts
+      const recaptchaResult = await verifyRecaptchaForSignIn(recaptchaToken, email)
+      if (!recaptchaResult.success) {
+        throw new Error(recaptchaResult.error || "reCAPTCHA verification failed")
       }
+
+      // Extract IP address and user agent for security monitoring
+      const ipAddress = request?.headers?.get('x-forwarded-for') ||
+                       request?.headers?.get('x-real-ip') ||
+                       'unknown'
+      const userAgent = request?.headers?.get('user-agent') || 'unknown'
+
+      // Find user by email
+      const user = await prisma.user.findUnique({
+        where: { email }
+      })
+
+      if (!user) {
+        // User not found - record failed login attempt
+        await securityMonitor.recordFailedLogin(email, ipAddress, userAgent)
+        return null // User not found
+      }
+
+      // Check if user has a password (i.e., registered via email)
+      if (!user.password) {
+        // User registered via OAuth, no password set - record failed login attempt
+        await securityMonitor.recordFailedLogin(email, ipAddress, userAgent)
+        return null // User registered via OAuth, no password set
+      }
+
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, user.password)
+      if (!isValidPassword) {
+        // Invalid password - record failed login attempt
+        await securityMonitor.recordFailedLogin(email, ipAddress, userAgent)
+        return null // Invalid password
+      }
+
+      // Successful login - return user object for session (must match NextAuth User type)
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.name || undefined,
+        image: user.image || undefined,
+      }
+    } catch (error) {
+      console.error("Credentials auth error:", error)
+      return null
     }
-  })
-]
+  }
+}))
 
 const authOptions = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -202,8 +205,13 @@ const authOptions = NextAuth({
   },
 
   callbacks: {
-    async jwt({ token, user }: { token: JWT; user?: any }) {
+    async jwt({ token, user }: { token: JWT; user?: User | undefined }) {
       if (user) {
+        // Reject authentication if email is missing (shouldn't happen with configured providers)
+        if (!user.email) {
+          throw new Error('Authentication failed: email is required')
+        }
+
         // Get the actual basic plan ID from database
         const actualBasicPlanId = await getBasicPlanId()
 
@@ -211,8 +219,8 @@ const authOptions = NextAuth({
         await ensureUserExists({
           id: user.id,
           email: user.email,
-          name: user.name,
-          image: user.image,
+          name: user.name || undefined,
+          image: user.image || undefined,
           planId: actualBasicPlanId // Use actual plan ID, not hardcoded string
         })
         token.id = user.id || token.sub

@@ -27,7 +27,7 @@ export default function AuthErrorPage() {
               Authentication Error
             </CardTitle>
             <CardDescription className="text-gray-600">
-              There was a problem signing you in with Google.
+              There was a problem with your authentication.
             </CardDescription>
           </CardHeader>
 
