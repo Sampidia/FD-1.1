@@ -5,11 +5,6 @@ import prisma from '@/lib/prisma'
 // Force dynamic rendering for auth-required API routes
 export const dynamic = 'force-dynamic'
 
-// Prevent static generation
-export async function generateStaticParams() {
-  return []
-}
-
 export async function GET(request: NextRequest) {
   try {
     // Prevent build-time execution
