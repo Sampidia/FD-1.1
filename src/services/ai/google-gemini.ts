@@ -385,7 +385,23 @@ MANDATORY: Both productName and batchNumbers must be populated with real extract
            `Process this text and extract key information: ${text}`
   }
 
-  private extractStructuredData(content: string, task: string): any {
+  private extractStructuredData(content: string, task: string): {
+    productName?: string
+    batchNumbers?: string[]
+    manufacturers?: string[]
+    expiryDate?: string
+    confidence?: number
+    isCounterfeit?: boolean
+    riskLevel?: 'HIGH' | 'MEDIUM' | 'LOW' | 'CRITICAL'
+    reason?: string
+    recommendation?: string
+    productNames?: string[]
+    category?: 'COUNTERFEIT' | 'RECALL' | 'EXPIRED' | 'QUALITY_ISSUE'
+    severity?: 'HIGH' | 'MEDIUM' | 'LOW'
+    manufacturer?: string
+    affectedRegions?: string[]
+    [key: string]: string | string[] | number | boolean | 'HIGH' | 'MEDIUM' | 'LOW' | 'CRITICAL' | 'COUNTERFEIT' | 'RECALL' | 'EXPIRED' | 'QUALITY_ISSUE' | undefined
+  } {
     try {
       // Try to parse as JSON first
       const jsonMatch = content.match(/\{[\s\S]*\}/)
@@ -410,8 +426,22 @@ MANDATORY: Both productName and batchNumbers must be populated with real extract
     }
   }
 
-  private extractOCRFromText(text: string): any {
-    const result: any = {}
+  private extractOCRFromText(text: string): {
+    productName?: string
+    batchNumbers?: string[]
+    manufacturers?: string[]
+    expiryDate?: string
+    confidence?: number
+    [key: string]: string | string[] | number | undefined
+  } {
+    const result: {
+      productName?: string
+      batchNumbers?: string[]
+      manufacturers?: string[]
+      expiryDate?: string
+      confidence?: number
+      [key: string]: string | string[] | number | undefined
+    } = {}
 
     // Enhanced batch number extraction for multi-image scenario
     const batchPatterns = [
@@ -539,8 +569,22 @@ MANDATORY: Both productName and batchNumbers must be populated with real extract
     return result
   }
 
-  private extractVerificationFromText(text: string): any {
-    const result: any = {}
+  private extractVerificationFromText(text: string): {
+    isCounterfeit?: boolean
+    confidence?: number
+    riskLevel?: 'HIGH' | 'MEDIUM' | 'LOW' | 'CRITICAL'
+    reason?: string
+    recommendation?: string
+    [key: string]: string | number | boolean | 'HIGH' | 'MEDIUM' | 'LOW' | 'CRITICAL' | undefined
+  } {
+    const result: {
+      isCounterfeit?: boolean
+      confidence?: number
+      riskLevel?: 'HIGH' | 'MEDIUM' | 'LOW' | 'CRITICAL'
+      reason?: string
+      recommendation?: string
+      [key: string]: string | number | boolean | 'HIGH' | 'MEDIUM' | 'LOW' | 'CRITICAL' | undefined
+    } = {}
 
     // Check for counterfeit indicators
     const counterfeitIndicators = /(?:fake|counterfeit|falsified|spurious|adulterated)/i
@@ -570,8 +614,28 @@ MANDATORY: Both productName and batchNumbers must be populated with real extract
     return result
   }
 
-  private extractAlertFromText(text: string): any {
-    const result: any = { productNames: [], batchNumbers: [], affectedRegions: [] }
+  private extractAlertFromText(text: string): {
+    productNames?: string[]
+    batchNumbers?: string[]
+    affectedRegions?: string[]
+    reason?: string
+    category?: 'RECALL' | 'COUNTERFEIT' | 'EXPIRED' | 'QUALITY_ISSUE'
+    manufacturer?: string
+    severity?: 'HIGH' | 'MEDIUM' | 'LOW'
+    confidence?: number
+    [key: string]: string | string[] | 'RECALL' | 'COUNTERFEIT' | 'EXPIRED' | 'QUALITY_ISSUE' | 'HIGH' | 'MEDIUM' | 'LOW' | number | undefined
+  } {
+    const result: {
+      productNames?: string[]
+      batchNumbers?: string[]
+      affectedRegions?: string[]
+      reason?: string
+      category?: 'RECALL' | 'COUNTERFEIT' | 'EXPIRED' | 'QUALITY_ISSUE'
+      manufacturer?: string
+      severity?: 'HIGH' | 'MEDIUM' | 'LOW'
+      confidence?: number
+      [key: string]: string | string[] | 'RECALL' | 'COUNTERFEIT' | 'EXPIRED' | 'QUALITY_ISSUE' | 'HIGH' | 'MEDIUM' | 'LOW' | number | undefined
+    } = { productNames: [], batchNumbers: [], affectedRegions: [] }
 
     // Extract product names
     const productPatterns = [
@@ -581,9 +645,12 @@ MANDATORY: Both productName and batchNumbers must be populated with real extract
 
     productPatterns.forEach(pattern => {
       const matches = Array.from(text.matchAll(pattern), m => m[1]?.trim()).filter(Boolean)
+      if (!result.productNames) result.productNames = []
       result.productNames.push(...matches)
     })
-    result.productNames = [...new Set(result.productNames)]
+    if (result.productNames) {
+      result.productNames = [...new Set(result.productNames)]
+    }
 
     // Extract batch numbers
     const batchPatterns = [
@@ -593,9 +660,12 @@ MANDATORY: Both productName and batchNumbers must be populated with real extract
 
     batchPatterns.forEach(pattern => {
       const matches = Array.from(text.matchAll(pattern), m => m[1]?.trim()).filter(Boolean)
+      if (!result.batchNumbers) result.batchNumbers = []
       result.batchNumbers.push(...matches)
     })
-    result.batchNumbers = [...new Set(result.batchNumbers)]
+    if (result.batchNumbers) {
+      result.batchNumbers = [...new Set(result.batchNumbers)]
+    }
 
     // Determine reason
     if (/(?:fake|counterfeit|falsified)/i.test(text)) {
@@ -621,7 +691,7 @@ MANDATORY: Both productName and batchNumbers must be populated with real extract
     if (manufacturerMatch) result.manufacturer = manufacturerMatch[1].trim()
 
     // Add confidence score for alert extraction
-    result.confidence = Math.min(result.productNames.length * 0.1 + result.batchNumbers.length * 0.15 + 0.5, 0.9)
+    result.confidence = Math.min((result.productNames?.length || 0) * 0.1 + (result.batchNumbers?.length || 0) * 0.15 + 0.5, 0.9)
 
     return result
   }

@@ -58,9 +58,19 @@ export class GoogleVisionService {
 
       // Extract text from all images
       let combinedText = ''
-      const textAnnotations: any[] = []
+      const textAnnotations: Array<{
+        description?: string
+        boundingPoly?: any
+        [key: string]: unknown
+      }> = []
 
-      result.responses?.forEach((response: any, index: number) => {
+      result.responses?.forEach((response: {
+        textAnnotations?: Array<{
+          description?: string
+          boundingPoly?: any
+          [key: string]: unknown
+        }>
+      }, index: number) => {
         console.log(`🔤 [Google Vision] Processing response ${index + 1}:`, {
           hasTextAnnotations: !!response.textAnnotations,
           annotationCount: response.textAnnotations?.length || 0
@@ -153,13 +163,30 @@ export class GoogleVisionService {
     }
   }
 
-  private async processExtractedText(extractedText: string, request: AIRequest): Promise<any> {
+  private async processExtractedText(extractedText: string, request: AIRequest): Promise<{
+    productNames?: string[]
+    batchNumbers?: string[]
+    expiryDate?: string
+    manufacturers?: string[]
+    confidence?: number
+    extractedText?: string
+    warnings?: string[]
+    [key: string]: string | string[] | number | undefined
+  }> {
     console.log(`📝 [Google Vision] Processing extracted text (${extractedText.length} chars): "${extractedText.substring(0, 200)}..."`)
 
-    const result: any = {
+    const result: {
+      productNames?: string[]
+      batchNumbers?: string[]
+      expiryDate?: string
+      manufacturers?: string[]
+      confidence?: number
+      extractedText?: string
+      warnings?: string[]
+      [key: string]: string | string[] | number | undefined
+    } = {
       productNames: [],
       batchNumbers: [],
-      expiryDate: null,
       manufacturers: [],
       confidence: 0.5,
       extractedText: extractedText
@@ -229,6 +256,7 @@ export class GoogleVisionService {
       // Choose the best product name (prefer longer, more specific names)
       if (potentialProducts.length > 0) {
         potentialProducts.sort((a, b) => b.length - a.length) // Sort by length descending
+        if (!result.productNames) result.productNames = []
         result.productNames = [potentialProducts[0]]
         console.log(`✅ [Google Vision] Selected product name: ${result.productNames[0]}`)
       }
@@ -261,10 +289,11 @@ export class GoogleVisionService {
         let match
         while ((match = pattern.exec(normalizedText)) !== null) {
           const manufacturer = match[1]?.trim()
-          if (manufacturer && manufacturer.length > 3) {
-            result.manufacturers.push(manufacturer)
-            console.log(`🏭 [Google Vision] Found manufacturer: ${manufacturer}`)
-          }
+        if (manufacturer && manufacturer.length > 3) {
+          if (!result.manufacturers) result.manufacturers = []
+          result.manufacturers.push(manufacturer)
+          console.log(`🏭 [Google Vision] Found manufacturer: ${manufacturer}`)
+        }
         }
       }
 
@@ -274,26 +303,28 @@ export class GoogleVisionService {
       // Calculate confidence score based on extraction quality
       let confidenceScore = 0.4 // Base confidence for Vision API extraction
 
-      if (result.productNames.length > 0) confidenceScore += 0.25
-      if (result.batchNumbers.length > 0) confidenceScore += 0.25
+      if (result.productNames && result.productNames.length > 0) confidenceScore += 0.25
+      if (result.batchNumbers && result.batchNumbers.length > 0) confidenceScore += 0.25
       if (result.expiryDate) confidenceScore += 0.15
-      if (result.manufacturers.length > 0) confidenceScore += 0.15
+      if (result.manufacturers && result.manufacturers.length > 0) confidenceScore += 0.15
 
       // Bonus for having multiple data points
-      if ((result.productNames.length > 0 && result.batchNumbers.length > 0) ||
-          (result.productNames.length > 0 && result.expiryDate) ||
-          (result.batchNumbers.length > 0 && result.expiryDate)) {
+      if ((result.productNames && result.productNames.length > 0 && result.batchNumbers && result.batchNumbers.length > 0) ||
+          (result.productNames && result.productNames.length > 0 && result.expiryDate) ||
+          (result.batchNumbers && result.batchNumbers.length > 0 && result.expiryDate)) {
         confidenceScore += 0.1
       }
 
       result.confidence = Math.min(confidenceScore, 0.95) // Cap at 95% for Vision API
 
-      console.log(`🎯 [Google Vision] Extraction results: product="${result.productNames[0] || 'none'}", batches=[${result.batchNumbers.join(',')}], expiry="${result.expiryDate}", manufacturers=[${result.manufacturers.join(',')}], confidence=${result.confidence}`)
+      console.log(`🎯 [Google Vision] Extraction results: product="${result.productNames?.[0] || 'none'}", batches=[${result.batchNumbers?.join(',') || 'none'}], expiry="${result.expiryDate || 'none'}", manufacturers=[${result.manufacturers?.join(',') || 'none'}], confidence=${result.confidence}`)
 
       // Add warnings for low confidence
       if (result.confidence < 0.5) {
         result.warnings = ['Low confidence in extracted data - please verify manually']
       }
+
+      return result
 
     } catch (error) {
       console.error('[Google Vision] Error processing extracted text:', error)

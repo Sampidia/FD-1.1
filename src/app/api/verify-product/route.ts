@@ -86,7 +86,7 @@ const verifyProductSchema = z.object({
 function logSecurityEvent(event: string, data: {
   ip?: string
   userId?: string
-  details?: Record<string, any>
+  details?: Record<string, string | number | boolean>
 }) {
   const timestamp = new Date().toISOString()
   console.log(`🔒 SECURITY EVENT [${timestamp}]: ${event}`, {
@@ -188,16 +188,16 @@ export async function POST(request: NextRequest) {
       try {
         const userWithFreePoints = await prisma.user.findUnique({
           where: { id: session.user.id },
-          select: { planFreePoints: true } as any
+          select: { planFreePoints: true } as { planFreePoints: true }
         })
-        if (userWithFreePoints && (userWithFreePoints as any).planFreePoints !== undefined) {
-          (user as any).planFreePoints = (userWithFreePoints as any).planFreePoints || 0
+        if (userWithFreePoints && (userWithFreePoints as { planFreePoints?: number }).planFreePoints !== undefined) {
+          (user as { planFreePoints?: number }).planFreePoints = (userWithFreePoints as { planFreePoints?: number }).planFreePoints || 0
         } else {
-          (user as any).planFreePoints = 0 // Default if field doesn't exist
+          (user as { planFreePoints?: number }).planFreePoints = 0 // Default if field doesn't exist
         }
       } catch (fieldError) {
         // Field might not exist in older databases
-        (user as any).planFreePoints = 0
+        (user as { planFreePoints?: number }).planFreePoints = 0
       }
 
       if (!user && session.user.email) {
@@ -279,9 +279,9 @@ export async function POST(request: NextRequest) {
         // Try to get business points
         const businessData = await prisma.user.findUnique({
           where: { id: session.user.id },
-          select: { planBusinessPoints: true } as any
+          select: { planBusinessPoints: true } as { planBusinessPoints: true }
         })
-        businessPoints = (businessData as any)?.planBusinessPoints || 0
+        businessPoints = (businessData as { planBusinessPoints?: number })?.planBusinessPoints || 0
       } catch (error) {
         console.log('⚠️ Business points field not available')
       }
@@ -290,9 +290,9 @@ export async function POST(request: NextRequest) {
         // Try to get standard points
         const standardData = await prisma.user.findUnique({
           where: { id: session.user.id },
-          select: { planStandardPoints: true } as any
+          select: { planStandardPoints: true } as { planStandardPoints: true }
         })
-        standardPoints = (standardData as any)?.planStandardPoints || 0
+        standardPoints = (standardData as { planStandardPoints?: number })?.planStandardPoints || 0
       } catch (error) {
         console.log('⚠️ Standard points field not available')
       }
@@ -301,9 +301,9 @@ export async function POST(request: NextRequest) {
         // Try to get basic points
         const basicData = await prisma.user.findUnique({
           where: { id: session.user.id },
-          select: { planBasicPoints: true } as any
+          select: { planBasicPoints: true } as { planBasicPoints: true }
         })
-        basicPoints = (basicData as any)?.planBasicPoints || 0
+        basicPoints = (basicData as { planBasicPoints?: number })?.planBasicPoints || 0
       } catch (error) {
         console.log('⚠️ Basic points field not available')
       }
@@ -1195,7 +1195,17 @@ RESPONSE FORMAT (ONLY RETURN JSON, NO OTHER TEXT):
           batchNumber: null,
           alertType: "No Alert",
           confidence: result.confidence // Use the computed confidence (95%)
-        } as any
+        } as {
+          userId: string
+          productCheckId: string
+          isCounterfeit: boolean
+          summary: string
+          source: string
+          sourceUrl: string
+          batchNumber: string | null
+          alertType: string
+          confidence: number
+        }
       })
 
       const safeResponse = NextResponse.json({
@@ -1230,7 +1240,23 @@ RESPONSE FORMAT (ONLY RETURN JSON, NO OTHER TEXT):
         aiReason: aiReason,
         aiConfidence: aiConfidence,
         aiAlertType: alertType
-      } as any
+      } as {
+        userId: string
+        productCheckId: string
+        isCounterfeit: boolean
+        summary: string
+        source: string
+        sourceUrl: string
+        alertType: string
+        confidence: number
+        batchNumber: string | null
+        aiEnhanced: boolean
+        aiProductName: string | null
+        aiBatchNumbers: string[]
+        aiReason: string
+        aiConfidence: number | null
+        aiAlertType: string
+      }
     })
 
     // Final response with AI analysis results

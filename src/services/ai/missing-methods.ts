@@ -47,7 +47,13 @@ export class MissingOCRMethods {
       detectedText: string
     }> {
 
-    const metadata = {
+    const metadata: {
+      batchNumbers: string[]
+      drugNames: string[]
+      expiryDates: string[]
+      manufacturerInfo: string[]
+      detectedText: string
+    } = {
       batchNumbers: [],
       drugNames: [],
       expiryDates: [],
@@ -131,7 +137,13 @@ Format as simple text, not JSON.`
   }
 
   // 📝 3. PARSE GEMINI TEXT RESPONSE
-  private static async extractMetadataFromGeminiText(text: string, metadata: any): Promise<void> {
+  private static async extractMetadataFromGeminiText(text: string, metadata: {
+    batchNumbers: string[]
+    drugNames: string[]
+    expiryDates: string[]
+    manufacturerInfo: string[]
+    detectedText: string
+  }): Promise<void> {
     // Enhanced batch number extraction patterns
     const batchPatterns = [
       /(?:batch|lot|bno)\s*:?\s*([A-Z]+\d+[A-Z0-9]*)/gi,  // T36184B

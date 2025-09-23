@@ -229,7 +229,7 @@ export class SecurityMonitor {
         _count: { id: true }
       })
 
-      const highVolumeUsers = scanStats.filter(stat => stat._count.id > 50) // More than 50 scans per hour
+      const highVolumeUsers = scanStats.filter((stat: { userId: string | null; _count: { id: number } }) => stat._count.id > 50) // More than 50 scans per hour
 
       for (const user of highVolumeUsers) {
         await this.recordUnusualActivity(
@@ -244,7 +244,7 @@ export class SecurityMonitor {
       }
 
       // Check for suspicious scan patterns (high volume)
-      const suspiciousUsers = scanStats.filter(stat => stat._count.id > 20) // More than 20 scans per hour
+      const suspiciousUsers = scanStats.filter((stat: { userId: string | null; _count: { id: number } }) => stat._count.id > 20) // More than 20 scans per hour
 
       for (const user of suspiciousUsers) {
         await this.recordUnusualActivity(
@@ -436,7 +436,7 @@ export class SecurityMonitor {
         failedLogins: failedLoginCount,
         securityAlerts: alerts.length,
         blockedIPs: [], // Could track blocked IPs here
-        recentEvents: alerts.slice(0, 10).map(alert => ({
+        recentEvents: alerts.slice(0, 10).map((alert: { severity: string; createdAt: Date; metadata?: unknown }) => ({
           type: ((alert.metadata as Record<string, unknown>)?.eventType as string) || 'unknown',
           severity: alert.severity as 'low' | 'medium' | 'high' | 'critical',
           userId: (alert.metadata as Record<string, unknown>)?.userId as string,

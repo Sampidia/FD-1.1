@@ -34,7 +34,7 @@ export interface OCRMetrics {
 export interface SystemHealthMetrics {
   metricName: 'cpu_usage' | 'memory_usage' | 'api_response_time' | 'db_connection_pool' | 'error_rate'
   value: number
-  metadata?: Record<string, any>
+  metadata?: Record<string, string | number | boolean>
 }
 
 export interface OCRPerformanceStats {
@@ -121,8 +121,8 @@ export class OCRMetricsCollector {
       console.error('❌ FAILED TO SAVE OCR METRICS TO DATABASE:', error);
       console.error('Error details:', {
         message: error instanceof Error ? error.message : 'Unknown error',
-        code: (error as any)?.code,
-        meta: (error as any)?.meta
+        code: (error as { code?: string })?.code,
+        meta: (error as { meta?: unknown })?.meta
       });
       // Don't throw - metrics collection shouldn't break the main flow
     }
@@ -199,7 +199,14 @@ export class OCRMetricsCollector {
   /**
    * Get strategy performance comparison
    */
-  async getStrategyComparison(hours: number = 24): Promise<Record<string, any>> {
+  async getStrategyComparison(hours: number = 24): Promise<Record<string, {
+    requests: number
+    successRate: number
+    averageTime: number
+    averageConfidence: number
+    averageCost: number
+    totalCost: number
+  }>> {
     try {
       const startDate = new Date(Date.now() - hours * 60 * 60 * 1000)
 
@@ -363,14 +370,19 @@ export class OCRMetricsCollector {
       : 0
 
     // Calculate strategy performance
-    const strategyPerformance: Record<string, any> = {}
+    const strategyPerformance: Record<string, {
+      requests: number
+      successRate: number
+      averageTime: number
+      averageCost: number
+    }> = {}
     const strategyGroups = metrics.reduce((acc, m) => {
       if (!acc[m.strategy]) {
         acc[m.strategy] = []
       }
       acc[m.strategy].push(m)
       return acc
-    }, {} as Record<string, any[]>)
+    }, {} as Record<string, OCRMetrics[]>)
 
     for (const [strategy, strategyMetrics] of Object.entries(strategyGroups)) {
       const strategyRequests = strategyMetrics.length
@@ -393,14 +405,18 @@ export class OCRMetricsCollector {
     })
 
     // Calculate plan performance
-    const planPerformance: Record<string, any> = {}
+    const planPerformance: Record<string, {
+      requests: number
+      successRate: number
+      averageTime: number
+    }> = {}
     const planGroups = metrics.reduce((acc, m) => {
       if (!acc[m.userPlan]) {
         acc[m.userPlan] = []
       }
       acc[m.userPlan].push(m)
       return acc
-    }, {} as Record<string, any[]>)
+    }, {} as Record<string, OCRMetrics[]>)
 
     for (const [plan, planMetrics] of Object.entries(planGroups)) {
       const planRequests = planMetrics.length
@@ -415,7 +431,11 @@ export class OCRMetricsCollector {
     }
 
     // Calculate pharmaceutical form stats
-    const pharmaceuticalFormStats: Record<string, any> = {}
+    const pharmaceuticalFormStats: Record<string, {
+      requests: number
+      successRate: number
+      averageConfidence: number
+    }> = {}
     const formGroups = metrics.reduce((acc, m) => {
       const form = m.pharmaceuticalForm || 'unknown'
       if (!acc[form]) {
@@ -423,7 +443,7 @@ export class OCRMetricsCollector {
       }
       acc[form].push(m)
       return acc
-    }, {} as Record<string, any[]>)
+    }, {} as Record<string, OCRMetrics[]>)
 
     for (const [form, formMetrics] of Object.entries(formGroups)) {
       const formRequests = formMetrics.length

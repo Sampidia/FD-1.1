@@ -1,7 +1,14 @@
 import { pipeline, Pipeline } from '@xenova/transformers'
 import { ocrFallbackManager } from './ocr-fallback-manager'
 
-// Type definitions
+// Type definitions - using flexible types to match Hugging Face pipeline
+interface NLPModel {
+  (text: string, options?: { pooling?: 'none' | 'mean' | 'cls'; normalize?: boolean }): Promise<any>
+}
+
+interface ImageClassifier {
+  (image: string): Promise<any>
+}
 interface ManufacturerFeatures {
   logoFeatures: string[]
   fontFamily: string[]
@@ -56,8 +63,8 @@ interface ProductInfo {
 
 // Advanced AI Service for Pharmaceutical Counterfeit Detection
 export class AdvancedCounterfeitDetectionAI {
-  private nlpModel: any = null // Feature extraction pipeline
-  private imageClassifier: any = null // Image classification pipeline
+  private nlpModel: NLPModel | null = null // Feature extraction pipeline
+  private imageClassifier: ImageClassifier | null = null // Image classification pipeline
   private anomalyDetector: AnomalyDetector = {
     threshold: 0.75,
     features: ['text-consistency', 'layout-quality', 'font-uniformity', 'hologram-presence']
@@ -267,12 +274,12 @@ export class AdvancedCounterfeitDetectionAI {
 
   private async analyzeVisualIntegrity(images: string[]): Promise<{
     score: number
-    features: any
+    features: Record<number, ImageFeatures>
     riskFactors: string[]
   }> {
     let totalScore = 0
     const riskFactors: string[] = []
-    const featureAnalysis: any = {}
+    const featureAnalysis: Record<number, ImageFeatures> = {}
 
     for (let i = 0; i < images.length; i++) {
       const imageData = images[i]
@@ -312,7 +319,7 @@ export class AdvancedCounterfeitDetectionAI {
     }
   }
 
-  private async analyzeTextIntelligence(images: string[], productInfo: any): Promise<{
+  private async analyzeTextIntelligence(images: string[], productInfo: ProductInfo): Promise<{
     consistencyScore: number
     extractedText: string[]
     batchConfidence: number
@@ -418,9 +425,9 @@ export class AdvancedCounterfeitDetectionAI {
   }
 
   private async multimodalVerification(
-    visual: any,
-    text: any,
-    anomaly: any
+    visual: VisualAnalysisResult,
+    text: TextAnalysisResult,
+    anomaly: AnomalyDetectionResult
   ): Promise<number> {
     // Cross-validate visual features with text content
     let multimodalScore = 0
@@ -800,12 +807,12 @@ export class AdvancedCounterfeitDetectionAI {
     return 1 - maxDeviation // Lower deviation = higher alignment score
   }
 
-  private calculatePackagingQuality(features: any): number {
+  private calculatePackagingQuality(features: Record<number, ImageFeatures>): number {
     // Calculate overall packaging quality score
     let qualityScore = 0
     let count = 0
 
-    Object.values(features).forEach((feature: any) => {
+    Object.values(features).forEach((feature: ImageFeatures) => {
       qualityScore += feature.quality + feature.layout
       count += 2
     })

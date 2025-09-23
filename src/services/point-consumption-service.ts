@@ -3,6 +3,15 @@
 
 import prisma from '@/lib/prisma'
 
+interface UserPointBalance {
+  planId?: string
+  planBusinessPoints: number
+  planStandardPoints: number
+  planBasicPoints: number
+  planFreePoints?: number
+  pointsBalance: number
+}
+
 export class PointConsumptionService {
   /**
    * Attempts to consume 1 point using plan isolation rules
@@ -117,16 +126,16 @@ export class PointConsumptionService {
     try {
       const userWithFreePoints = await prisma.user.findUnique({
         where: { id: userId },
-        select: { planFreePoints: true } as any
+        select: { planFreePoints: true } as { planFreePoints: true }
       })
-      if (userWithFreePoints && (userWithFreePoints as any).planFreePoints !== undefined) {
-        (user as any).planFreePoints = (userWithFreePoints as any).planFreePoints || 0
+      if (userWithFreePoints && (userWithFreePoints as { planFreePoints?: number }).planFreePoints !== undefined) {
+        (user as { planFreePoints?: number }).planFreePoints = (userWithFreePoints as { planFreePoints?: number }).planFreePoints || 0
       } else {
-        (user as any).planFreePoints = 0 // Default if field doesn't exist
+        (user as { planFreePoints?: number }).planFreePoints = 0 // Default if field doesn't exist
       }
     } catch (fieldError) {
       // Field might not exist in older databases
-      (user as any).planFreePoints = 0
+      (user as { planFreePoints?: number }).planFreePoints = 0
     }
 
     let updateField = 'pointsBalance' // Default to general balance for free tier
@@ -203,7 +212,7 @@ export class PointConsumptionService {
     }
 
     // Deduct 1 point from the specified plan tier
-    const updateData: any = {
+    const updateData: Record<string, { decrement: number }> = {
       [updateField]: { decrement: 1 }
     }
 

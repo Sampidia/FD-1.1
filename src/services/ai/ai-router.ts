@@ -697,8 +697,20 @@ export class AIServiceRouter {
   }
 
   // Parse Tesseract OCR results for pharmaceutical data
-  private parseTesseractResult(text: string): any {
-    const result: any = {}
+  private parseTesseractResult(text: string): {
+    productName?: string
+    batchNumber?: string
+    expiryDate?: string
+    manufacturer?: string
+    [key: string]: string | undefined
+  } {
+    const result: {
+      productName?: string
+      batchNumber?: string
+      expiryDate?: string
+      manufacturer?: string
+      [key: string]: string | undefined
+    } = {}
 
     // Extract batch numbers using patterns
     const batchPatterns = [
@@ -1212,8 +1224,16 @@ export class AIServiceRouter {
   }
 
   // Analytics methods
-  async getUsageStats(planId?: string, userId?: string): Promise<any> {
-    const where: any = {}
+  async getUsageStats(planId?: string, userId?: string): Promise<{
+    totalRequests: number
+    totalCost: number
+    totalTokens: number
+    avgResponseTime: number
+  }> {
+    const where: {
+      planId?: string
+      userId?: string
+    } = {}
 
     if (planId) where.planId = planId
     if (userId) where.userId = userId

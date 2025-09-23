@@ -167,7 +167,23 @@ export class OpenAIService {
            `Extract key information from this text: ${text}. Return as structured JSON.`
   }
 
-  private extractStructuredData(content: string, task: string) {
+  private extractStructuredData(content: string, task: string): {
+    productNames?: string[]
+    batchNumbers?: string[]
+    manufacturers?: string[]
+    expiryDate?: string
+    confidence?: number
+    isCounterfeit?: boolean
+    riskLevel?: 'HIGH' | 'MEDIUM' | 'LOW' | 'CRITICAL'
+    reason?: string
+    recommendation?: string
+    category?: 'RECALL' | 'COUNTERFEIT' | 'EXPIRED' | 'QUALITY_ISSUE'
+    manufacturer?: string
+    affectedRegions?: string[]
+    severity?: 'HIGH' | 'MEDIUM' | 'LOW'
+    rawResponse?: string
+    [key: string]: string | string[] | number | boolean | 'HIGH' | 'MEDIUM' | 'LOW' | 'CRITICAL' | 'RECALL' | 'COUNTERFEIT' | 'EXPIRED' | 'QUALITY_ISSUE' | undefined
+  } {
     try {
       // Try to parse as JSON first (from structured prompt responses)
       const jsonMatch = content.match(/\{[\s\S]*\}/)
@@ -195,8 +211,22 @@ export class OpenAIService {
     }
   }
 
-  private extractOCRFromText(text: string) {
-    const result: Record<string, unknown> = {}
+  private extractOCRFromText(text: string): {
+    productNames?: string[]
+    batchNumbers?: string[]
+    manufacturers?: string[]
+    expiryDate?: string
+    confidence?: number
+    [key: string]: string | string[] | number | undefined
+  } {
+    const result: {
+      productNames?: string[]
+      batchNumbers?: string[]
+      manufacturers?: string[]
+      expiryDate?: string
+      confidence?: number
+      [key: string]: string | string[] | number | undefined
+    } = {}
 
     // Extract batch numbers with various patterns
     const batchRegex = /(?:batch|lot)\s*(?:number|no\.?)?\s*:?\s*([A-Z0-9\-\/\.\s]{3,})/gi
@@ -241,8 +271,22 @@ export class OpenAIService {
     return result
   }
 
-  private extractVerificationFromText(text: string) {
-    const result: Record<string, unknown> = {}
+  private extractVerificationFromText(text: string): {
+    isCounterfeit?: boolean
+    confidence?: number
+    riskLevel?: 'HIGH' | 'MEDIUM' | 'LOW' | 'CRITICAL'
+    reason?: string
+    recommendation?: string
+    [key: string]: string | number | boolean | 'HIGH' | 'MEDIUM' | 'LOW' | 'CRITICAL' | undefined
+  } {
+    const result: {
+      isCounterfeit?: boolean
+      confidence?: number
+      riskLevel?: 'HIGH' | 'MEDIUM' | 'LOW' | 'CRITICAL'
+      reason?: string
+      recommendation?: string
+      [key: string]: string | number | boolean | 'HIGH' | 'MEDIUM' | 'LOW' | 'CRITICAL' | undefined
+    } = {}
 
     // Analyze text for counterfeit indicators
     const riskIndicators = /(?:fake|counterfeit|falsified|spurious|adulterated|expired)/i
@@ -274,8 +318,26 @@ export class OpenAIService {
     return result
   }
 
-  private extractAlertFromText(text: string) {
-    const result: Record<string, unknown> = {
+  private extractAlertFromText(text: string): {
+    productNames?: string[]
+    batchNumbers?: string[]
+    affectedRegions?: string[]
+    reason?: string
+    category?: 'RECALL' | 'COUNTERFEIT' | 'EXPIRED' | 'QUALITY_ISSUE'
+    manufacturer?: string
+    severity?: 'HIGH' | 'MEDIUM' | 'LOW'
+    [key: string]: string | string[] | 'RECALL' | 'COUNTERFEIT' | 'EXPIRED' | 'QUALITY_ISSUE' | 'HIGH' | 'MEDIUM' | 'LOW' | undefined
+  } {
+    const result: {
+      productNames?: string[]
+      batchNumbers?: string[]
+      affectedRegions?: string[]
+      reason?: string
+      category?: 'RECALL' | 'COUNTERFEIT' | 'EXPIRED' | 'QUALITY_ISSUE'
+      manufacturer?: string
+      severity?: 'HIGH' | 'MEDIUM' | 'LOW'
+      [key: string]: string | string[] | 'RECALL' | 'COUNTERFEIT' | 'EXPIRED' | 'QUALITY_ISSUE' | 'HIGH' | 'MEDIUM' | 'LOW' | undefined
+    } = {
       productNames: [],
       batchNumbers: [],
       affectedRegions: []
@@ -283,13 +345,17 @@ export class OpenAIService {
 
     // Extract product names
     const productRegex = /(?:product|medicine|drug)[s]?[:\s]*([^\n\r]{5,40})/gi
-    const productMatches = Array.from(text.matchAll(productRegex), m => m[1]?.trim())
-    ;(result.productNames as string[]).push(...productMatches)
+    const productMatches = Array.from(text.matchAll(productRegex), m => m[1]?.trim()).filter(Boolean)
+    if (result.productNames) {
+      result.productNames.push(...productMatches)
+    }
 
     // Extract batch numbers
     const batchRegex = /(?:batch|lot)\s*(?:number|no\.?)?\s*:?\s*([A-Z0-9\-\/\.]{3,})/gi
-    const batchMatches = Array.from(text.matchAll(batchRegex), m => m[1]?.trim())
-    ;(result.batchNumbers as string[]).push(...batchMatches)
+    const batchMatches = Array.from(text.matchAll(batchRegex), m => m[1]?.trim()).filter(Boolean)
+    if (result.batchNumbers) {
+      result.batchNumbers.push(...batchMatches)
+    }
 
     // Determine reason and category
     if (/(?:fake|counterfeit|falsified|spurious)/i.test(text)) {

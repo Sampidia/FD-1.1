@@ -207,7 +207,16 @@ Extract the most important and specific information available in the alert.`
   }
 
   private extractOCRFromText(text: string) {
-    const result: Record<string, any> = {}
+    const result: {
+      productName?: string | null
+      productNames?: string[]
+      batchNumbers?: string[]
+      expiryDate?: string | null
+      manufacturers?: string[]
+      confidence?: number
+      additionalInfo?: string
+      [key: string]: string | string[] | number | boolean | null | undefined
+    } = {}
 
     // Extract batch numbers with comprehensive patterns (improved from Gemini)
     const batchPatterns = [
@@ -314,16 +323,16 @@ Extract the most important and specific information available in the alert.`
     // Calculate confidence based on extraction quality and data completeness
     const extractionScore = [
       !!result.productName,
-      result.productNames?.length > 0,
-      result.batchNumbers?.length > 0,
+      (result.productNames?.length ?? 0) > 0,
+      (result.batchNumbers?.length ?? 0) > 0,
       !!result.expiryDate,
-      result.manufacturers?.length > 0
+      (result.manufacturers?.length ?? 0) > 0
     ].filter(Boolean).length
 
     result.confidence = Math.min(extractionScore / 5, 1)
 
     // Detect complete extraction failure and return user-friendly error message
-    const hasNoData = !result.productName && result.batchNumbers.length === 0 && !result.expiryDate && result.manufacturers.length === 0
+    const hasNoData = !result.productName && (result.batchNumbers?.length ?? 0) === 0 && !result.expiryDate && (result.manufacturers?.length ?? 0) === 0
     const hasVeryLowConfidence = result.confidence < 0.3
     const hasApologyMessage = /I apologize/i.test(text) || /I cannot/i.test(text) || /I'm sorry/i.test(text) || /unable to extract/i.test(text)
 
@@ -346,7 +355,15 @@ Extract the most important and specific information available in the alert.`
   }
 
   private extractVerificationFromText(text: string) {
-    const result: Record<string, any> = {}
+    const result: {
+      isCounterfeit?: boolean
+      riskLevel?: string
+      confidence?: number
+      reason?: string
+      recommendation?: string
+      evidence?: string[]
+      [key: string]: string | boolean | number | string[] | undefined
+    } = {}
 
     // Analyze for counterfeit/safety indicators
     const riskPatterns = {
@@ -394,7 +411,18 @@ Extract the most important and specific information available in the alert.`
   }
 
   private extractAlertFromText(text: string) {
-    const result: Record<string, any> = {
+    const result: {
+      productNames?: string[]
+      batchNumbers?: string[]
+      affectedRegions?: string[]
+      manufacturer?: string
+      category?: string
+      reason?: string
+      severity?: string
+      regulatoryAction?: string
+      contactInfo?: string
+      [key: string]: string | string[] | undefined
+    } = {
       productNames: [],
       batchNumbers: [],
       affectedRegions: []
