@@ -4,6 +4,9 @@ import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
+// Force dynamic rendering since this route uses request.headers
+export const dynamic = 'force-dynamic'
+
 // POST endpoint for Vercel cron jobs
 export async function POST(request: NextRequest) {
   try {

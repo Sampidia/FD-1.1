@@ -4,6 +4,9 @@ import { prisma } from '@/lib/prisma'
 import { Logger } from '@/lib/logger'
 import { EmailService } from '@/lib/email'
 
+// Force dynamic rendering since this route uses Prisma
+export const dynamic = 'force-dynamic'
+
 export async function POST() {
   try {
     const session = await auth()

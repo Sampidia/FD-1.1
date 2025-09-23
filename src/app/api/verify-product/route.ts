@@ -7,6 +7,9 @@ import { aiRouter } from '@/services/ai/ai-router'
 import { ocrFallbackManager } from '@/services/ocr-fallback-manager'
 import { nafdacDatabaseService } from '@/services/nafdac-database-service'
 
+// Force dynamic rendering since this route uses request.headers
+export const dynamic = 'force-dynamic'
+
 // Interface for alert search results to fix implicit any types
 interface AlertSearchResult {
   id: string

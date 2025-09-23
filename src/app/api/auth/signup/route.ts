@@ -4,6 +4,9 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 import { signupRateLimit } from "@/services/signup-rate-limit"
 
+// Force dynamic rendering since this route uses request.headers
+export const dynamic = 'force-dynamic'
+
 // Input validation schema
 const signupSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name too long"),
