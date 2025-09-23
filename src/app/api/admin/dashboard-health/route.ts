@@ -9,6 +9,9 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 
+// Force dynamic rendering since this route uses Prisma
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
   try {
     // Check admin access

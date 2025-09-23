@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { ocrMetricsCollector } from '@/services/ocr-metrics-collector'
 
+// Force dynamic rendering since this route accesses database metrics
+export const dynamic = 'force-dynamic'
+
 // Admin-only route for OCR analytics
 export async function GET(request: NextRequest) {
   try {
