@@ -18,18 +18,25 @@ let basicPlanId: string | null = null
 async function getBasicPlanId(): Promise<string> {
   if (basicPlanId) return basicPlanId
 
-  // Find the basic plan by name (not ID)
-  const basicPlan = await prisma.userPlan.findFirst({
-    where: { name: 'basic' }
-  })
+  try {
+    // Find the basic plan by name (not ID)
+    const basicPlan = await prisma.userPlan.findFirst({
+      where: { name: 'basic' }
+    })
 
-  if (!basicPlan) {
-    throw new Error('Basic plan not found in database. Please check your database seeding.')
+    if (basicPlan) {
+      basicPlanId = basicPlan.id
+      console.log('🔍 Found basic plan ID:', basicPlanId)
+      return basicPlanId as string
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to fetch basic plan from database:', error)
   }
 
-  basicPlanId = basicPlan.id
-  console.log('🔍 Found basic plan ID:', basicPlanId)
-  return basicPlanId as string
+  // Fallback to default plan ID when database is unseeded
+  const fallbackId = 'basic'
+  console.log('⚠️ Using fallback basic plan ID:', fallbackId)
+  return fallbackId
 }
 
 const authOptions = NextAuth({
