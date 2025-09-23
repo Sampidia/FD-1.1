@@ -5,8 +5,30 @@ import prisma from '@/lib/prisma'
 // Force dynamic rendering for auth-required API routes
 export const dynamic = 'force-dynamic'
 
+// Prevent static generation
+export async function generateStaticParams() {
+  return []
+}
+
 export async function GET(request: NextRequest) {
   try {
+    // Prevent build-time execution
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      return NextResponse.json(
+        {
+          providers: [],
+          summary: {
+            totalProviders: 0,
+            activeProviders: 0,
+            totalRequestsToday: 0,
+            totalCostToday: 0,
+            avgResponseTime: 0,
+            systemHealth: 100
+          }
+        }
+      )
+    }
+
     // Check admin access
     const session = await auth()
     const isAdmin = session?.user?.email?.includes('admin@') ||
@@ -40,7 +62,19 @@ export async function GET(request: NextRequest) {
 
     // Get today's usage data for each provider
     const providerStats = await Promise.all(
-      aiProviders.map(async (provider: any) => {
+      aiProviders.map(async (provider: {
+        id: string;
+        name: string;
+        provider: string;
+        modelName: string;
+        isActive: boolean;
+        planAssignments: Array<{
+          plan: {
+            name: string;
+            displayName: string;
+          }
+        }>
+      }) => {
         // Count requests today
         const todayUsage = await prisma.aIUsageRecord.aggregate({
           where: {
@@ -84,7 +118,7 @@ export async function GET(request: NextRequest) {
           responseTime: Math.round((todayUsage._avg.responseTime || 0) * 1000), // Convert to ms
           costToday: todayUsage._sum.cost || 0,
           totalCost: totalUsage._sum.cost || 0,
-          plans: provider.planAssignments.map((pa: any) => ({
+          plans: provider.planAssignments.map((pa: { plan: { name: string; displayName: string } }) => ({
             name: pa.plan.name,
             displayName: pa.plan.displayName
           }))
@@ -93,20 +127,35 @@ export async function GET(request: NextRequest) {
     )
 
     // Calculate overall statistics
-    const totalRequests = providerStats.reduce((sum, p: any) => sum + p.usageToday, 0)
-    const totalCost = providerStats.reduce((sum, p: any) => sum + p.costToday, 0)
+    const totalRequests = providerStats.reduce((sum: number, p: {
+      usageToday: number;
+      costToday: number;
+      responseTime: number;
+      status: string;
+    }) => sum + p.usageToday, 0)
+    const totalCost = providerStats.reduce((sum: number, p: {
+      usageToday: number;
+      costToday: number;
+      responseTime: number;
+      status: string;
+    }) => sum + p.costToday, 0)
     const avgResponseTime = providerStats.length > 0 ?
-      Math.round(providerStats.reduce((sum, p: any) => sum + p.responseTime, 0) / providerStats.length) : 0
+      Math.round(providerStats.reduce((sum: number, p: {
+        usageToday: number;
+        costToday: number;
+        responseTime: number;
+        status: string;
+      }) => sum + p.responseTime, 0) / providerStats.length) : 0
 
     return NextResponse.json({
       providers: providerStats,
       summary: {
         totalProviders: providerStats.length,
-        activeProviders: providerStats.filter((p: any) => p.status === 'healthy').length,
+        activeProviders: providerStats.filter((p: { status: string }) => p.status === 'healthy').length,
         totalRequestsToday: totalRequests,
         totalCostToday: totalCost,
         avgResponseTime,
-        systemHealth: providerStats.filter((p: any) => p.status === 'healthy').length / providerStats.length * 100
+        systemHealth: providerStats.filter((p: { status: string }) => p.status === 'healthy').length / providerStats.length * 100
       }
     })
 
