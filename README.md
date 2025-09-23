@@ -34,7 +34,7 @@ FD is a Next.js web application that helps users identify counterfeit products b
 - Paystack/Flutterwave credentials
 - SMTP email service
 
-## 🚀 Getting Started
+## 🚀 Getting Started  {}
 
 1. **Clone the repository**
    Cone or build
