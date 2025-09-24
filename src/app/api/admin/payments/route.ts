@@ -28,9 +28,10 @@ export async function GET() {
     console.log('📊 FETCHING PAYMENT RECORDS FROM DATABASE...')
     const payments = await prisma.payment.findMany({
       take: 50, // Limit to recent 50 payments
-      orderBy: {
-        processedAt: 'desc'
-      },
+      orderBy: [
+        { processedAt: 'desc' }, // Primary sort by processedAt (when available)
+        { createdAt: 'desc' }   // Secondary sort by createdAt (fallback)
+      ],
       select: {
         id: true,
         userId: true,
@@ -44,6 +45,16 @@ export async function GET() {
         createdAt: true
       }
     })
+
+    // Add null check for payments array
+    if (!payments || !Array.isArray(payments)) {
+      console.error('❌ Invalid payments data received from database')
+      return NextResponse.json(
+        { error: 'Invalid payment data received' },
+        { status: 500 }
+      )
+    }
+
     console.log(`✅ FOUND ${payments.length} PAYMENT RECORDS IN DATABASE`)
 
     return NextResponse.json({
