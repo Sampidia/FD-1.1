@@ -285,8 +285,6 @@ const authOptions = NextAuth({
     signIn: "/auth/signin",
     error: "/auth/error",
   },
-
-  secret: process.env.AUTH_SECRET,
 })
 
 export { authOptions }
