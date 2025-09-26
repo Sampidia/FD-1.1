@@ -257,7 +257,7 @@ export async function POST(request: NextRequest) {
 
       // Use our transaction ID for database records, but verified amount/points
       const amount = verificationResult.amount!
-      const pointsCount = verificationResult.pointsCount || 0
+      const pointsCount = parseInt(verificationResult.pointsCount || '0', 10)
       const customer = data.customer
 
       // 🎯 PROCESS PAYMENT (Shared for all methods after verification)
@@ -365,7 +365,7 @@ export async function POST(request: NextRequest) {
         pointsCount: verificationResult.pointsCount
       })
 
-      const pointsCount = verificationResult.pointsCount || 0
+      const pointsCount = parseInt(verificationResult.pointsCount || '0', 10)
       const verifiedAmount = verificationResult.amount!
 
       // Verify transaction ID exists
@@ -384,7 +384,7 @@ export async function POST(request: NextRequest) {
       await processSuccessfulPayment(
         transactionId,
         verifiedAmount,
-        pointsCount,
+        Number.isNaN(pointsCount) ? 0 : pointsCount,
         customer,
         currency || 'NGN',
         'bank',
