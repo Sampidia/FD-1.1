@@ -6,6 +6,9 @@
  */
 
 import { NextResponse } from 'next/server'
+
+// Force dynamic rendering since this route uses server session
+export const dynamic = 'force-dynamic'
 import { getServerSession } from "next-auth/next"
 import { authOptions } from '@/lib/auth-minimal'
 import "@/types/nextauth"
