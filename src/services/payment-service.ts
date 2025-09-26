@@ -300,7 +300,7 @@ export class PaymentService {
    * Calculate amount for points purchase based on user's plan
    */
   calculatePointsAmount(pointsCount: number): number {
-    const pointsPrice = parseInt(process.env.POINTS_PRICE_PER_NAIRA || '100')
+    const pointsPrice = parseInt(process.env.NEXT_PUBLIC_POINTS_PRICE_PER_NAIRA || '100')
     return pointsCount * pointsPrice
   }
 
@@ -312,16 +312,16 @@ export class PaymentService {
 
     if (!planName) {
       // Use legacy pricing
-      pointsPrice = parseInt(process.env.POINTS_PRICE_PER_NAIRA || '100')
+      pointsPrice = parseInt(process.env.NEXT_PUBLIC_POINTS_PRICE_PER_NAIRA || '100')
     } else if (planName === 'basic') {
-      pointsPrice = parseInt(process.env.BASIC_POINTS_PRICE || '75')
+      pointsPrice = parseInt(process.env.NEXT_PUBLIC_BASIC_POINTS_PRICE || '75')
     } else if (planName === 'standard') {
-      pointsPrice = parseInt(process.env.STANDARD_POINTS_PRICE || '100')
+      pointsPrice = parseInt(process.env.NEXT_PUBLIC_STANDARD_POINTS_PRICE || '100')
     } else if (planName === 'business') {
-      pointsPrice = parseInt(process.env.BUSINESS_POINTS_PRICE || '130')
+      pointsPrice = parseInt(process.env.NEXT_PUBLIC_BUSINESS_POINTS_PRICE || '130')
     } else {
       // Fallback to legacy pricing for unknown plans
-      pointsPrice = parseInt(process.env.POINTS_PRICE_PER_NAIRA || '100')
+      pointsPrice = parseInt(process.env.NEXT_PUBLIC_POINTS_PRICE_PER_NAIRA || '100')
     }
 
     return pointsCount * pointsPrice
@@ -336,9 +336,9 @@ export class PaymentService {
     business: number
   } {
     return {
-      basic: parseInt(process.env.BASIC_POINTS_PRICE || '75'),
-      standard: parseInt(process.env.STANDARD_POINTS_PRICE || '100'),
-      business: parseInt(process.env.BUSINESS_POINTS_PRICE || '130')
+      basic: parseInt(process.env.NEXT_PUBLIC_BASIC_POINTS_PRICE || '75'),
+      standard: parseInt(process.env.NEXT_PUBLIC_STANDARD_POINTS_PRICE || '100'),
+      business: parseInt(process.env.NEXT_PUBLIC_BUSINESS_POINTS_PRICE || '130')
     }
   }
 
