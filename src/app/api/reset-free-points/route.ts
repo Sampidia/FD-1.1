@@ -6,15 +6,24 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    // Check if request is authorized (from Vercel cron)
+    // Check if request is authorized (from Vercel cron or external)
     const cronSecret = request.headers.get('x-vercel-cron-job-signature')
     const expectedSecret = process.env.CRON_SECRET_KEY
 
-    if (!cronSecret || !expectedSecret || cronSecret !== expectedSecret) {
+    // 🚀 EXTERNAL AUTHENTICATION SUPPORT (for manual/GitHub Actions)
+    const authHeader = request.headers.get('authorization')
+    const externalToken = process.env.EXTERNAL_SCRAPER_TOKEN
+    const externalTrigger = !!externalToken && authHeader === `Bearer ${externalToken}`
+
+    if (!externalTrigger && (!cronSecret || !expectedSecret || cronSecret !== expectedSecret)) {
       return NextResponse.json(
         { error: 'Unauthorized cron job access' },
         { status: 401 }
       )
+    }
+
+    if (externalTrigger) {
+      console.log('🔑 External scraper token authenticated for points reset')
     }
 
     console.log('[CRON] Starting daily free points reset...')
