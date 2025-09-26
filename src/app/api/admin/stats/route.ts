@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { getServerSession } from "next-auth/next"
+import { authOptions } from '@/lib/auth-minimal'
+import "@/types/nextauth"
 import prisma from '@/lib/prisma'
 
 // Force dynamic rendering for auth-required API routes
@@ -8,7 +10,7 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   try {
     // Check admin access
-    const session = await auth()
+    const session = await getServerSession(authOptions)
     const adminEmail = process.env.AD_EMAIL || process.env.NEXT_PUBLIC_AD_EMAIL
     const isAdmin = session?.user?.email === adminEmail ||
                    session?.user?.id === 'admin001'

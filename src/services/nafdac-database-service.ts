@@ -44,20 +44,31 @@ export class NafdacDatabaseService {
       // Build search conditions
       const OR: any[] = []
 
-      // Batch number search
+      // Batch number search - check both original and AI-extracted batch numbers
       if (batchNumber && batchNumber.trim()) {
         OR.push({
           batchNumbers: {
             hasSome: [batchNumber.trim().toUpperCase(), batchNumber.trim()]
           }
         })
+        OR.push({
+          aiBatchNumbers: {
+            hasSome: [batchNumber.trim().toUpperCase(), batchNumber.trim()]
+          }
+        })
       }
 
-      // Product name search
+      // Product name search - check both original and AI-extracted product names
       if (productNames && productNames.length > 0) {
-        // Exact product name matches
+        // Original product names
         OR.push({
           productNames: {
+            hasSome: productNames.map(name => name.toLowerCase().trim())
+          }
+        })
+        // AI-extracted product names
+        OR.push({
+          aiProductNames: {
             hasSome: productNames.map(name => name.toLowerCase().trim())
           }
         })

@@ -354,16 +354,26 @@ export default function ResultPage({ params }: PageProps) {
                       </div>
 
                       {/* Confidence Source Indicator */}
-                      <div className="flex justify-center mt-2 mb-2">
-                        {showAIConfidence ? (
-                          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-xs font-medium">
-                            🤖 AI-Enhanced Analysis
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs font-medium">
-                            📊 Standard Analysis
-                          </Badge>
+                      <div className="flex flex-col gap-2 mt-2 mb-2">
+                        {!showAIConfidence && (
+                          <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-2 text-center">
+                            <Link href="/pricing" className="text-yellow-800 text-xs font-medium hover:text-yellow-900 hover:underline">
+                              🚀 Upgrade to paid plan for AI high Reliability
+                            </Link>
+                          </div>
                         )}
+
+                        <div className="flex justify-center">
+                          {showAIConfidence ? (
+                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-xs font-medium">
+                              🤖 AI-Enhanced Analysis
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs font-medium">
+                              📊 Standard Analysis ⚠️ Low Reliability
+                            </Badge>
+                          )}
+                        </div>
                       </div>
 
                       {/* Confidence Delta and Quality Indicator */}

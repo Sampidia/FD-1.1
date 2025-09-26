@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/scraper/cron",
-      "schedule": "0 0 * * *"
+      "schedule": "0 */6 * * *"
     }
   ]
 }

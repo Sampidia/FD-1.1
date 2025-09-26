@@ -1,24 +1,25 @@
-import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from "next-auth/next"
+import { authOptions } from '@/lib/auth-minimal'
 import { prisma } from '@/lib/prisma'
 import { Logger } from '@/lib/logger'
 import { EmailService } from '@/lib/email'
+import "@/types/nextauth" // Import NextAuth type augmentation
 
 // Force dynamic rendering since this route uses Prisma
 export const dynamic = 'force-dynamic'
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
+    const session = await getServerSession(authOptions)
 
-    if (!session?.user?.id) {
+    const userId = session?.user?.id as string
+    if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
-
-    const userId = session.user.id
     const userEmail = session.user.email || ''
     const userName = session.user.name || userEmail.split('@')[0]
 

@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { getServerSession } from "next-auth/next"
+import { authOptions } from '@/lib/auth-minimal'
+import "@/types/nextauth"
 import prisma from '@/lib/prisma'
 
 export async function GET() {
   try {
     // Check authentication
-    const session = await auth()
+    const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
@@ -48,7 +50,7 @@ export async function GET() {
 export async function PATCH(request: NextRequest) {
   try {
     // Check authentication
-    const session = await auth()
+    const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },

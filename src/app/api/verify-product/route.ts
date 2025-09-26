@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { EnhancedNafdacService } from '@/services/nafdac-service'
-import { auth } from '@/lib/auth'
+import { getServerSession } from "next-auth/next"
+import { authOptions } from '@/lib/auth-minimal'
+import "@/types/nextauth"
 import prisma from '@/lib/prisma'
 import { z } from 'zod'
 import { aiRouter } from '@/services/ai/ai-router'
@@ -158,7 +160,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 🔒 AUTHENTICATION
-    const session = await auth()
+    const session = await getServerSession(authOptions)
     if (!session) {
       const response = NextResponse.json({
         error: 'Authentication required'
@@ -921,6 +923,7 @@ export async function POST(request: NextRequest) {
     let aiProductNames: string[] = []
     // aiBatchNumbers is already declared earlier, don't redeclare it
     let aiReason = ''
+    let aiAlertType = '' // Store AI-determined alert type for context-aware naming
 
     if (aiEnabled && uniqueAlerts.length > 0) {
       console.log(`🤖 Starting enhanced ${aiProvider} AI analysis for ${uniqueAlerts.length} found alerts...`)
@@ -1030,6 +1033,7 @@ RESPONSE FORMAT (ONLY RETURN JSON, NO OTHER TEXT):
             aiBatchNumbers = analysisData.batchNumbers || []
             aiReason = analysisData.reason || 'Product has active NAFDAC alerts requiring attention'
             aiConfidence = analysisData.confidence ?? 80  // Use 80% as meaningful AI default
+            aiAlertType = analysisData.alertType || ''  // Store AI-determined alert type
 
             // 🎯 SMART PRODUCT NAME PRESERVATION
             // Only replace user's product name if it doesn't match any alerts
@@ -1157,6 +1161,69 @@ RESPONSE FORMAT (ONLY RETURN JSON, NO OTHER TEXT):
     }
 
     console.log(`✅ Final Analysis State: AI=${aiEnhanced ? 'Enabled' : 'Disabled'}, Batches=${aiBatchNumbers.length}`)
+
+    // 🛟 POST-AI BATCH RE-VERIFICATION: Check if AI extracted batches make user batch match
+    if (aiEnhanced && uniqueAlerts.length > 0 && userProvidedBatch && aiBatchNumbers.length > 0) {
+      console.log(`🔄 POST-AI BATCH RE-VERIFICATION: Checking ${aiBatchNumbers.length} AI-extracted batches`)
+
+      // Check if any alert now has a batch that matches the user's batch (after AI extraction)
+      const aiMatchedAlerts = uniqueAlerts.filter(alert => {
+        // Check if AI extracted batches for this alert match user batch
+        const aiBatchesForAlert = aiBatchNumbers.filter(batch =>
+          batch.toUpperCase().trim() === userBatchNumber.toUpperCase().trim()
+        )
+        return aiBatchesForAlert.length > 0
+      })
+
+      if (aiMatchedAlerts.length > 0) {
+        console.log(`🎯 POST-AI SUCCESS: Found ${aiMatchedAlerts.length} alerts with AI-extracted matching batches!`)
+
+        // UPGRADE RESULT: From "PRODUCT ALERT - DIFFERENT BATCH" to "CONFIRMED COUNTERFEIT"
+        isCounterfeit = true
+        confidence = Math.min(95, confidence + 60) // Significant confidence boost
+        alertType = "CONFIRMED_COUNTERFEIT_AI"
+        batchNumber = userBatchNumber
+        detectedAlerts = aiMatchedAlerts.map(a => a.title)
+
+        summary = `🔴 CONFIRMED FAKE/COUNTERFEIT DETECTED VIA AI ANALYSIS: "${productName}" with batch "${userBatchNumber}" matches ${aiMatchedAlerts.length} NAFDAC alert(s) after AI batch number extraction.`
+
+        if (aiMatchedAlerts.length <= 4) {
+          summary += aiMatchedAlerts.map((a, idx) => `\n${idx + 1}. ${a.title}`).join('')
+        } else {
+          summary += `\n• ${aiMatchedAlerts[0].title}`
+          summary += `\n• Plus ${aiMatchedAlerts.length - 1} additional alerts with AI-confirmed batch matches`
+        }
+
+        summary += `\n\n🤖 AI analyzed alert content and confirmed batch "${userBatchNumber}" matches falsified/unregistered products.`
+
+        console.log(`🚀 RESULT UPGRADED: PRODUCT ALERT → CONFIRMED COUNTERFEIT (${confidence}% confidence)`)
+
+        // GENERATE CONTEXT-AWARE ALERT TYPE BASED ON AI ANALYSIS
+        let confirmedType = "CONFIRMED COUNTERFEIT" // Default
+        if (aiEnhanced && aiAlertType) {
+          const aiType = aiAlertType.toUpperCase()
+          if (aiType.includes("EXPIRED")) {
+            confirmedType = "CONFIRMED EXPIRED"
+          } else if (aiType.includes("RECALL")) {
+            confirmedType = "CONFIRMED RECALL"
+          } else if (aiType.includes("FAKE") || aiType.includes("CONTAMINATED")) {
+            confirmedType = "CONFIRMED COUNTERFEIT"
+          }
+        }
+        alertType = confirmedType
+
+        console.log(`🏷️ ALERT TYPE DETERMINED: ${confirmedType}`)
+
+        // UPDATE RESULT OBJECT for database save
+        result.isCounterfeit = isCounterfeit
+        result.alertType = alertType
+        result.confidence = confidence
+        result.summary = summary
+        result.batchNumber = batchNumber
+      } else {
+        console.log(`🔍 POST-AI RESULT: No batch matches found in AI-extracted data, keeping original decision`)
+      }
+    }
 
     // Point consumption - deduct from the specific plan tier that was used for AI analysis
     const { pointConsumptionService } = await import('@/services/point-consumption-service')

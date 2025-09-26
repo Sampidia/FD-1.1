@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { EnhancedNafdacService } from '@/services/nafdac-service'
-import { auth } from '@/lib/auth'
+import { getServerSession } from "next-auth/next"
+import { authOptions } from '@/lib/auth-minimal'
+import "@/types/nextauth"
 
 export async function POST(request: NextRequest) {
   try {
     // Check authentication (optional for testing)
-    const session = await auth()
+    const session = await getServerSession(authOptions)
 
     const { productName, productDescription, images }: {
       productName: string

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { getServerSession } from "next-auth/next"
+import { authOptions } from '@/lib/auth-minimal'
+import "@/types/nextauth"
+import prisma from '@/lib/prisma'
 import { ocrMetricsCollector } from '@/services/ocr-metrics-collector'
 
 // Force dynamic rendering since this route accesses database metrics
@@ -9,7 +12,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   try {
     // Authentication check
-    const session = await auth()
+    const session = await getServerSession(authOptions)
     if (!session || !session.user?.email) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -57,6 +60,9 @@ export async function GET(request: NextRequest) {
       case 'errors':
         data = await getErrorMetrics(startDate, endDate)
         break
+      case 'success':
+        data = await getSuccessMetrics(startDate, endDate)
+        break
       case 'strategy':
         data = await getStrategyMetrics(startDate, endDate)
         break
@@ -92,10 +98,34 @@ async function getOverviewMetrics(startDate: Date, endDate: Date) {
   const recentErrors = await ocrMetricsCollector.getRecentErrors(10)
   const strategyComparison = await ocrMetricsCollector.getStrategyComparison(24)
 
+  // 🎯 Calculate OCR accuracy from AIUsageRecord instead of OCRMetrics
+  const aiStats = await prisma.aIUsageRecord.aggregate({
+    where: {
+      createdAt: { gte: startDate, lte: endDate },
+      requestType: 'ocr'  // Only count OCR-related AI calls
+    },
+    _count: { id: true }
+  })
+
+  const successfulAICalls = await prisma.aIUsageRecord.count({
+    where: {
+      createdAt: { gte: startDate, lte: endDate },
+      requestType: 'ocr',
+      success: true
+    }
+  })
+
+  const totalAICalls = aiStats._count.id
+  const aiAccuracyPercentage = totalAICalls > 0 ? (successfulAICalls / totalAICalls) * 100 : 0
+
+  // Calculate total requests as successful attempts + failed attempts
+  const totalRequests = successfulAICalls + recentErrors.length
+
   return {
     summary: {
-      totalRequests: stats.totalRequests,
-      successRate: Math.round(stats.successRate * 100) / 100,
+      totalRequests,  // Total successful + failed OCR processing attempts
+      successRate: Math.round(aiAccuracyPercentage * 100) / 100, // OCR accuracy %
+      successfulAICount: successfulAICalls, // Count of successful AI calls
       averageProcessingTime: Math.round(stats.averageProcessingTime),
       averageConfidence: Math.round(stats.averageConfidence * 100) / 100,
       totalErrors: recentErrors.length
@@ -198,5 +228,50 @@ async function getTrendMetrics(startDate: Date, endDate: Date) {
   return {
     errorRateTrend,
     hourlySuccessRates: hourlyStats
+  }
+}
+
+async function getSuccessMetrics(startDate: Date, endDate: Date) {
+  // Fetch individual AIUsageRecord entries for OCR requests
+  const aiUsageRecords = await prisma.aIUsageRecord.findMany({
+    where: {
+      createdAt: { gte: startDate, lte: endDate },
+      requestType: 'ocr'
+    },
+    include: {
+      aiProvider: true
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 1000 // Limit to prevent overwhelming the UI
+  })
+
+  // Calculate summary statistics
+  const totalRecords = aiUsageRecords.length
+  const successfulRecords = aiUsageRecords.filter(record => record.success).length
+  const totalTokens = aiUsageRecords.reduce((sum, record) =>
+    (record.requestTokens || 0) + (record.responseTokens || 0) + sum, 0)
+  const totalCost = aiUsageRecords.reduce((sum, record) => (record.cost || 0) + sum, 0)
+
+  return {
+    dateRange: `${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`,
+    totalRecords,
+    records: aiUsageRecords.map(record => ({
+      id: record.id,
+      dateTime: record.createdAt,
+      totalTokens: (record.requestTokens || 0) + (record.responseTokens || 0),
+      cost: record.cost,
+      success: record.success,
+      responseTime: record.responseTime,
+      modelUsed: record.modelUsed,
+      provider: record.aiProvider?.name || 'Unknown'
+    })),
+    summary: {
+      totalRecords,
+      successfulRecords,
+      totalTokens,
+      totalCost,
+      avgCostPerRecord: totalRecords > 0 ? totalCost / totalRecords : 0,
+      successRate: totalRecords > 0 ? (successfulRecords / totalRecords) * 100 : 0
+    }
   }
 }

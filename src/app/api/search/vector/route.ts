@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { vectorSearch } from '@/services/vector-search'
-import { auth } from '@/lib/auth'
+import { getServerSession } from "next-auth/next"
+import { authOptions } from '@/lib/auth-minimal'
+import "@/types/nextauth"
 import prisma from '@/lib/prisma'
 
 export async function POST(request: NextRequest) {
   try {
     // Optional authentication for enhanced features
-    const session = await auth()
+    const session = await getServerSession(authOptions)
 
     const {
       productName,

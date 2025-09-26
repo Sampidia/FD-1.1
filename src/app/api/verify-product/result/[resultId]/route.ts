@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { getServerSession } from "next-auth/next"
+import { authOptions } from '@/lib/auth-minimal'
+import "@/types/nextauth"
 import prisma from '@/lib/prisma'
 
 interface RouteParams {
@@ -14,7 +16,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     console.log('🔍 Fetching result for ID:', resultId)
 
     // Authenticate user - only show results owned by user
-    const session = await auth()
+    const session = await getServerSession(authOptions)
     if (!session) {
       return NextResponse.json(
         { success: false, message: 'Authentication required' },

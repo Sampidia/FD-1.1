@@ -1,12 +1,17 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { getServerSession } from "next-auth/next"
+import { authOptions } from '@/lib/auth-minimal'
+import "@/types/nextauth"
 
 // Force dynamic rendering for auth-required API routes
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    const session = await auth()
+    const session = await getServerSession(authOptions)
+
+    const userId = session?.user?.id as string
+    const userEmail = session?.user?.email as string
 
     if (!session?.user) {
       return NextResponse.json(

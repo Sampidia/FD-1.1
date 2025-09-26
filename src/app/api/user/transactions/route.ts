@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { getServerSession } from "next-auth/next"
+import { authOptions } from '@/lib/auth-minimal'
 import prisma from '@/lib/prisma'
 
 // Force dynamic rendering for this route (required for auth)
@@ -8,7 +9,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user
-    const session = await auth()
+    const session = await getServerSession(authOptions)
     console.log('💳 Transactions API - Session:', session ? 'Found' : 'Not found')
     console.log('💳 Transactions API - User ID:', session?.user?.id)
     console.log('💳 Transactions API - User Email:', session?.user?.email)

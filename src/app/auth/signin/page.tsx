@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import Logo from "@/components/ui/logo"
 import { AlertTriangle, Loader2, Eye, EyeOff } from "lucide-react"
 import { useRecaptcha } from "@/hooks/use-recaptcha"
+import Head from "next/head"
 
 export default function SignInPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -27,9 +28,20 @@ export default function SignInPage() {
   // reCAPTCHA hook
   const { executeRecaptcha, resetRecaptcha, handleRecaptchaLoad } = useRecaptcha()
 
-  // Initialize reCAPTCHA on mount
+  // Load reCAPTCHA script and initialize
   useEffect(() => {
-    handleRecaptchaLoad()
+    const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || process.env.RECAPTCHA_SITE_KEY_PLACEHOLDER
+
+    // Load reCAPTCHA script dynamically
+    if (siteKey && typeof document !== 'undefined') {
+      const script = document.createElement('script')
+      script.src = `https://www.google.com/recaptcha/api.js?render=${siteKey}`
+      script.async = true
+      script.defer = true
+      document.head.appendChild(script)
+
+      script.onload = () => handleRecaptchaLoad()
+    }
   }, [handleRecaptchaLoad])
 
   useEffect(() => {

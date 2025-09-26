@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Logger } from '@/lib/logger'
 import nodemailer from 'nodemailer'
+import { verifyRecaptcha } from '@/lib/recaptcha'
 
 // Contact form data interface
 interface ContactFormData {
@@ -35,8 +36,24 @@ function getEmailTransporter() {
 export async function POST(request: NextRequest) {
   try {
     // Parse form data from request body
-    const body = await request.json() as ContactFormData
-    const { name, email, phone, message } = body
+    const body = await request.json() as ContactFormData & { recaptchaToken?: string }
+    const { name, email, phone, message, recaptchaToken } = body
+
+    // Verify reCAPTCHA
+    if (!recaptchaToken) {
+      return NextResponse.json(
+        { error: 'reCAPTCHA verification is required' },
+        { status: 400 }
+      )
+    }
+
+    const isValidRecaptcha = await verifyRecaptcha(recaptchaToken)
+    if (!isValidRecaptcha) {
+      return NextResponse.json(
+        { error: 'reCAPTCHA verification failed. Please try again.' },
+        { status: 400 }
+      )
+    }
 
     // Validate required fields
     if (!name || !email || !message) {

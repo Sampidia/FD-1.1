@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { MobileHeader } from "@/components/ui/mobile-header"
 import { Button } from "@/components/ui/button"
@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Logo from "@/components/ui/logo"
 import { BetaModal } from "@/components/ui/beta-modal"
 import { Mail, Phone, MapPin, Send, MessageCircle, HelpCircle, Shield, CreditCard, Clock, CheckCircle, XCircle, Loader2, Facebook, Twitter, Instagram } from "lucide-react"
+import { useRecaptcha } from "@/hooks/use-recaptcha"
 
 // FAQ data
 const faqQuestions = [
@@ -49,6 +50,23 @@ export default function ContactPage() {
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null)
   const [isBetaModalOpen, setIsBetaModalOpen] = useState(false)
 
+  // Load reCAPTCHA script dynamically
+  useEffect(() => {
+    const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || process.env.RECAPTCHA_SITE_KEY_PLACEHOLDER
+
+    // Load reCAPTCHA script dynamically
+    if (siteKey && typeof document !== 'undefined') {
+      const script = document.createElement('script')
+      script.src = `https://www.google.com/recaptcha/api.js?render=${siteKey}`
+      script.async = true
+      script.defer = true
+      document.head.appendChild(script)
+    }
+  }, [])
+
+  // reCAPTCHA hook
+  const { executeRecaptcha } = useRecaptcha()
+
   const handleDownloadClick = (e: React.MouseEvent) => {
     e.preventDefault()
     setIsBetaModalOpen(true)
@@ -68,12 +86,23 @@ export default function ContactPage() {
     setSubmitStatus('idle')
 
     try {
+      // Execute invisible reCAPTCHA
+      const recaptchaToken = await executeRecaptcha()
+
+      if (!recaptchaToken) {
+        setSubmitStatus('error')
+        return
+      }
+
       const response = await fetch('/api/contact', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          recaptchaToken
+        })
       })
 
       if (response.ok) {

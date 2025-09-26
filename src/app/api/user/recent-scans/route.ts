@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { getServerSession } from "next-auth/next"
+import { authOptions } from '@/lib/auth-minimal'
 import prisma from '@/lib/prisma'
 
 // Force dynamic rendering for this route (required for auth)
@@ -38,7 +39,7 @@ interface ScanResult {
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user
-    const session = await auth()
+    const session = await getServerSession(authOptions)
     if (!session) {
       return NextResponse.json(
         { success: false, message: 'Authentication required' },

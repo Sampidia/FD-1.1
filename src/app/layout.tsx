@@ -57,12 +57,7 @@ export default async function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <head>
-        {/* Google reCAPTCHA v2 invisible */}
-        <script
-          src={`https://www.google.com/recaptcha/api.js?render=${siteKey}`}
-          async
-          defer
-        />
+        {/* Google reCAPTCHA v2 invisible - Loaded conditionally per page */}
       </head>
       <body className="font-sans antialiased">
         <AuthProvider>

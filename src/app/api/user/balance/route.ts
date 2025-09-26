@@ -1,23 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { getServerSession } from "next-auth/next"
+import { authOptions } from '@/lib/auth-minimal'
 import { prisma } from '@/lib/prisma'
 import { Logger } from '@/lib/logger'
+import "@/types/nextauth" // Import NextAuth type augmentation
 
 // Force dynamic rendering since this route uses Prisma
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await auth()
+    console.log('🔒 Balance API called')
+    console.log('🔒 Request headers:', request.headers.get('cookie'))
 
-    if (!session?.user?.id) {
+    const session = await getServerSession(authOptions)
+    console.log('🔒 Session retrieved:', JSON.stringify(session, null, 2))
+
+    // Check if session exists and has user with ID
+    const userId = session?.user?.id as string
+    if (!userId) {
+      console.log('🔒 No valid session found - returning 401')
+      console.log('🔒 Session user:', session?.user)
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized', session: session, user: session?.user },
         { status: 401 }
       )
     }
 
-    const userId = session.user.id
+    console.log('🔒 Valid session found:', session.user.email)
 
     // Get user's current balance and daily points info
     const user = await prisma.user.findUnique({
@@ -97,16 +107,15 @@ export async function GET() {
 // UPDATE balance (for internal operations like product scans)
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await auth()
+    const session = await getServerSession(authOptions)
 
-    if (!session?.user?.id) {
+    const userId = session?.user?.id as string
+    if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
-
-    const userId = session.user.id
     const { points, operation } = await request.json()
 
     if (typeof points !== 'number' || points < 0) {

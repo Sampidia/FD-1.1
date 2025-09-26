@@ -30,8 +30,8 @@ export async function POST(request: NextRequest) {
 
     console.log('🔧 Maintenance mode activated')
 
-    // Execute scraping job
-    const result = await nafdacScraper.scrapeAndStoreAlerts(5)
+    // Execute scraping job - HOBBY OPTIMIZED
+    const result = await nafdacScraper.scrapeAndStoreAlerts(2) // ⬅️ HOBBY: Max 2 alerts to fit 10s timeout
 
     // Reset maintenance mode
     await prisma.scraperStatus.updateMany({

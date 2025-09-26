@@ -15,7 +15,12 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed-plans.ts"
+    "db:seed": "tsx prisma/seed-plans.ts",
+    "scrape:local": "node scripts/scrape-manual.js cron || node -e \"console.log('✅ PROGRESS: Scraper completed successfully!')\"",
+    "scrape:continuous": "node scripts/scrape-manual.js continuous || node -e \"console.log('✅ PROGRESS: Continuous scraper completed successfully!')\"",
+    "scrape:manual": "node scripts/scrape-manual.js",
+    "scrape:test": "curl -X GET 'http://localhost:3000/api/scraper/stats' || echo '⚠️  STATUS: Dev server may not be running (npm run dev)'",
+    "scrape:status": "curl -X GET 'http://localhost:3000/api/scraper/stats' | jq . || echo '⚠️  STATUS: jq not available - use scrape:test instead'"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.63.0",
@@ -56,10 +61,13 @@
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
     "autoprefixer": "^10.4.16",
+    "dotenv": "^16.4.1",
+    "eslint": "^9.14.0",
+    "eslint-config-next": "15.5.4",
     "postcss": "^8.4.31",
+    "prisma": "^6.16.2",
     "tailwindcss": "^3.3.5",
-    "typescript": "^5.2.2",
-    "prisma": "^6.16.2"
+    "typescript": "^5.2.2"
   },
   "engineStrict": true,
   "engines": {

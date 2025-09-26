@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { getServerSession } from "next-auth/next"
+import { authOptions } from '@/lib/auth-minimal'
 import { aiRouter } from '@/services/ai/ai-router'
 import prisma from '@/lib/prisma'
 import { z } from 'zod'
+import "@/types/nextauth" // Import NextAuth type augmentation
 
 // Input validation schema for image analysis
 const analyzeImageSchema = z.object({
@@ -27,8 +29,9 @@ interface ImageAnalysisResult {
 export async function POST(request: NextRequest) {
   try {
     // Authentication check
-    const session = await auth()
-    if (!session) {
+    const session = await getServerSession(authOptions)
+    const userId = session?.user?.id as string
+    if (!userId) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
@@ -58,7 +61,7 @@ export async function POST(request: NextRequest) {
     let userPlan = 'free'
     try {
       const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
+        where: { id: userId },
         select: { planBasicPoints: true, planStandardPoints: true, planBusinessPoints: true }
       })
 
@@ -140,7 +143,7 @@ Return structured JSON with confidence scores.`
       maxTokens: analysisType === 'comprehensive' ? 2048 : 1024
     }
 
-    const ocrResponse = await aiRouter.processRequest(ocrRequest, session.user.id)
+    const ocrResponse = await aiRouter.processRequest(ocrRequest, userId)
 
     if (!ocrResponse.metadata.success) {
       // Provide graceful degradation for OCR failures

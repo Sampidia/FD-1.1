@@ -1,8 +1,6 @@
 import axios from 'axios'
 import * as cheerio from 'cheerio'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import prisma from '@/lib/prisma'
 
 // Simple alert data structure
 interface ScrapedAlertData {
@@ -19,14 +17,14 @@ interface ScrapedAlertData {
 export class NafdacSimpleScraper {
   private baseUrl = 'https://nafdac.gov.ng/category/recalls-and-alerts/'
 
-  // Main method to scrape and store alerts
-  async scrapeAndStoreAlerts(limit: number = 5): Promise<{
+  // Main method to scrape and store alerts - VERSEL HOBBY OPTIMIZED
+  async scrapeAndStoreAlerts(limit: number = 2): Promise<{ // ⬅️ HOBBY: Max 2 alerts per run
     success: boolean
     newAlerts: number
     totalProcessed: number
     errors: string[]
   }> {
-    console.log('🚀 Starting SIMPLE NAFDAC scraping...')
+    console.log('🚀 Starting HOBBY-OPTIMIZED NAFDAC scraping (2 alerts max)...')
 
     const result = {
       success: false,
@@ -36,19 +34,20 @@ export class NafdacSimpleScraper {
     }
 
     try {
-      // Fetch main alerts page
+      // Fetch main alerts page - KEEP TIMEOUT SHORT FOR HOBBY
       console.log('📄 Fetching NAFDAC alerts page...')
       const response = await axios.get(this.baseUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
         },
-        timeout: 10000
+        timeout: 8000 // ⬅️ HOBBY: Shorter timeout
       })
 
-      const $ = cheerio.load(response.data)
+      const html = response.data // ✅ FULL CONTENT: No HTML truncation for complete content extraction
+      const $ = cheerio.load(html)
 
-      // ENHANCED ARTICLE-BASED LINK EXTRACTION
+      // FAST LINK EXTRACTION - PRIORITY ALERTS ONLY
       console.log('🔍 Looking for individual alert articles...')
       const alertLinks: { url: string; title: string }[] = []
 
@@ -207,51 +206,77 @@ export class NafdacSimpleScraper {
 
       console.log(`🔗 Found ${alertLinks.length} alert links`)
 
+      // LAST RESORT: Filter out alerts that already exist in database
+      const existingUrls = await prisma.nafdacAlert.findMany({
+        where: { active: true },
+        select: { url: true }
+      })
+
+      const existingUrlSet = new Set(existingUrls.map(alert => alert.url))
+      const newAlertLinks = alertLinks.filter(link => !existingUrlSet.has(link.url))
+
+      console.log(`🔄 LAST RESORT: Filtered out ${alertLinks.length - newAlertLinks.length} existing alerts`)
+
+      // Update alertLinks to only new alerts
+      alertLinks.length = 0
+      alertLinks.push(...newAlertLinks)
+
       result.success = true
 
-      // Process ALL found alerts (up to 5)
+      // 🔄 SECQUENTIAL PROCESSING WITH DELAYS (HOBBY OPTIMIZED)
       if (alertLinks.length > 0) {
-        console.log(`📝 Processing ${alertLinks.length} alerts...`)
+        console.log(`📝 Processing ${alertLinks.slice(0, limit).length} alerts SEQUENTIALLY with delays...`)
 
-        for (let i = 0; i < alertLinks.length; i++) {
-          const alert = alertLinks[i]
-          console.log(`   📝 Processing alert ${i + 1}/${alertLinks.length}: "${alert.title}"`)
+        const alertsToProcess: { url: string; title: string }[] = alertLinks.slice(0, limit)
+
+        // Process alerts SEQUENTIALLY with delays to be gentle on servers
+        for (let index = 0; index < alertsToProcess.length; index++) {
+          const alert = alertsToProcess[index]
+          console.log(`   📝 Processing alert ${index + 1}/${limit}: "${alert.title}"`)
 
           try {
+            // Scrape the individual alert
             const alertData = await this.scrapeSingleAlert(alert.url, alert.title)
 
             if (alertData) {
               console.log(`   ✅ Successfully extracted alert: ${alertData.title}`)
-              console.log(`   📄 Content length: ${alertData.fullContent.length} characters`)
-
               // Store in database
               const saved = await this.storeAlertToDatabase(alertData)
               if (saved) {
                 result.newAlerts++
+                console.log(`   💾 Alert stored successfully`)
+              } else {
+                result.errors.push(`Alert ${index + 1} (${alert.title}): Database save failed`)
               }
             } else {
-              console.log(`   ❌ Failed to extract alert data for: ${alert.title}`)
-              result.errors.push(`Failed to extract alert: ${alert.title}`)
+              console.warn(`   ❌ Failed to extract alert data for: ${alert.title}`)
+              result.errors.push(`Alert ${index + 1} (${alert.title}): Extraction failed`)
             }
 
             result.totalProcessed++
 
-            // Add a small delay between requests to avoid overwhelming the server
-            if (i < alertLinks.length - 1) {
-              console.log(`   ⏳ Waiting 2 seconds before next alert...`)
-              await new Promise(resolve => setTimeout(resolve, 2000))
+            // Add delay between alerts to be server-friendly (except for last one)
+            if (index < alertsToProcess.length - 1) {
+              console.log(`   ⏱️  Waiting 1.5 seconds before next alert...`)
+              await new Promise(resolve => setTimeout(resolve, 1500))
             }
 
-          } catch (error) {
-            console.error(`   ❌ Error processing alert ${i + 1}: ${alert.title}`, error)
-            result.errors.push(`Alert processing error: ${alert.title} - ${error}`)
+          } catch (error: unknown) {
+            console.error(`   ❌ Error processing alert ${index + 1}: ${alert.title}`, error)
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error'
+            result.errors.push(`Alert ${index + 1} (${alert.title}): ${errorMsg}`)
             result.totalProcessed++
+
+            // Continue with next alert even if one fails
+            continue
           }
         }
 
-        console.log(`📊 Processing complete: ${result.newAlerts}/${result.totalProcessed} alerts successfully processed`)
+        console.log(`📊 Processing complete: ${result.newAlerts}/${result.totalProcessed} alerts processed SEQUENTIALLY WITH DELAYS`)
+        console.log(`⚡ Total runtime: <${result.totalProcessed * 2 + 2} seconds (estimated)`)
       } else {
         console.log('❌ No alert articles found to process')
+        result.errors.push('No alert articles found on NAFDAC website')
       }
 
     } catch (error) {
@@ -262,7 +287,234 @@ export class NafdacSimpleScraper {
     return result
   }
 
-  // Scrape individual alert page
+  // CONTINUOUS BATCH SCRAPER - For Manual/GitHub Actions (processes ALL alerts in batches of 4)
+  async scrapeAllAvailableAlerts(): Promise<{
+    success: boolean
+    totalBatches: number
+    totalAlerts: number
+    newAlerts: number
+    totalProcessed: number
+    batchDetails: Array<{batch: number, alerts: number, processed: number, new: number}>
+    errors: string[]
+  }> {
+    console.log('🚀 Starting CONTINUOUS BATCH SCRAPER - All Alerts Mode')
+
+    let batchNumber = 1
+    let totalProcessed = 0
+    let totalNewAlerts = 0
+    const batchDetails: Array<{batch: number, alerts: number, processed: number, new: number}> = []
+    const allErrors: string[] = []
+
+    while (true) {
+      console.log(`\n📦 BATCH ${batchNumber}: Processing next 4 alerts...`)
+
+      // Get next batch of alerts (always check for new ones on each iteration)
+      const batchResult = await this.getNextAlertBatch(4)
+
+      if (batchResult.alertLinks.length === 0) {
+        console.log(`✅ NO MORE ALERTS - Processing complete after ${batchNumber - 1} batches`)
+        break
+      }
+
+      console.log(`📊 Batch ${batchNumber}: Found ${batchResult.alertLinks.length} alerts to process`)
+
+      // Process this batch sequentially with delays
+      const batchProcessed = await this.processAlertBatch(batchResult.alertLinks, batchNumber)
+
+      // Update totals
+      totalProcessed += batchProcessed.totalProcessed
+      totalNewAlerts += batchProcessed.newAlerts
+
+      // Record batch details
+      batchDetails.push({
+        batch: batchNumber,
+        alerts: batchResult.alertLinks.length,
+        processed: batchProcessed.totalProcessed,
+        new: batchProcessed.newAlerts
+      })
+
+      // Add batch errors
+      allErrors.push(...batchProcessed.errors)
+
+      console.log(`📊 Batch ${batchNumber} Complete: ${batchProcessed.newAlerts}/${batchProcessed.totalProcessed} new alerts`)
+
+      // Increment batch counter
+      batchNumber++
+
+      // Safety check - don't run forever (max 10 batches)
+      if (batchNumber > 10) {
+        console.log(`⚠️ SAFETY BREAK: Stopped after 10 batches (max limit)`)
+        allErrors.push('Reached maximum batch limit (10 batches)')
+        break
+      }
+
+      // Pause between batches (3 seconds) - gentler on NAFDAC servers
+      console.log(`⏱️  Resting 3 seconds before next batch...`)
+      await new Promise(resolve => setTimeout(resolve, 3000))
+    }
+
+    // Final summary
+    console.log(`\n🎯 CONTINUOUS SCRAPER COMPLETE:`)
+    console.log(`   📦 Total batches: ${batchNumber - 1}`)
+    console.log(`   📊 Total alerts processed: ${totalProcessed}`)
+    console.log(`   ✨ New alerts added: ${totalNewAlerts}`)
+    console.log(`   ⚠️  Errors: ${allErrors.length}`)
+
+    return {
+      success: allErrors.length === 0,
+      totalBatches: batchNumber - 1,
+      totalAlerts: totalProcessed,
+      newAlerts: totalNewAlerts,
+      totalProcessed,
+      batchDetails,
+      errors: allErrors
+    }
+  }
+
+  // Helper: Get next batch of alerts to process
+  private async getNextAlertBatch(batchSize: number): Promise<{alertLinks: {url: string, title: string}[]}> {
+    try {
+      // Fetch current alerts page - SAME LOGIC AS MAIN SCRAPER
+      const response = await axios.get(this.baseUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        },
+        timeout: 8000
+      })
+
+      const html = response.data // ✅ FULL CONTENT
+      const $ = cheerio.load(html)
+
+      const alertLinks: {url: string, title: string}[] = []
+
+      // USE SAME STRATEGY 1 AS MAIN SCRAPER
+      $('.entry-title a, .post-title a, article h2 a, article h3 a, .post h2 a, .post h3 a').each((index, element) => {
+        const $elem = $(element)
+
+        // Skip if no href
+        const url = $elem.attr('href')
+        if (!url) return
+
+        // Skip if it's the main page itself
+        if (url === this.baseUrl || url === this.baseUrl + '/') return
+
+        // Skip category, tag, and archive pages
+        if (url.includes('/category/') ||
+            url.includes('/tag/') ||
+            url.includes('/page/') ||
+            url.includes('/author/') ||
+            url.includes('?paged=') ||
+            url.includes('#comments') ||
+            url.includes('/feed/')) {
+          return
+        }
+
+        // Get the title text
+        const title = $elem.text().trim()
+
+        // Skip if title is too short or generic
+        if (!title || title.length < 10 ||
+            title.toLowerCase().includes('home') ||
+            title.toLowerCase().includes('contact') ||
+            title.toLowerCase().includes('about') ||
+            title.toLowerCase().includes('privacy') ||
+            title.toLowerCase().includes('terms')) {
+          return
+        }
+
+        // Additional alert keyword check (for relevance)
+        const alertKeywords = ['alert', 'recall', 'counterfeit', 'fake', 'substandard', 'falsified', 'batch', 'lot', 'nafdac']
+        const hasAlertContent = alertKeywords.some(keyword =>
+          title.toLowerCase().includes(keyword) ||
+          url.toLowerCase().includes(keyword) ||
+          url.includes('/recalls-and-alerts/') ||
+          url.includes('/alert') ||
+          url.includes('/recall') ||
+          url.includes('/substandard') ||
+          url.includes('/counterfeit')
+        )
+
+        // Check for duplicates in found links
+        const isNew = !alertLinks.some(link => link.url === url)
+
+        if (isNew && url.startsWith('http') && (hasAlertContent || url.includes('nafdac.gov.ng'))) {
+          alertLinks.push({ url, title: title || 'Unnamed Alert' })
+          console.log(`🎯 CONTINUOUS: FOUND ALERT ARTICLE: "${title}" -> ${url}`)
+        }
+
+        if (alertLinks.length >= batchSize) return
+      })
+
+      console.log(`🔗 CONTINUOUS: Found ${alertLinks.length} alert links`)
+
+      // LAST RESORT: Filter out alerts that already exist in database
+      const existingUrls = await prisma.nafdacAlert.findMany({
+        where: { active: true },
+        select: { url: true }
+      })
+
+      const existingUrlSet = new Set(existingUrls.map(alert => alert.url))
+      const newAlertLinks = alertLinks.filter(link => !existingUrlSet.has(link.url))
+
+      console.log(`🔄 LAST RESORT: Filtered out ${alertLinks.length - newAlertLinks.length} existing alerts`)
+
+      return { alertLinks: newAlertLinks }
+    } catch (error) {
+      console.error('❌ Failed to get alert batch:', error)
+      return { alertLinks: [] }
+    }
+  }
+
+  // Helper: Process a single batch of alerts
+  private async processAlertBatch(alerts: {url: string, title: string}[], batchNumber: number): Promise<{
+    totalProcessed: number
+    newAlerts: number
+    errors: string[]
+  }> {
+    const result = {
+      totalProcessed: 0,
+      newAlerts: 0,
+      errors: [] as string[]
+    }
+
+    for (let index = 0; index < alerts.length; index++) {
+      const alert = alerts[index]
+      console.log(`   🔄 Batch ${batchNumber}.${index + 1}: "${alert.title}"`)
+
+      try {
+        const alertData = await this.scrapeSingleAlert(alert.url, alert.title)
+
+        if (alertData) {
+          const saved = await this.storeAlertToDatabase(alertData)
+          if (saved) {
+            result.newAlerts++
+            console.log(`   ✅ New alert saved`)
+          } else {
+            result.errors.push(`Batch.${batchNumber}.${index + 1}: DB save failed`)
+          }
+        } else {
+          result.errors.push(`Batch.${batchNumber}.${index + 1}: Extraction failed`)
+        }
+
+        result.totalProcessed++
+
+        // Short pause between alerts in batch (1 second)
+        if (index < alerts.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        }
+
+      } catch (error: unknown) {
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error'
+        result.errors.push(`Batch.${batchNumber}.${index + 1}: ${errorMsg}`)
+        result.totalProcessed++
+      }
+    }
+
+    return result
+  }
+
+  // Scrape individual alert page - FULL CONTENT EXTRACTION
   async scrapeSingleAlert(url: string, fallbackTitle: string): Promise<ScrapedAlertData | null> {
     try {
       console.log(`🔍 Fetching alert page: ${url}`)
@@ -272,10 +524,12 @@ export class NafdacSimpleScraper {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
         },
-        timeout: 10000
+        timeout: 7000 // ⬅️ HOBBY: Even shorter timeout (7 seconds)
       })
 
-      const $ = cheerio.load(response.data)
+      // ✅ FULL CONTENT: No HTML truncation for complete content extraction
+      const html = response.data
+      const $ = cheerio.load(html)
 
       // EXTRACT TITLE - try multiple simple selectors
       const title = $('.entry-title, h1').first().text().trim() ||
