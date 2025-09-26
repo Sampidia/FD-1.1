@@ -18,6 +18,10 @@ jobs:
         env:
           EXTERNAL_SCRAPER_TOKEN: ${{ secrets.EXTERNAL_SCRAPER_TOKEN }}
         run: |
+          # Debug: Check what the secret contains
+          echo "🔐 DEBUG: EXTERNAL_SCRAPER_TOKEN length: ${#EXTERNAL_SCRAPER_TOKEN}"
+          echo "🔐 DEBUG: EXTERNAL_SCRAPER_TOKEN starts with: ${EXTERNAL_SCRAPER_TOKEN:0:6}"
+
           # Try primary URL first, fallback to Vercel
           PRIMARY_URL="https://scan.sampidia.com/api/scraper/run"
           FALLBACK_URL="https://fd-1-1.vercel.app/api/scraper/run"
