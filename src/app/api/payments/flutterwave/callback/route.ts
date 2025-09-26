@@ -221,41 +221,48 @@ export async function POST(request: NextRequest) {
 
       console.log('Flutterwave webhook: Processing card payment', {
         transactionId,
+        flutterwaveId: data.id, // This is what we need!
         reference: data.tx_ref,
         amount: data.amount,
         email: data.customer?.email,
         eventType
       })
 
-      // 🎯 CRITICAL: Always verify card payments to get accurate pointsCount
-      const verificationResult = await paymentService.verifyFlutterwavePayment(transactionId!)
+      // 🎯 CRITICAL: Always verify using Flutterwave's transaction ID (data.id)
+      const verificationId = data.id || transactionId
+      const verificationResult = await paymentService.verifyFlutterwavePayment(verificationId!)
 
       if (!verificationResult.success || !verificationResult.verified) {
-        console.error('Flutterwave webhook: Card payment verification failed', verificationResult.error)
+        console.error('Flutterwave webhook: Card payment verification failed', {
+          usedId: verificationId,
+          error: verificationResult.error
+        })
 
         await sendPaymentFailureNotification(
           data.customer?.email || 'unknown',
           data.charged_amount || data.amount || 0,
           data.currency || 'NGN',
           'flutterwave',
-          transactionId || 'unknown',
+          verificationId || 'unknown',
           `Card verification failed: ${verificationResult.error || 'Unknown error'}`
         )
         return NextResponse.json({ status: 'error', message: 'Payment verification failed' }, { status: 500 })
       }
 
-      console.log('Flutterwave webhook: Card payment verified', {
+      console.log('Flutterwave webhook: Card payment verified successfully', {
+        verifiedWithId: verificationId,
         amount: verificationResult.amount,
         pointsCount: verificationResult.pointsCount
       })
 
+      // Use our transaction ID for database records, but verified amount/points
       const amount = verificationResult.amount!
       const pointsCount = verificationResult.pointsCount || 0
       const customer = data.customer
 
       // 🎯 PROCESS PAYMENT (Shared for all methods after verification)
       await processSuccessfulPayment(
-        transactionId!,
+        transactionId!, // Use our reference for database
         amount,
         pointsCount,
         customer,
@@ -316,23 +323,36 @@ export async function POST(request: NextRequest) {
       const transactionId = id || txRef || tx_ref
       const transactionAmount = charged_amount || amount
 
+      console.log('Flutterwave webhook: Bank payment details', {
+        transactionId, // Our tx_ref
+        flutterwaveId: id, // This should be Flutterwave's ID
+        reference: txRef || tx_ref,
+        amount: transactionAmount,
+        email: customer?.email,
+        eventType
+      })
+
       // Verify the status
       if (status !== 'successful') {
         console.log('Flutterwave webhook: Payment status is not successful')
         return NextResponse.json({ status: 'ignored', message: 'Payment not successful' })
       }
 
-      // 📞 VERIFY BANK PAYMENT WITH FLUTTERWAVE API
-      const verificationResult = await paymentService.verifyFlutterwavePayment(transactionId!)
+      // 📞 VERIFY BANK PAYMENT WITH FLUTTERWAVE API - Use actual Flutterwave transaction ID
+      const verificationId = id || transactionId // Prefer Flutterwave's ID over our ref
+      const verificationResult = await paymentService.verifyFlutterwavePayment(verificationId!)
       if (!verificationResult.success || !verificationResult.verified) {
-        console.error('Flutterwave webhook: Bank payment verification failed', verificationResult.error)
+        console.error('Flutterwave webhook: Bank payment verification failed', {
+          usedId: verificationId,
+          error: verificationResult.error
+        })
 
         await sendPaymentFailureNotification(
           customer?.email || 'unknown',
           transactionAmount,
           currency || 'NGN',
           'flutterwave',
-          transactionId || 'unknown',
+          verificationId || 'unknown',
           `Bank verification failed: ${verificationResult.error || 'Unknown error'}`
         )
         return NextResponse.json({ status: 'error', message: 'Payment verification failed' }, { status: 500 })
