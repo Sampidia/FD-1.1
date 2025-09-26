@@ -5,6 +5,72 @@ import prisma from '@/lib/prisma'
 
 const paymentService = new PaymentService()
 
+// Process successful payment (shared for all payment methods)
+async function processSuccessfulPayment(
+  transactionId: string,
+  amount: number,
+  pointsCount: number,
+  customer: any,
+  currency: string,
+  paymentType: string,
+  eventType: string
+): Promise<void> {
+  try {
+    // Find user by email
+    const user = await prisma.user.findUnique({
+      where: { email: customer.email },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        planId: true,
+        pointsBalance: true
+      }
+    })
+
+    if (!user) {
+      console.error('Flutterwave webhook: User not found for email:', customer.email)
+      throw new Error('User not found')
+    }
+
+    // Update user's points balance
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        pointsBalance: {
+          increment: pointsCount
+        }
+      },
+      select: {
+        id: true,
+        email: true,
+        pointsBalance: true
+      }
+    })
+
+    // Create payment record
+    await prisma.payment.create({
+      data: {
+        userId: user.id,
+        transactionId: transactionId.toString(),
+        amount,
+        currency,
+        status: 'completed',
+        pointsPurchased: pointsCount,
+        paymentGateway: 'flutterwave',
+        processedAt: new Date()
+      }
+    })
+
+    console.log(`Flutterwave webhook: ✅ Successfully added ${pointsCount} points to ${user.email} (${paymentType})`)
+    console.log('Updated balance:', updatedUser.pointsBalance)
+
+  } catch (error) {
+    console.error('Flutterwave webhook: Failed to process payment:', error)
+    throw error
+  }
+}
+
 // Send payment failure notification to admin
 async function sendPaymentFailureNotification(
   userId: string,
@@ -150,32 +216,65 @@ export async function POST(request: NextRequest) {
     })
 
     if (event === 'charge.completed' || eventType === 'CARD_TRANSACTION') {
-      // 🪖 EXISTING: CARD PAYMENT HANDLER
-      const {
-        id,
-        tx_ref,
-        amount,
-        charged_amount,
-        currency,
-        status,
-        customer,
-        meta
-      } = data
+      // 🪖 CARD PAYMENT HANDLER - Always verify to get accurate data
+      const transactionId = data.id || data.tx_ref
 
-      const transactionId = id || tx_ref
-      const pointsCount = meta?.pointsCount || 0
-
-      console.log('Flutterwave webhook: Processing completed payment', {
+      console.log('Flutterwave webhook: Processing card payment', {
         transactionId,
-        reference: tx_ref,
-        amount,
-        currency,
-        status,
-        email: customer?.email,
-        pointsCount
+        reference: data.tx_ref,
+        amount: data.amount,
+        email: data.customer?.email,
+        eventType
       })
 
-    // 🆕 NEW: COMPREHENSIVE BANK TRANSFER HANDLER (All Flutterwave bank/account events)
+      // 🎯 CRITICAL: Always verify card payments to get accurate pointsCount
+      const verificationResult = await paymentService.verifyFlutterwavePayment(transactionId!)
+
+      if (!verificationResult.success || !verificationResult.verified) {
+        console.error('Flutterwave webhook: Card payment verification failed', verificationResult.error)
+
+        await sendPaymentFailureNotification(
+          data.customer?.email || 'unknown',
+          data.charged_amount || data.amount || 0,
+          data.currency || 'NGN',
+          'flutterwave',
+          transactionId || 'unknown',
+          `Card verification failed: ${verificationResult.error || 'Unknown error'}`
+        )
+        return NextResponse.json({ status: 'error', message: 'Payment verification failed' }, { status: 500 })
+      }
+
+      console.log('Flutterwave webhook: Card payment verified', {
+        amount: verificationResult.amount,
+        pointsCount: verificationResult.pointsCount
+      })
+
+      const amount = verificationResult.amount!
+      const pointsCount = verificationResult.pointsCount || 0
+      const customer = data.customer
+
+      // 🎯 PROCESS PAYMENT (Shared for all methods after verification)
+      await processSuccessfulPayment(
+        transactionId!,
+        amount,
+        pointsCount,
+        customer,
+        data.currency || 'NGN',
+        'card',
+        'CARD_TRANSACTION'
+      )
+
+      return NextResponse.json({
+        status: 'success',
+        message: 'Card payment processed successfully',
+        data: {
+          transactionId: transactionId!.toString(),
+          pointsAdded: pointsCount,
+          amount,
+          paymentType: 'card'
+        }
+      })
+
     } else if (
       // Bank Transfer Events
       event?.type === 'BANK_TRANSFER_TRANSACTION' ||
@@ -215,10 +314,7 @@ export async function POST(request: NextRequest) {
       } = event || body  // Bank transfers put data at top level
 
       const transactionId = id || txRef || tx_ref
-
-      // For bank transfers, pointsCount comes from the amount
-      // 7500 NGN = 50 points (basic plan)
-      const pointsCount = Math.floor((charged_amount || amount) / 150) || 50
+      const transactionAmount = charged_amount || amount
 
       // Verify the status
       if (status !== 'successful') {
@@ -226,16 +322,31 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ status: 'ignored', message: 'Payment not successful' })
       }
 
-      console.log('Flutterwave webhook: Bank transfer verified successfully', {
+      // 📞 VERIFY BANK PAYMENT WITH FLUTTERWAVE API
+      const verificationResult = await paymentService.verifyFlutterwavePayment(transactionId!)
+      if (!verificationResult.success || !verificationResult.verified) {
+        console.error('Flutterwave webhook: Bank payment verification failed', verificationResult.error)
+
+        await sendPaymentFailureNotification(
+          customer?.email || 'unknown',
+          transactionAmount,
+          currency || 'NGN',
+          'flutterwave',
+          transactionId || 'unknown',
+          `Bank verification failed: ${verificationResult.error || 'Unknown error'}`
+        )
+        return NextResponse.json({ status: 'error', message: 'Payment verification failed' }, { status: 500 })
+      }
+
+      console.log('Flutterwave webhook: Bank payment verified', {
         transactionId,
         reference: txRef,
-        amount,
-        currency,
-        status,
-        email: customer?.email,
-        pointsCount,
-        eventType: 'BANK_TRANSFER_TRANSACTION'
+        amount: verificationResult.amount,
+        pointsCount: verificationResult.pointsCount
       })
+
+      const pointsCount = verificationResult.pointsCount || 0
+      const verifiedAmount = verificationResult.amount!
 
       // Verify transaction ID exists
       if (!transactionId) {
@@ -249,71 +360,25 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ status: 'error', message: 'Missing customer email' }, { status: 400 })
       }
 
-      const user = await prisma.user.findUnique({
-        where: { email: customer.email },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          planId: true,
-          pointsBalance: true
-        }
-      })
+      // 🎯 PROCESS PAYMENT (Shared for all methods after verification)
+      await processSuccessfulPayment(
+        transactionId,
+        verifiedAmount,
+        pointsCount,
+        customer,
+        currency || 'NGN',
+        'bank',
+        eventType
+      )
 
-      if (!user) {
-        console.error('Flutterwave webhook: User not found for email:', customer.email)
-        return NextResponse.json({ status: 'error', message: 'User not found' }, { status: 404 })
-      }
-
-      // Update user's points balance
-      const updatedUser = await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          pointsBalance: {
-            increment: pointsCount
-          }
-        },
-        select: {
-          id: true,
-          email: true,
-          pointsBalance: true
-        }
-      })
-
-      // Create payment record
-      try {
-        await prisma.payment.create({
-          data: {
-            userId: user.id,
-            transactionId: transactionId.toString(),
-            amount: charged_amount || amount,
-            currency: currency || 'NGN',
-            status: 'completed',
-            pointsPurchased: pointsCount,
-            paymentGateway: 'flutterwave',
-            processedAt: new Date()
-          }
-        })
-
-        console.log(`Flutterwave webhook: ✅ Successfully added ${pointsCount} points to ${user.email}`)
-        console.log('Updated balance:', updatedUser.pointsBalance)
-
-      } catch (paymentError) {
-        console.error('Flutterwave webhook: Failed to create payment record:', paymentError)
-        // Don't fail the entire webhook for this
-      }
-
-      // Success response
       return NextResponse.json({
         status: 'success',
-        message: 'Payment processed successfully',
+        message: 'Bank payment processed successfully',
         data: {
-          userId: user.id,
           transactionId: transactionId.toString(),
           pointsAdded: pointsCount,
-          updatedBalances: {
-            total: updatedUser.pointsBalance
-          }
+          amount: verifiedAmount,
+          paymentType: 'bank'
         }
       })
     }

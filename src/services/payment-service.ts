@@ -151,7 +151,7 @@ export class PaymentService {
             name: params.name
           },
           customizations: {
-            title: 'Fake Detector Points Purchase',
+            title: 'AFIGO-SAM TECHNOLOGY',
             description: `Purchase ${params.pointsCount} points for ₦${params.amount}`,
             logo: `${this.baseURL}/logo.png`
           },
