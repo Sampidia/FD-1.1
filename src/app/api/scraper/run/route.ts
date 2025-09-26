@@ -12,6 +12,22 @@ export async function POST(request: NextRequest) {
     const externalToken = process.env.EXTERNAL_SCRAPER_TOKEN
     const manualTrigger = !!externalToken && authHeader === `Bearer ${externalToken}`
 
+    console.log('🔍 DEBUG INFO:')
+    console.log('📥 Received authorization header:', authHeader ? `"${authHeader}"` : 'undefined/null')
+    console.log('🔑 External token env var:', externalToken ? `"${externalToken}"` : 'undefined/null')
+    console.log('✅ Manual trigger:', manualTrigger)
+
+    // Return debug info instead of processing
+    return NextResponse.json({
+      debug: true,
+      receivedAuthHeader: authHeader,
+      expectedAuthHeader: `Bearer ${externalToken}`,
+      manualTrigger: manualTrigger,
+      externalTokenExists: !!externalToken,
+      authMatch: authHeader === `Bearer ${externalToken}`,
+      timestamp: new Date().toISOString()
+    })
+
     if (!manualTrigger) {
       // Check for admin session (internal calls)
       const session = await getServerSession(authOptions)
