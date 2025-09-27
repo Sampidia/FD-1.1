@@ -4,13 +4,13 @@ import { authOptions } from '@/lib/auth-minimal'
 import "@/types/nextauth"
 import prisma from '@/lib/prisma'
 
-// Force dynamic rendering for auth-required API routes
-export const dynamic = 'force-dynamic'
-
 export async function GET(request: NextRequest) {
   try {
-    // Prevent build-time execution
-    if (process.env.NEXT_PHASE === 'phase-production-build') {
+    // COMPREHENSIVE BUILD-TIME PROTECTION - Prevent ANY database/auth calls during build
+    if (process.env.NEXT_PHASE?.includes('build') ||
+        process.env.NODE_ENV === 'development' ||
+        process.env.NEXT_PHASE === 'phase-production-build') {
+      console.log('[BUILD-TIME] Skipping database operations for ai-providers')
       return NextResponse.json(
         {
           providers: [],
