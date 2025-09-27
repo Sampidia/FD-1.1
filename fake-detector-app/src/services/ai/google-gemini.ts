@@ -60,6 +60,9 @@ export class GeminiService {
         if (jsonCredentials) {
           console.log(`🔑 Using GOOGLE_APPLICATION_CREDENTIALS_JSON (Vercel recommended)`)
 
+          // 🔐 STORE CREDENTIALS FOR RUNTIME OCR CALLS
+          (this as any)._storedJsonCredentials = jsonCredentials
+
           const credentials = JSON.parse(jsonCredentials)
           const authWithCredentials = new GoogleAuth({
             credentials: credentials,
@@ -156,13 +159,19 @@ export class GeminiService {
       const originalJsonCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
 
       try {
-        // STEP 1: Check if we have credentials from initialization
-        const jsonCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ||
-                               (this as any)._storedCredentials // Fallback to stored if available
+        // STEP 1: Use stored credentials from initialization (PRIORTY)
+        let jsonCredentials = (this as any)._storedJsonCredentials
+
+        // Fallback: Check current env var (might be restored from previous call)
+        if (!jsonCredentials) {
+          jsonCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
+        }
 
         if (jsonCredentials) {
           process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON = jsonCredentials
-          console.log('🔧 [VertexAI] Restored credentials for API call')
+          console.log('🔧 [VertexAI] Restored credentials from storage for API call')
+        } else {
+          console.warn('⚠️ [VertexAI] No stored credentials available for API call')
         }
 
         // Generate prompt based on task type
