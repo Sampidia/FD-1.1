@@ -58,7 +58,7 @@ export class GeminiService {
         // Step 1: Check GOOGLE_APPLICATION_CREDENTIALS_JSON first (Vercel best practice)
         jsonCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
         if (jsonCredentials) {
-          console.log(`🔑 Using GOOGLE_APPLICATION_CREDENTIALS_JSON (Vercel recommended)`)
+          global.console?.log(`🔑 Using GOOGLE_APPLICATION_CREDENTIALS_JSON (Vercel recommended)`)
 
           // 🔐 STORE CREDENTIALS FOR RUNTIME OCR CALLS
           (this as any)._storedJsonCredentials = jsonCredentials
