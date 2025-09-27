@@ -129,8 +129,6 @@ class GeminiServiceReal {
         // Step 1: Check GOOGLE_APPLICATION_CREDENTIALS_JSON first (Vercel best practice)
         jsonCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
         if (jsonCredentials) {
-          global.console?.log(`🔑 Using GOOGLE_APPLICATION_CREDENTIALS_JSON (Vercel recommended)`)
-
           // 🔐 STORE CREDENTIALS FOR RUNTIME OCR CALLS
           (this as any)._storedJsonCredentials = jsonCredentials
 
@@ -139,7 +137,7 @@ class GeminiServiceReal {
           try {
             credentials = JSON.parse(jsonCredentials.trim())
           } catch (parseError) {
-            console.warn('❌ Invalid JSON in GOOGLE_APPLICATION_CREDENTIALS_JSON, skipping Google auth:', parseError.message)
+            console.warn('❌ Invalid JSON in GOOGLE_APPLICATION_CREDENTIALS_JSON, skipping Google auth:', parseError instanceof Error ? parseError.message : 'Unknown error')
             return // Skip Google auth initialization completely
           }
 
