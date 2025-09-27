@@ -70,7 +70,7 @@ export class GeminiService {
         } else {
           // Step 2: Fall back to GOOGLE_APPLICATION_CREDENTIALS detection
           const googleAppCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS
-          if (googleAppCredentials) {
+          if (googleAppCredentials && typeof googleAppCredentials === 'string') {
             console.log(`📄 GOOGLE_APPLICATION_CREDENTIALS found, detecting format...`)
 
             // Check if it's a JSON string (service account credentials)
