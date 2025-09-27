@@ -37,7 +37,7 @@
  */
 
 import { ClaudeVisionOCR } from './ai/claude-vision'
-import { GeminiService } from './ai/google-gemini'
+// import { GeminiService } from './ai/google-gemini' // Moved to dynamic import to prevent ESM issues
 import { OpenAIService } from './ai/openai-gpt'
 import { ImagePreprocessingService } from './image-preprocessing'
 import { aiRouter } from './ai/ai-router'
@@ -125,23 +125,14 @@ export interface OCRFallbackOptions {
 
 export class OCRFallbackManager {
   private claudeOCR: ClaudeVisionOCR
-  private geminiOCR: GeminiService
+  private geminiOCR: any // Lazy load to prevent ESM issues
   private openaiOCR: OpenAIService
   private preprocessingService: ImagePreprocessingService
   private logs: FallbackLog[] = []
 
   constructor() {
     this.claudeOCR = new ClaudeVisionOCR()
-    this.geminiOCR = new GeminiService({
-      id: 'gemini-fallback',
-      apiKey: process.env.GOOGLE_AI_API_KEY || '',
-      modelName: 'gemini-1.5-flash',
-      provider: 'google',
-      temperature: 0.1,
-      maxTokens: 1024,
-      costInput: 0.00000025,
-      costOutput: 0.000001
-    })
+    // this.geminiOCR initialized lazily in tryGeminiVision()
     this.openaiOCR = new OpenAIService({
       id: 'openai-fallback',
       apiKey: process.env.OPENAI_API_KEY || '',
@@ -543,6 +534,21 @@ export class OCRFallbackManager {
    */
   private async tryGeminiVision(images: string[], startTime: number, userPlan: string = 'free'): Promise<OCRResult | null> {
     try {
+      // Lazily initialize Gemini service to prevent ESM issues
+      if (!this.geminiOCR) {
+        const { GeminiService } = await import('./ai/google-gemini')
+        this.geminiOCR = new GeminiService({
+          id: 'gemini-fallback',
+          apiKey: process.env.GOOGLE_AI_API_KEY || '',
+          modelName: 'gemini-1.5-pro', // Use the production-compatible model
+          provider: 'google',
+          temperature: 0.1,
+          maxTokens: 1024,
+          costInput: 0.00000025,
+          costOutput: 0.000001
+        })
+      }
+
       const request = {
         text: this.generateOCRPrompt(undefined, userPlan, images.length),
         task: 'ocr' as const,
