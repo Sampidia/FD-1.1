@@ -6,11 +6,16 @@ import prisma from '@/lib/prisma'
 
 export async function GET(request: NextRequest) {
   try {
-    // COMPREHENSIVE BUILD-TIME PROTECTION - Prevent ANY database/auth calls during build
-    if (process.env.NEXT_PHASE?.includes('build') ||
-        process.env.NODE_ENV === 'development' ||
-        process.env.NEXT_PHASE === 'phase-production-build') {
-      console.log('[BUILD-TIME] Skipping database operations for ai-providers')
+    // VERCEL BUILD ENVIRONMENT DETECTION - Works without NEXT_PHASE
+    const isVercelBuildEnvironment =
+      (process.env.VERCEL_ENV === 'production' && process.env.NODE_ENV !== 'production') ||
+      (process.env.VERCEL_ENV === undefined && process.env.NODE_ENV !== 'production') ||
+      !process.env.DATABASE_URL ||
+      !process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ||
+      process.env.NEXT_PHASE?.includes('build')
+
+    if (isVercelBuildEnvironment) {
+      console.log('[VERCEL-BUILD] Skipping database operations for ai-providers')
       return NextResponse.json(
         {
           providers: [],
