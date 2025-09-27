@@ -256,8 +256,9 @@ export async function POST(request: NextRequest) {
       })
 
       // Use our transaction ID for database records, but verified amount/points
+      // Parse pointsCount to integer with proper error handling (same as Paystack)
       const amount = verificationResult.amount!
-      const pointsCount = parseInt(verificationResult.pointsCount || '0', 10)
+      const pointsCount = parseInt(String(verificationResult.pointsCount || '0'), 10)
       const customer = data.customer
 
       // 🎯 PROCESS PAYMENT (Shared for all methods after verification)
@@ -365,7 +366,7 @@ export async function POST(request: NextRequest) {
         pointsCount: verificationResult.pointsCount
       })
 
-      const pointsCount = parseInt(verificationResult.pointsCount || '0', 10)
+      const pointsCount = parseInt(String(verificationResult.pointsCount || '0'), 10)
       const verifiedAmount = verificationResult.amount!
 
       // Verify transaction ID exists
