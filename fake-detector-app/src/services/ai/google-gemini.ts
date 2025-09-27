@@ -52,10 +52,11 @@ export class GeminiService {
 
       // Handle Google Cloud authentication - prioritize Vercel best practice
       let client
+      let jsonCredentials: string | undefined
 
       try {
         // Step 1: Check GOOGLE_APPLICATION_CREDENTIALS_JSON first (Vercel best practice)
-        const jsonCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
+        jsonCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
         if (jsonCredentials) {
           console.log(`🔑 Using GOOGLE_APPLICATION_CREDENTIALS_JSON (Vercel recommended)`)
 
@@ -112,13 +113,24 @@ export class GeminiService {
         client = await auth.getClient()
       }
 
-      this.vertexAI = new VertexAI({
-        project: this.project,
-        location: this.location,
-        auth: client,
-      })
+      // FIX: VertexAI needs GOOGLE_APPLICATION_CREDENTIALS_JSON for internal auth
+      const originalJsonCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
+      if (!originalJsonCredentials && jsonCredentials) {
+        process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON = jsonCredentials
+      }
 
-      console.log(`✅ Google Cloud VertexAI initialized successfully`)
+      try {
+        this.vertexAI = new VertexAI({
+          project: this.project,
+          location: this.location,
+        })
+
+        console.log(`✅ Google Cloud VertexAI initialized successfully`)
+      } finally {
+        // IMMEDIATELY clear to prevent future file path confusion
+        process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON = undefined
+        delete process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
+      }
     } catch (error) {
       console.error('❌ Failed to initialize Google Cloud auth:', error)
       throw error
