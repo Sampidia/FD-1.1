@@ -31,7 +31,14 @@ export class GeminiService {
     this.project = process.env.GOOGLE_CLOUD_PROJECT || 'fake-detector-449119'
     this.location = 'us-central1' // Default Google Cloud region
 
-    // Initialize Google Cloud auth (lazy)
+    // VERCEL BUILD BYPASS - Completely skip Google Cloud during build
+    if (process.env.VERCEL_ENV || process.env.NEXT_PHASE === 'phase-production-build') {
+      console.log('[VERCEL-BUILD] Skipping Google Cloud initialization during build')
+      this.vertexAI = null
+      return
+    }
+
+    // Initialize Google Cloud auth (lazy) - ONLY in production runtime
     this.initializeAuth()
   }
 
