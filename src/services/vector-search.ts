@@ -1,5 +1,4 @@
 import prisma from '@/lib/prisma'
-import { pipeline } from '@xenova/transformers'
 import Fuse from 'fuse.js'
 
 // Enhanced Vector Search and Matching Service
@@ -12,6 +11,8 @@ export class VectorSimilaritySearch {
 
     try {
       console.log('🧠 Initializing vector search with HuggingFace model...')
+      // Dynamically import transformers for ESM compatibility
+      const { pipeline } = await import('@xenova/transformers')
       this.nlpModel = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2')
       this.isInitialized = true
       console.log('✅ Vector search model initialized successfully')
