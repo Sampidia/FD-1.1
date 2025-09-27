@@ -96,8 +96,8 @@ export class AIServiceRouter {
 
               // Fallback: Check current env vars if no stored credentials
               if (!googleJsonCredentials || !googleProjectId) {
-                googleJsonCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
-                googleProjectId = process.env.GOOGLE_CLOUD_PROJECT
+                googleJsonCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || null
+                googleProjectId = process.env.GOOGLE_CLOUD_PROJECT || null
                 console.log(`🔁 [CREDENTIAL SINK] Using current environment variables (no stored credentials)`)
               } else {
                 console.log(`🔄 [CREDENTIAL SINK] Using stored credentials from previous successful authentication`)
