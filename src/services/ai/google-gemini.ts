@@ -207,7 +207,98 @@ export class GeminiService {
     }
   }
 
+  async processText(request: AIRequest): Promise<AIResponse> {
+    const startTime = Date.now()
 
+    console.log(`🤖 [Gemini Text] Processing text request`)
+
+    try {
+      // Ensure VertexAI is initialized
+      if (!this.vertexAI) {
+        await this.initializeAuth()
+        if (!this.vertexAI) {
+          throw new Error('VertexAI failed to initialize')
+        }
+      }
+
+      // Generate prompt based on task type
+      const prompt = this.generatePrompt(request.text, request.task)
+
+      // Get Gemini Pro model for text-only processing
+      const model = this.vertexAI.getGenerativeModel({
+        model: 'gemini-1.5-flash', // Use flash model for text-only tasks
+        generationConfig: {
+          temperature: this.config.temperature || 0.7,
+          maxOutputTokens: Math.min(request.maxTokens || 2048, this.config.maxTokens || 2048),
+          topK: 40,
+          topP: 0.95,
+        }
+      })
+
+      // Make API call for text-only request
+      console.log(`🌐 [Gemini Text] Calling VertexAI API: gemini-1.5-flash`)
+
+      const result = await model.generateContent({
+        contents: [{
+          role: 'user',
+          parts: [{ text: prompt }]
+        }],
+      })
+
+      console.log(`✅ [Gemini Text] API call successful`)
+
+      // Parse response
+      const response = result.response
+      const content = response.text()
+
+      if (!content) {
+        throw new Error('No content in Gemini Text response')
+      }
+
+      const responseTime = Date.now() - startTime
+
+      // Extract structured data based on task type
+      const extractedData = this.extractStructuredData(content, request.task)
+
+      return {
+        content,
+        extractedData,
+        usage: {
+          inputTokens: Math.ceil(request.text.length / 4),
+          outputTokens: Math.ceil(content.length / 4),
+          cost: this.calculateCost(request.text.length, content.length)
+        },
+        metadata: {
+          model: 'gemini-1.5-flash',
+          provider: 'google',
+          responseTime,
+          success: true,
+          finishReason: response.candidates?.[0]?.finishReason || 'completed'
+        }
+      }
+
+    } catch (error) {
+      console.error('Google Gemini Text error:', error)
+
+      return {
+        content: '',
+        extractedData: null,
+        usage: {
+          inputTokens: 0,
+          outputTokens: 0,
+          cost: 0
+        },
+        metadata: {
+          model: 'gemini-1.5-flash',
+          provider: 'google',
+          responseTime: Date.now() - startTime,
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          finishReason: 'error'
+        }
+      }
+    }
+  }
 
   private generatePrompt(text: string, task: string): string {
     const basePrompts = {
