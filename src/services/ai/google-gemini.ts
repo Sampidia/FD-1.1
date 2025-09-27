@@ -47,7 +47,7 @@ export class GeminiService {
         try {
           // Check if it's a JSON string (service account credentials)
           if (googleAppCredentials.trim().startsWith('{')) {
-            console.log(`� Using inline service account credentials`)
+            console.log(`🔑 Using inline service account credentials`)
 
             const credentials = JSON.parse(googleAppCredentials)
             const authWithCredentials = new GoogleAuth({
@@ -55,6 +55,10 @@ export class GeminiService {
               scopes: ['https://www.googleapis.com/auth/cloud-platform'],
             })
             client = await authWithCredentials.getClient()
+
+            // Clear the environment variable to prevent VertexAI from trying to use it as a file path again
+            process.env.GOOGLE_APPLICATION_CREDENTIALS = undefined
+            console.log(`🧹 Cleared GOOGLE_APPLICATION_CREDENTIALS from environment to prevent file path confusion`)
           } else {
             // Check if it's a file path
             console.log(`📁 Using service account key file: ${googleAppCredentials}`)
