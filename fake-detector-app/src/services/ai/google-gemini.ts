@@ -962,10 +962,26 @@ MANDATORY: Both productName and batchNumbers must be populated with real extract
 // FACTORY FUNCTION APPROACH - Clean Runtime Service Selection
 // This ensures NO Google Cloud code is imported/executed during Vercel builds
 export function createGeminiService(config: AIProviderConfig) {
+  // DEBUG: Check what's actually available in Vercel runtime
+  console.log('🔍 GOOGLE CLOUD ENV DEBUG:', {
+    NODE_ENV: process.env.NODE_ENV,
+    DATABASE_URL_EXISTS: !!process.env.DATABASE_URL,
+    GOOGLE_APPLICATION_CREDENTIALS_JSON_EXISTS: !!process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON,
+    GOOGLE_APPLICATION_CREDENTIALS_JSON_LENGTH: process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON?.length || 0,
+    GOOGLE_CLOUD_PROJECT: process.env.GOOGLE_CLOUD_PROJECT,
+    timestamp: new Date().toISOString()
+  })
+
   const hasProductionEnvironment =
     process.env.NODE_ENV === 'production' &&
     process.env.DATABASE_URL &&
     process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
+
+  console.log('🎯 Production environment detected:', hasProductionEnvironment, {
+    nodeEnv: process.env.NODE_ENV === 'production',
+    hasDbUrl: !!process.env.DATABASE_URL,
+    hasCredentialsJson: !!process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
+  })
 
   if (hasProductionEnvironment) {
     return new GeminiServiceReal(config)
