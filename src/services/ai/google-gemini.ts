@@ -1,108 +1,163 @@
 import { AIProviderConfig, AIResponse, AIRequest } from './types-fixed'
 
+// Dynamic import for Google Cloud libraries (ESM compatibility)
+let VertexAI: any
+let GoogleAuth: any
+
+const initializeGoogleCloud = async () => {
+  if (!VertexAI) {
+    const vertexModule = await import('@google-cloud/vertexai')
+    const authModule = await import('google-auth-library')
+    VertexAI = vertexModule.VertexAI
+    GoogleAuth = authModule.GoogleAuth
+  }
+}
+
 export class GeminiService {
-  private apiKey: string
-  private baseUrl = 'https://generativelanguage.googleapis.com/v1beta'
+  private vertexAI: any = null
   private config: AIProviderConfig
+  private project: string
+  private location: string
 
   constructor(config: AIProviderConfig) {
-    this.apiKey = config.apiKey
     this.config = config
+    // Extract project and location from config or use defaults
+    this.project = process.env.GOOGLE_CLOUD_PROJECT || 'fake-detector-449119'
+    this.location = config.location || 'us-central1'
+
+    // Initialize Google Cloud auth (lazy)
+    this.initializeAuth()
+  }
+
+  private async initializeAuth() {
+    await initializeGoogleCloud()
+
+    try {
+      console.log(`🔐 Initializing Google Cloud auth for project: ${this.project}`)
+
+      const auth = new GoogleAuth({
+        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+      })
+
+      // Use service account key file if available, otherwise application default credentials
+      const keyFile = process.env.GOOGLE_APPLICATION_CREDENTIALS
+      if (keyFile) {
+        console.log(`📄 Using service account key: ${keyFile}`)
+        const authWithKey = new GoogleAuth({
+          keyFile: keyFile,
+          scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+        })
+        const client = await authWithKey.getClient()
+
+        this.vertexAI = new VertexAI({
+          project: this.project,
+          location: this.location,
+          auth: client,
+        })
+      } else {
+        console.log(`🏠 Using application default credentials`)
+        const client = await auth.getClient()
+
+        this.vertexAI = new VertexAI({
+          project: this.project,
+          location: this.location,
+          auth: client,
+        })
+      }
+
+      console.log(`✅ Google Cloud VertexAI initialized successfully`)
+    } catch (error) {
+      console.error('❌ Failed to initialize Google Cloud auth:', error)
+      throw error
+    }
   }
 
   async processVision(request: AIRequest): Promise<AIResponse> {
     const startTime = Date.now()
 
     console.log(`🤖 [Gemini Vision] Processing OCR request with ${request.images?.length || 0} images`)
-    console.log(`🔑 [Gemini Vision] API key available: ${!!this.apiKey}`)
-    console.log(`📝 [Gemini Vision] Prompt length: ${request.text.length}`)
 
     try {
+      // Ensure VertexAI is initialized
+      if (!this.vertexAI) {
+        await this.initializeAuth()
+        if (!this.vertexAI) {
+          throw new Error('VertexAI failed to initialize')
+        }
+      }
+
       // Generate prompt based on task type
       const prompt = this.generatePrompt(request.text, request.task)
       console.log(`💬 [Gemini Vision] Generated prompt: ${prompt.substring(0, 200)}...`)
 
-      // Convert images to Gemini format - Gemini supports: png, jpeg, jpg, gif, webp
-      const imageParts = request.images?.map(image => {
-        let mimeType = 'image/png' // Default to PNG
-
-        if (image.startsWith('data:')) {
-          const dataUrlType = image.split('data:')[1].split(';')[0]
-          // Convert common formats to Gemini-supported ones
-          if (dataUrlType === 'image/jpeg' || dataUrlType === 'image/jpg') {
-            mimeType = 'image/jpeg'
-          } else if (dataUrlType === 'image/png') {
-            mimeType = 'image/png'
-          } else if (dataUrlType === 'image/gif') {
-            mimeType = 'image/gif'
-          } else if (dataUrlType === 'image/webp') {
-            mimeType = 'image/webp'
-          } else {
-            // For unrecognized formats, default to PNG and let Gemini handle it
-            mimeType = 'image/png'
-          }
-          console.log(`🔧 [Gemini Vision] Detected format: ${dataUrlType} → Using: ${mimeType}`)
+      // Get Gemini Pro Vision model
+      const model = this.vertexAI.getGenerativeModel({
+        model: this.config.modelName || 'gemini-1.5-pro',
+        generationConfig: {
+          temperature: this.config.temperature || 0.1, // Lower temperature for OCR accuracy
+          maxOutputTokens: Math.min(request.maxTokens || 2048, this.config.maxTokens || 2048),
+          topK: 32,
+          topP: 1,
         }
-
-        return {
-          inlineData: {
-            mimeType: mimeType,
-            data: image.startsWith('data:') ? image.split(',')[1] : image // Handle data URLs
-          }
-        }
-      }) || []
-
-      console.log(`🏗️ [Gemini Vision] Formatted ${imageParts.length} image parts`)
-
-      // Make API call to Google Gemini Vision
-      const apiUrl = `${this.baseUrl}/models/${this.config.modelName}:generateContent?key=${this.apiKey}`
-      console.log(`🌐 [Gemini Vision] Calling API: ${this.config.modelName}`)
-
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: prompt },
-              ...imageParts
-            ]
-          }],
-          generationConfig: {
-            temperature: this.config.temperature || 0.1, // Lower temperature for OCR accuracy
-            topK: 32,
-            topP: 1,
-            maxOutputTokens: Math.min(request.maxTokens || 2048, this.config.maxTokens),
-          },
-          safetySettings: [
-            {
-              category: 'HARM_CATEGORY_HATE_SPEECH',
-              threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-            },
-            {
-              category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-              threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-            }
-          ]
-        })
       })
 
-      console.log(`📡 [Gemini Vision] API response status: ${response.status}`)
+      // Prepare content parts
+      const parts: any[] = [
+        { text: prompt }
+      ]
 
-      if (!response.ok) {
-        const error = await response.json()
-        console.error(`❌ [Gemini Vision] API error:`, error)
-        throw new Error(`Google Gemini Vision API error: ${error.error?.message || 'Unknown error'}`)
+      // Convert images to Gemini format - Gemini supports: png, jpeg, jpg, gif, webp
+      if (request.images && request.images.length > 0) {
+        request.images.forEach(image => {
+          let mimeType = 'image/png' // Default to PNG
+          let imageData = image
+
+          if (image.startsWith('data:')) {
+            const dataUrlType = image.split('data:')[1].split(';')[0]
+            // Convert common formats to Gemini-supported ones
+            if (dataUrlType === 'image/jpeg' || dataUrlType === 'image/jpg') {
+              mimeType = 'image/jpeg'
+            } else if (dataUrlType === 'image/png') {
+              mimeType = 'image/png'
+            } else if (dataUrlType === 'image/gif') {
+              mimeType = 'image/gif'
+            } else if (dataUrlType === 'image/webp') {
+              mimeType = 'image/webp'
+            } else {
+              // For unrecognized formats, default to PNG and let Gemini handle it
+              mimeType = 'image/png'
+            }
+            imageData = image.split(',')[1] // Extract base64 data from data URL
+            console.log(`🔧 [Gemini Vision] Detected format: ${dataUrlType} → Using: ${mimeType}`)
+          }
+
+          parts.push({
+            inlineData: {
+              mimeType: mimeType,
+              data: imageData
+            }
+          })
+        })
       }
+
+      console.log(`🏗️ [Gemini Vision] Formatted ${request.images?.length || 0} image parts`)
+
+      // Make API call
+      console.log(`🌐 [Gemini Vision] Calling VertexAI API: ${this.config.modelName}`)
+
+      const result = await model.generateContent({
+        contents: [{
+          role: 'user',
+          parts: parts
+        }],
+      })
 
       console.log(`✅ [Gemini Vision] API call successful`)
 
-      const result = await response.json()
-
       // Parse response
-      const content = result.candidates?.[0]?.content?.parts?.[0]?.text
+      const response = result.response
+      const content = response.text()
+
       if (!content) {
         throw new Error('No content in Gemini Vision response')
       }
@@ -121,11 +176,11 @@ export class GeminiService {
           cost: this.calculateCost(request.text.length, content.length, request.images?.length || 0)
         },
         metadata: {
-          model: this.config.modelName,
+          model: this.config.modelName || 'gemini-1.5-pro',
           provider: 'google',
           responseTime,
           success: true,
-          finishReason: result.candidates?.[0]?.finishReason || 'completed'
+          finishReason: response.candidates?.[0]?.finishReason || 'completed'
         }
       }
 
@@ -141,7 +196,7 @@ export class GeminiService {
           cost: 0
         },
         metadata: {
-          model: this.config.modelName,
+          model: this.config.modelName || 'gemini-1.5-pro',
           provider: 'google',
           responseTime: Date.now() - startTime,
           success: false,
@@ -152,100 +207,7 @@ export class GeminiService {
     }
   }
 
-  async processText(request: AIRequest): Promise<AIResponse> {
-    const startTime = Date.now()
 
-    try {
-      // Generate prompt based on task type
-      const prompt = this.generatePrompt(request.text, request.task)
-
-      // Make API call to Google Gemini
-      const response = await fetch(
-        `${this.baseUrl}/models/${this.config.modelName}:generateContent?key=${this.apiKey}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: this.config.temperature || 0.7,
-              topK: 40,
-              topP: 0.95,
-              maxOutputTokens: Math.min(request.maxTokens || 2048, this.config.maxTokens),
-            },
-            safetySettings: [
-              {
-                category: 'HARM_CATEGORY_HATE_SPEECH',
-                threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-              },
-              {
-                category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-                threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-              }
-            ]
-          })
-        }
-      )
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(`Google Gemini API error: ${error.error?.message || 'Unknown error'}`)
-      }
-
-      const result = await response.json()
-
-      // Parse response
-      const content = result.candidates?.[0]?.content?.parts?.[0]?.text
-      if (!content) {
-        throw new Error('No content in Gemini response')
-      }
-
-      const responseTime = Date.now() - startTime
-
-      // Extract structured data based on task type
-      const extractedData = this.extractStructuredData(content, request.task)
-
-      return {
-        content,
-        extractedData,
-        usage: {
-          inputTokens: Math.ceil(request.text.length / 4), // Approximate chars to tokens
-          outputTokens: Math.ceil(content.length / 4),
-          cost: this.calculateCost(request.text.length, content.length)
-        },
-        metadata: {
-          model: this.config.modelName,
-          provider: 'google',
-          responseTime,
-          success: true,
-          finishReason: result.candidates?.[0]?.finishReason || 'completed'
-        }
-      }
-
-    } catch (error) {
-      console.error('Google Gemini error:', error)
-
-      return {
-        content: '',
-        extractedData: null,
-        usage: {
-          inputTokens: 0,
-          outputTokens: 0,
-          cost: 0
-        },
-        metadata: {
-          model: this.config.modelName,
-          provider: 'google',
-          responseTime: Date.now() - startTime,
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
-          finishReason: 'error'
-        }
-      }
-    }
-  }
 
   private generatePrompt(text: string, task: string): string {
     const basePrompts = {
@@ -711,11 +673,13 @@ MANDATORY: Both productName and batchNumbers must be populated with real extract
 
   async checkHealth(): Promise<boolean> {
     try {
-      // Simple health check
-      const response = await fetch(
-        `${this.baseUrl}/models/${this.config.modelName}?key=${this.apiKey}`
-      )
-      return response.ok
+      // Health check using VertexAI
+      // Try to initialize auth and check if VertexAI is available
+      if (!this.vertexAI) {
+        await this.initializeAuth()
+      }
+
+      return this.vertexAI !== null && this.vertexAI !== undefined
     } catch {
       return false
     }
