@@ -959,15 +959,20 @@ MANDATORY: Both productName and batchNumbers must be populated with real extract
   }
 }
 
-// MODULE-LEVEL ISOLATION - Export different classes based on runtime environment
+// FACTORY FUNCTION APPROACH - Clean Runtime Service Selection
 // This ensures NO Google Cloud code is imported/executed during Vercel builds
-const hasProductionEnvironment =
-  process.env.NODE_ENV === 'production' &&
-  process.env.DATABASE_URL &&
-  process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
+export function createGeminiService(config: AIProviderConfig) {
+  const hasProductionEnvironment =
+    process.env.NODE_ENV === 'production' &&
+    process.env.DATABASE_URL &&
+    process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
 
-// Type alias for interface compatibility
-export type GeminiServiceType = InstanceType<typeof GeminiServiceReal>
+  if (hasProductionEnvironment) {
+    return new GeminiServiceReal(config)
+  } else {
+    return new GeminiServiceStub(config)
+  }
+}
 
-// Export the appropriate service based on environment
-export const GeminiService = hasProductionEnvironment ? GeminiServiceReal : GeminiServiceStub
+// Type alias for interface compatibility - use the stub's interface for all cases
+export type GeminiServiceType = GeminiServiceStub
