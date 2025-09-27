@@ -1,6 +1,11 @@
 import { AIProviderConfig, AIResponse, AIRequest } from './types-fixed'
 
-// Dynamic import for Google Cloud libraries (ESM compatibility)
+// 🔥 AGGRESSIVE ENVIRONMENT CLEARING: Prevent Google libraries from accessing JSON as file path
+process.env.GOOGLE_APPLICATION_CREDENTIALS = undefined
+delete process.env.GOOGLE_APPLICATION_CREDENTIALS
+console.log('🔥 [Google Cloud] Environment variable permanently cleared - preventing file path access')
+
+// Dynamic import for Google Cloud libraries (ESM compatibility) - SAFELY AFTER ENVIRONMENT CLEARING
 let VertexAI: any
 let GoogleAuth: any
 
@@ -10,6 +15,7 @@ const initializeGoogleCloud = async () => {
     const authModule = await import('google-auth-library')
     VertexAI = vertexModule.VertexAI
     GoogleAuth = authModule.GoogleAuth
+    console.log('✅ [Google Cloud] Libraries loaded safely after environment clearing')
   }
 }
 
@@ -34,6 +40,11 @@ export class GeminiService {
 
     try {
       console.log(`🔐 Initializing Google Cloud auth for project: ${this.project}`)
+
+      // 🔥 CLEAR ENVIRONMENT VARIABLE BEFORE ANY GOOGLE AUTH CALLS to prevent file path confusion
+      process.env.GOOGLE_APPLICATION_CREDENTIALS = undefined
+      delete process.env.GOOGLE_APPLICATION_CREDENTIALS
+      console.log(`🧹 Cleared GOOGLE_APPLICATION_CREDENTIALS from environment (preventing file path access)`)
 
       const auth = new GoogleAuth({
         scopes: ['https://www.googleapis.com/auth/cloud-platform'],
