@@ -22,6 +22,9 @@ const initializeGoogleCloud = async () => {
 // BUILD-TIME SAFE STUB - No Google Cloud code executed during Vercel build
 class GeminiServiceStub {
   private config: AIProviderConfig
+  private vertexAI: any = null
+  private project: string = 'build-stub'
+  private location: string = 'build-stub'
 
   constructor(config: AIProviderConfig) {
     this.config = config
@@ -962,6 +965,9 @@ const hasProductionEnvironment =
   process.env.NODE_ENV === 'production' &&
   process.env.DATABASE_URL &&
   process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
+
+// Type alias for interface compatibility
+export type GeminiServiceType = InstanceType<typeof GeminiServiceReal>
 
 // Export the appropriate service based on environment
 export const GeminiService = hasProductionEnvironment ? GeminiServiceReal : GeminiServiceStub
