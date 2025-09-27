@@ -536,8 +536,8 @@ export class OCRFallbackManager {
     try {
       // Lazily initialize Gemini service to prevent ESM issues
       if (!this.geminiOCR) {
-        const { GeminiService } = await import('./ai/google-gemini')
-        this.geminiOCR = new GeminiService({
+        const { createGeminiService } = await import('./ai/google-gemini')
+        this.geminiOCR = createGeminiService({
           id: 'gemini-fallback',
           apiKey: process.env.GOOGLE_AI_API_KEY || '',
           modelName: 'gemini-1.5-pro', // Use the production-compatible model
