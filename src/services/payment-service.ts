@@ -257,6 +257,7 @@ export class PaymentService {
     verified: boolean
     amount?: number
     pointsCount?: number
+    planId?: string
     error?: string
   }> {
     try {
@@ -274,7 +275,8 @@ export class PaymentService {
           success: true,
           verified: true,
           amount: response.data.data.amount,
-          pointsCount: response.data.data.meta?.pointsCount
+          pointsCount: response.data.data.meta?.pointsCount,
+          planId: response.data.data.meta?.planId
         }
       }
 

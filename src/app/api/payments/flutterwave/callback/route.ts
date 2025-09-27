@@ -13,7 +13,8 @@ async function processSuccessfulPayment(
   customer: any,
   currency: string,
   paymentType: string,
-  eventType: string
+  eventType: string,
+  planId?: string
 ): Promise<void> {
   try {
     // Find user by email
@@ -24,7 +25,10 @@ async function processSuccessfulPayment(
         email: true,
         name: true,
         planId: true,
-        pointsBalance: true
+        pointsBalance: true,
+        planBasicPoints: true,
+        planStandardPoints: true,
+        planBusinessPoints: true
       }
     })
 
@@ -33,19 +37,66 @@ async function processSuccessfulPayment(
       throw new Error('User not found')
     }
 
-    // Update user's points balance
+    // Get plan info from metadata or fallback to user's plan
+    const planTier = String(planId || user.planId || 'basic')
+
+    console.log('Flutterwave webhook: Processing payment update', {
+      pointsCount,
+      planTier,
+      userEmail: user.email,
+      currentBalances: {
+        total: user.pointsBalance,
+        basic: user.planBasicPoints,
+        standard: user.planStandardPoints,
+        business: user.planBusinessPoints
+      }
+    })
+
+    // Determine which plan-specific field to update
+    let planSpecificField: string
+    switch (planTier) {
+      case 'basic':
+        planSpecificField = 'planBasicPoints'
+        break
+      case 'standard':
+        planSpecificField = 'planStandardPoints'
+        break
+      case 'business':
+        planSpecificField = 'planBusinessPoints'
+        break
+      default:
+        planSpecificField = 'planBasicPoints' // Default to basic
+        break
+    }
+
+    // Update planId if this is a plan purchase
+    const shouldUpdatePlanId = (user.planId !== planTier && ['basic', 'standard', 'business'].includes(planTier))
+
+    // Build update data dynamically to avoid TypeScript errors
+    const updateData: Record<string, any> = {
+      pointsBalance: { increment: pointsCount }
+    }
+    updateData[planSpecificField] = { increment: pointsCount }
+
+    // Update planId if needed
+    if (shouldUpdatePlanId) {
+      updateData.planId = planTier
+      console.log(`📋 Updating user plan from ${user.planId || 'null'} to ${planTier}`)
+    }
+
+    // Update both general balance, plan-specific balance, and planId
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
-      data: {
-        pointsBalance: {
-          increment: pointsCount
-        }
-      },
+      data: updateData,
       select: {
         id: true,
         email: true,
-        pointsBalance: true
-      }
+        pointsBalance: true,
+        planBasicPoints: true,
+        planStandardPoints: true,
+        planBusinessPoints: true,
+        planId: true
+      } as any
     })
 
     // Create payment record
@@ -58,11 +109,13 @@ async function processSuccessfulPayment(
         status: 'completed',
         pointsPurchased: pointsCount,
         paymentGateway: 'flutterwave',
+        planTier: planTier,
+        pointsAddedTo: planSpecificField,
         processedAt: new Date()
       }
     })
 
-    console.log(`Flutterwave webhook: ✅ Successfully added ${pointsCount} points to ${user.email} (${paymentType})`)
+    console.log(`Flutterwave webhook: ✅ Successfully added ${pointsCount} points for ${planTier} plan to ${user.email}`)
     console.log('Updated balance:', updatedUser.pointsBalance)
 
   } catch (error) {
@@ -269,7 +322,8 @@ export async function POST(request: NextRequest) {
         customer,
         data.currency || 'NGN',
         'card',
-        'CARD_TRANSACTION'
+        'CARD_TRANSACTION',
+        verificationResult.planId
       )
 
       return NextResponse.json({
@@ -389,7 +443,8 @@ export async function POST(request: NextRequest) {
         customer,
         currency || 'NGN',
         'bank',
-        eventType
+        eventType,
+        verificationResult.planId
       )
 
       return NextResponse.json({
