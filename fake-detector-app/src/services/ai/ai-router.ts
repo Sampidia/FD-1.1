@@ -89,20 +89,39 @@ export class AIServiceRouter {
           // Initialize the right service instance
           switch (provider.provider) {
             case 'google':
-              this.aiInstances.gemini = createGeminiService(config)
+              // 🎯 CREDENTIAL SINKING: First try stored credentials from previous successful authentications
+              // This enables authentication even when environment variables aren't available
+              let googleJsonCredentials = this.googleCredentialsJson
+              let googleProjectId = this.googleProjectId
+
+              // Fallback: Check current env vars if no stored credentials
+              if (!googleJsonCredentials || !googleProjectId) {
+                googleJsonCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
+                googleProjectId = process.env.GOOGLE_CLOUD_PROJECT
+                console.log(`🔁 [CREDENTIAL SINK] Using current environment variables (no stored credentials)`)
+              } else {
+                console.log(`🔄 [CREDENTIAL SINK] Using stored credentials from previous successful authentication`)
+              }
+
+              // Create service with available credentials
+              const geminiConfig = {
+                ...config,
+                storedCredentials: googleJsonCredentials,
+                storedProjectId: googleProjectId
+              }
+
+              this.aiInstances.gemini = createGeminiService(geminiConfig)
+
               console.log('✅ Google Gemini initialized')
 
-              // 🎯 CREDENTIAL SINKING: Store Google Cloud credentials when successfully available
-              // This enables consistent authentication across Lambda cold starts
-              const googleJsonCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
-              const googleProjectId = process.env.GOOGLE_CLOUD_PROJECT
-
+              // 🎯 STORE CREDENTIALS: Update storage if we have successful credentials
+              // Enables authentication for future executions when env vars are unavailable
               if (googleJsonCredentials && googleProjectId) {
                 this.googleCredentialsJson = googleJsonCredentials
                 this.googleProjectId = googleProjectId
-                console.log('🔑 [CREDENTIAL SINK] Successfully captured Google Cloud credentials for persistent authentication')
+                console.log('🔑 [CREDENTIAL SINK] Credentials stored for future Vercel Lambda executions')
               } else {
-                console.log(`⚠️ [CREDENTIAL SINK] Missing credentials - JSON: ${!!googleJsonCredentials}, Project: ${!!googleProjectId}`)
+                console.log(`⚠️ [CREDENTIAL SINK] No credentials available to store - JSON: ${!!googleJsonCredentials}, Project: ${!!googleProjectId}`)
               }
               break
             case 'google-vision':
