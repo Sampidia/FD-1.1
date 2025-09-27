@@ -1,5 +1,5 @@
 import { AIRequest, AIResponse, UserPlan } from './types-fixed'
-import { GeminiService } from './google-gemini'
+import { createGeminiService, GeminiServiceType } from './google-gemini'
 import { GoogleVisionService } from './google-vision'
 import { OpenAIService } from './openai-gpt'
 import { AnthropicClaudeService } from './anthropic-claude'
@@ -17,7 +17,7 @@ interface TesseractService {
 }
 
 interface AIProviderInstance {
-  gemini?: GeminiService
+  gemini?: any // GeminiServiceStub or GeminiServiceReal - both have same interface
   googleVision?: GoogleVisionService
   openai?: OpenAIService
   claude?: AnthropicClaudeService
@@ -85,7 +85,7 @@ export class AIServiceRouter {
           // Initialize the right service instance
           switch (provider.provider) {
             case 'google':
-              this.aiInstances.gemini = new GeminiService(config)
+              this.aiInstances.gemini = createGeminiService(config)
               console.log('✅ Google Gemini initialized')
               break
             case 'google-vision':
