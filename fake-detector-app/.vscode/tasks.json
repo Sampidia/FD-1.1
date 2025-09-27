@@ -1,0 +1,66 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Scrape NAFDAC (Local)",
+      "type": "shell",
+      "command": "curl -X POST 'http://localhost:3000/api/scraper/run' -H 'Authorization: Bearer ${input:scraperToken}' -H 'Content-Type: application/json'",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": [],
+      "inputs": [
+        {
+          "id": "scraperToken",
+          "description": "Enter EXTERNAL_SCRAPER_TOKEN from .env",
+          "default": "",
+          "type": "promptString"
+        }
+      ]
+    },
+    {
+      "label": "Scrape NAFDAC (Production)",
+      "type": "shell",
+      "command": "curl -X POST 'https://fake-detector-app.vercel.app/api/scraper/run' -H 'Authorization: Bearer ${input:scraperToken}' -H 'Content-Type: application/json'",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": [],
+      "inputs": [
+        {
+          "id": "scraperToken",
+          "description": "Enter EXTERNAL_SCRAPER_TOKEN from .env",
+          "default": "",
+          "type": "promptString"
+        }
+      ]
+    },
+    {
+      "label": "Scraper Status",
+      "type": "shell",
+      "command": "curl -X GET 'http://localhost:3000/api/scraper/stats'",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    }
+  ]
+}

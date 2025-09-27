@@ -1,0 +1,77 @@
+/**
+ * Admin Payments API - Fetch payment records from database Payment model
+ *
+ * This endpoint retrieves payment records directly from the Prisma Payment model
+ * and displays them in the admin dashboard payment table.
+ */
+
+import { NextResponse } from 'next/server'
+
+// Force dynamic rendering since this route uses server session
+export const dynamic = 'force-dynamic'
+import { getServerSession } from "next-auth/next"
+import { authOptions } from '@/lib/auth-minimal'
+import "@/types/nextauth"
+import prisma from '@/lib/prisma'
+
+export async function GET() {
+  try {
+    // Check admin access
+    const session = await getServerSession(authOptions)
+    const adminEmail = process.env.AD_EMAIL || process.env.NEXT_PUBLIC_AD_EMAIL
+    const isAdmin = session?.user?.email === adminEmail ||
+                   session?.user?.id === 'admin001'
+
+    if (!isAdmin) {
+      return NextResponse.json(
+        { error: 'Admin access required' },
+        { status: 403 }
+      )
+    }
+
+    // Get recent payments directly from database Payment model
+    console.log('📊 FETCHING PAYMENT RECORDS FROM DATABASE...')
+    const payments = await prisma.payment.findMany({
+      take: 50, // Limit to recent 50 payments
+      orderBy: [
+        { processedAt: 'desc' }, // Primary sort by processedAt (when available)
+        { createdAt: 'desc' }   // Secondary sort by createdAt (fallback)
+      ],
+      select: {
+        id: true,
+        userId: true,
+        amount: true,
+        currency: true,
+        status: true,
+        pointsPurchased: true,
+        paymentGateway: true,
+        planTier: true,
+        processedAt: true,
+        createdAt: true
+      }
+    })
+
+    // Add null check for payments array
+    if (!payments || !Array.isArray(payments)) {
+      console.error('❌ Invalid payments data received from database')
+      return NextResponse.json(
+        { error: 'Invalid payment data received' },
+        { status: 500 }
+      )
+    }
+
+    console.log(`✅ FOUND ${payments.length} PAYMENT RECORDS IN DATABASE`)
+
+    return NextResponse.json({
+      success: true,
+      data: payments
+    })
+
+  } catch (error) {
+    console.error('Admin payments error:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch payment data' },
+      { status: 500 }
+    )
+  }
+}

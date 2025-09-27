@@ -1,0 +1,42 @@
+name: Daily Free Points Reset at Midnight UTC
+
+on:
+  schedule:
+    # Run daily at midnight UTC: https://crontab.guru/#0_0_*_*_*
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Trigger Vercel Points Reset
+        env:
+          EXTERNAL_SCRAPER_TOKEN: ${{ secrets.EXTERNAL_SCRAPER_TOKEN }}
+        run: |
+          # Try primary URL first, fallback to Vercel
+          PRIMARY_URL="https://scan.sampidia.com/api/reset-free-points"
+          FALLBACK_URL="https://fd-1-1.vercel.app/api/reset-free-points"
+
+          echo "🔄 Triggering daily free points reset..."
+
+          # Try primary URL
+          if curl -f -X GET \
+            -H "Authorization: Bearer $EXTERNAL_SCRAPER_TOKEN" \
+            "$PRIMARY_URL"; then
+            echo "✅ Primary URL successful"
+          else
+            echo "⚠️ Primary URL failed, trying fallback..."
+            if curl -f -X GET \
+              -H "Authorization: Bearer $EXTERNAL_SCRAPER_TOKEN" \
+              "$FALLBACK_URL"; then
+              echo "✅ Fallback URL successful"
+            else
+              echo "❌ Both URLs failed"
+              exit 1
+            fi
+          fi

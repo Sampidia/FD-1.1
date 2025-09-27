@@ -1,0 +1,44 @@
+name: Scrape NAFDAC Alerts Every 15 Minutes
+
+on:
+  schedule:
+    # Run every 15 minutes: https://crontab.guru/#*/15_*_*_*_*
+    - cron: '*/15 * * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Trigger Vercel Scraper
+        env:
+          EXTERNAL_SCRAPER_TOKEN: ${{ secrets.EXTERNAL_SCRAPER_TOKEN }}
+        run: |
+          # Try primary URL first, fallback to Vercel
+          PRIMARY_URL="https://scan.sampidia.com/api/scraper/run"
+          FALLBACK_URL="https://fd-1-1.vercel.app/api/scraper/run"
+
+          echo "🚀 Triggering NAFDAC scraper..."
+
+          # Try primary URL
+          if curl -f -X POST \
+            -H "Authorization: Bearer $EXTERNAL_SCRAPER_TOKEN" \
+            -H "Content-Type: application/json" \
+            "$PRIMARY_URL"; then
+            echo "✅ Primary URL successful"
+          else
+            echo "⚠️ Primary URL failed, trying fallback..."
+            if curl -f -X POST \
+              -H "Authorization: Bearer $EXTERNAL_SCRAPER_TOKEN" \
+              -H "Content-Type: application/json" \
+              "$FALLBACK_URL"; then
+              echo "✅ Fallback URL successful"
+            else
+              echo "❌ Both URLs failed"
+              exit 1
+            fi
+          fi

@@ -1,0 +1,91 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files - BE VERY CAREFUL WITH THESE!
+.env
+.env.local
+.env.*.local
+
+# Allow these example files to be committed
+!.env.local.example
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+"deploy-checklist.md"
+deploy-checklist.md
+rules-guide.md
+testing.md
+header-guide.md
+testing.md
+test-schema.ts
+setup.md
+prisma-optimization.md
+
+
+
+# Test and Debug Scripts
+test-*.js
+debug-ocr.js
+run-tests.js
+simple-test.js
+test-api.js
+test-auth-setup.js
+test-claude-multi-image.js
+test-database.js
+test-db-connection.js
+test-gemini-ocr.js
+test-metrics.js
+test-schema.ts
+
+# Development Utilities
+generate-secret.js
+generator-script
+
+# Strategic roadmaps and guides
+roadmap-steps.md
+*guide.md
+*rules-guide.md
+*testing.md
+*optimization.md
+
+# TypeScript build info
+tsconfig.tsbuildinfo
+next-env.d.ts
+
+# Backup files
+*.backup
+next.config.ts.backup
