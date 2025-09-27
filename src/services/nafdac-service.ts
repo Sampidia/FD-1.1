@@ -3,7 +3,7 @@ import * as cheerio from 'cheerio'
 import Fuse from 'fuse.js'
 import { advancedAI } from './advanced-ai-service'
 import prisma from '@/lib/prisma'
-import { pipeline } from '@xenova/transformers'
+// import { pipeline } from '@xenova/transformers' // Removed to prevent ESM issues - OCR handled by ocrFallbackManager
 import { ocrFallbackManager, OCRFallbackOptions } from './ocr-fallback-manager'
 import { ocrValidationService } from './ocr-validation-service'
 
