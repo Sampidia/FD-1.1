@@ -3,11 +3,19 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from '@/lib/auth-minimal'
 import "@/types/nextauth"
 
-// Force dynamic rendering for auth-required API routes
-export const dynamic = 'force-dynamic'
-
 export async function GET() {
   try {
+    // COMPREHENSIVE BUILD-TIME PROTECTION - Prevent ANY auth operations during build
+    if (process.env.NEXT_PHASE?.includes('build') ||
+        process.env.NODE_ENV === 'development' ||
+        process.env.NEXT_PHASE === 'phase-production-build') {
+      console.log('[BUILD-TIME] Skipping authentication operations for check-access')
+      return NextResponse.json({
+        authenticated: false,
+        isAdmin: false,
+        user: null
+      })
+    }
     const session = await getServerSession(authOptions)
 
     const userId = session?.user?.id as string
