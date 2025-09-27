@@ -31,9 +31,16 @@ export class GeminiService {
     this.project = process.env.GOOGLE_CLOUD_PROJECT || 'fake-detector-449119'
     this.location = 'us-central1' // Default Google Cloud region
 
-    // VERCEL BUILD BYPASS - Completely skip Google Cloud during build
-    if (process.env.VERCEL_ENV || process.env.NEXT_PHASE === 'phase-production-build') {
-      console.log('[VERCEL-BUILD] Skipping Google Cloud initialization during build')
+    // PRODUCTION RUNTIME DETECTION - Multiple safety checks for Google Cloud initialization
+    // Only initialize when we have all production environment indicators
+    const hasProductionEnvironment =
+      process.env.NODE_ENV === 'production' &&
+      process.env.DATABASE_URL &&
+      process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
+
+    // BUILD ENVIRONMENT BYPASS - Skip Google Cloud when production indicators are missing
+    if (!hasProductionEnvironment) {
+      console.log('[BUILD-ENV] Skipping Google Cloud initialization - not production environment')
       this.vertexAI = null
       return
     }
