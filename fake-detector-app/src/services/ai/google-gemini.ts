@@ -63,7 +63,20 @@ export class GeminiService {
           // 🔐 STORE CREDENTIALS FOR RUNTIME OCR CALLS
           (this as any)._storedJsonCredentials = jsonCredentials
 
-          const credentials = JSON.parse(jsonCredentials)
+          // SAFE JSON PARSING - Prevent build-time syntax errors
+          let credentials
+          try {
+            credentials = JSON.parse(jsonCredentials.trim())
+          } catch (parseError) {
+            console.warn('❌ Invalid JSON in GOOGLE_APPLICATION_CREDENTIALS_JSON, skipping Google auth:', parseError.message)
+            return // Skip Google auth initialization completely
+          }
+
+          // Validate parsed JSON structure
+          if (!credentials || typeof credentials !== 'object' || !credentials.type || !credentials.private_key) {
+            console.warn('❌ Invalid Google credentials format, required fields missing, skipping Google auth')
+            return // Skip Google auth if format is invalid
+          }
           const authWithCredentials = new GoogleAuth({
             credentials: credentials,
             scopes: ['https://www.googleapis.com/auth/cloud-platform'],
