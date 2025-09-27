@@ -39,31 +39,50 @@ export class GeminiService {
         scopes: ['https://www.googleapis.com/auth/cloud-platform'],
       })
 
-      // Use service account key file if available, otherwise application default credentials
-      const keyFile = process.env.GOOGLE_APPLICATION_CREDENTIALS
-      if (keyFile) {
-        console.log(`📄 Using service account key: ${keyFile}`)
-        const authWithKey = new GoogleAuth({
-          keyFile: keyFile,
-          scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-        })
-        const client = await authWithKey.getClient()
+      // Handle Google Cloud authentication - check for different credential sources
+      const googleAppCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS
+      let client
 
-        this.vertexAI = new VertexAI({
-          project: this.project,
-          location: this.location,
-          auth: client,
-        })
+      if (googleAppCredentials) {
+        try {
+          // Check if it's a JSON string (service account credentials)
+          if (googleAppCredentials.trim().startsWith('{')) {
+            console.log(`� Using inline service account credentials`)
+
+            const credentials = JSON.parse(googleAppCredentials)
+            const authWithCredentials = new GoogleAuth({
+              credentials: credentials,
+              scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+            })
+            client = await authWithCredentials.getClient()
+          } else {
+            // Check if it's a file path
+            console.log(`📁 Using service account key file: ${googleAppCredentials}`)
+            const authWithFile = new GoogleAuth({
+              keyFile: googleAppCredentials,
+              scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+            })
+            client = await authWithFile.getClient()
+          }
+        } catch (credentialError) {
+          console.error('❌ Failed to parse Google credentials:', credentialError)
+          // Fallback to application default credentials
+          console.log(`🏠 Falling back to application default credentials`)
+          const authDefault = new GoogleAuth({
+            scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+          })
+          client = await authDefault.getClient()
+        }
       } else {
         console.log(`🏠 Using application default credentials`)
-        const client = await auth.getClient()
-
-        this.vertexAI = new VertexAI({
-          project: this.project,
-          location: this.location,
-          auth: client,
-        })
+        client = await auth.getClient()
       }
+
+      this.vertexAI = new VertexAI({
+        project: this.project,
+        location: this.location,
+        auth: client,
+      })
 
       console.log(`✅ Google Cloud VertexAI initialized successfully`)
     } catch (error) {
