@@ -45,6 +45,10 @@ export class AIServiceRouter {
   private assignmentsCache: Map<string, PlanAIAssignment[]> = new Map()
   private lastCacheUpdate: Date = new Date(0)
 
+  // 🔑 CREDENTIAL SINKING: Store Google Cloud credentials for consistent Vercel Lambda authentication
+  private googleCredentialsJson: string | null = null
+  private googleProjectId: string | null = null
+
   // Initialize AI providers
   async initializeProviders(): Promise<void> {
     console.log('🔧 Initializing AI Providers...')
@@ -87,6 +91,19 @@ export class AIServiceRouter {
             case 'google':
               this.aiInstances.gemini = createGeminiService(config)
               console.log('✅ Google Gemini initialized')
+
+              // 🎯 CREDENTIAL SINKING: Store Google Cloud credentials when successfully available
+              // This enables consistent authentication across Lambda cold starts
+              const googleJsonCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
+              const googleProjectId = process.env.GOOGLE_CLOUD_PROJECT
+
+              if (googleJsonCredentials && googleProjectId) {
+                this.googleCredentialsJson = googleJsonCredentials
+                this.googleProjectId = googleProjectId
+                console.log('🔑 [CREDENTIAL SINK] Successfully captured Google Cloud credentials for persistent authentication')
+              } else {
+                console.log(`⚠️ [CREDENTIAL SINK] Missing credentials - JSON: ${!!googleJsonCredentials}, Project: ${!!googleProjectId}`)
+              }
               break
             case 'google-vision':
               this.aiInstances.googleVision = new GoogleVisionService(config)
