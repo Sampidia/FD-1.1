@@ -15,7 +15,7 @@ async function seedPlans() {
         data: {
           name: 'Google Gemini',
           provider: 'google',
-          modelName: 'gemini-1.5-flash',
+          modelName: 'gemini-1.5-pro',
           costPerRequest: 0.00000025,
           maxRequestsPerHour: 1000,
           maxRequestsPerDay: 10000,
