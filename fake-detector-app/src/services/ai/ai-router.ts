@@ -1139,7 +1139,7 @@ export class AIServiceRouter {
     if (this.aiInstances.gemini) {
       checks.push(
         this.aiInstances.gemini.checkHealth()
-          .then(healthy => ({ provider: 'google', healthy }))
+          .then((healthy: boolean) => ({ provider: 'google', healthy }))
           .catch(() => ({ provider: 'google', healthy: false }))
       )
     }
