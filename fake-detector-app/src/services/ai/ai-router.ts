@@ -1325,5 +1325,15 @@ export class AIServiceRouter {
   }
 }
 
-// Export singleton instance
-export const aiRouter = new AIServiceRouter()
+// Lazy singleton to prevent build-time instantiation
+let aiRouterInstance: AIServiceRouter | null = null
+
+function getAIRouter(): AIServiceRouter {
+  if (!aiRouterInstance) {
+    aiRouterInstance = new AIServiceRouter()
+  }
+  return aiRouterInstance
+}
+
+export { getAIRouter }
+export const aiRouter = getAIRouter()
