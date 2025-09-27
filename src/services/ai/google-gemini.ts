@@ -23,7 +23,7 @@ export class GeminiService {
     this.config = config
     // Extract project and location from config or use defaults
     this.project = process.env.GOOGLE_CLOUD_PROJECT || 'fake-detector-449119'
-    this.location = config.location || 'us-central1'
+    this.location = 'us-central1' // Default Google Cloud region
 
     // Initialize Google Cloud auth (lazy)
     this.initializeAuth()
