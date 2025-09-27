@@ -73,8 +73,11 @@ export class GeminiService {
           if (googleAppCredentials && typeof googleAppCredentials === 'string') {
             console.log(`📄 GOOGLE_APPLICATION_CREDENTIALS found, detecting format...`)
 
+            // BULLETPROOF TYPE ASSERTION: Guarantee TypeScript never sees 'never' type
+            const credentialsString: string = googleAppCredentials as string
+
             // Check if it's a JSON string (service account credentials)
-            if (googleAppCredentials.trim().startsWith('{')) {
+            if (credentialsString.trim().startsWith('{')) {
               console.log(`🔑 Using inline service account credentials from GOOGLE_APPLICATION_CREDENTIALS`)
 
               const credentials = JSON.parse(googleAppCredentials)
