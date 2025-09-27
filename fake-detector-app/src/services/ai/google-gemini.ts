@@ -151,104 +151,127 @@ export class GeminiService {
         }
       }
 
-      // Generate prompt based on task type
-      const prompt = this.generatePrompt(request.text, request.task)
-      console.log(`💬 [Gemini Vision] Generated prompt: ${prompt.substring(0, 200)}...`)
+      // CRITICAL FIX: VertexAI needs credentials during API calls, not just creation
+      // Temporarily restore for this API call only
+      const originalJsonCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
 
-      // Get Gemini Pro Vision model
-      const model = this.vertexAI.getGenerativeModel({
-        model: this.config.modelName || 'gemini-1.5-pro',
-        generationConfig: {
-          temperature: this.config.temperature || 0.1, // Lower temperature for OCR accuracy
-          maxOutputTokens: Math.min(request.maxTokens || 2048, this.config.maxTokens || 2048),
-          topK: 32,
-          topP: 1,
+      try {
+        // STEP 1: Check if we have credentials from initialization
+        const jsonCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ||
+                               (this as any)._storedCredentials // Fallback to stored if available
+
+        if (jsonCredentials) {
+          process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON = jsonCredentials
+          console.log('🔧 [VertexAI] Restored credentials for API call')
         }
-      })
 
-      // Prepare content parts
-      const parts: any[] = [
-        { text: prompt }
-      ]
+        // Generate prompt based on task type
+        const prompt = this.generatePrompt(request.text, request.task)
+        console.log(`💬 [Gemini Vision] Generated prompt: ${prompt.substring(0, 200)}...`)
 
-      // Convert images to Gemini format - Gemini supports: png, jpeg, jpg, gif, webp
-      if (request.images && request.images.length > 0) {
-        request.images.forEach(image => {
-          let mimeType = 'image/png' // Default to PNG
-          let imageData = image
-
-          if (image.startsWith('data:')) {
-            const dataUrlType = image.split('data:')[1].split(';')[0]
-            // Convert common formats to Gemini-supported ones
-            if (dataUrlType === 'image/jpeg' || dataUrlType === 'image/jpg') {
-              mimeType = 'image/jpeg'
-            } else if (dataUrlType === 'image/png') {
-              mimeType = 'image/png'
-            } else if (dataUrlType === 'image/gif') {
-              mimeType = 'image/gif'
-            } else if (dataUrlType === 'image/webp') {
-              mimeType = 'image/webp'
-            } else {
-              // For unrecognized formats, default to PNG and let Gemini handle it
-              mimeType = 'image/png'
-            }
-            imageData = image.split(',')[1] // Extract base64 data from data URL
-            console.log(`🔧 [Gemini Vision] Detected format: ${dataUrlType} → Using: ${mimeType}`)
-          }
-
-          parts.push({
-            inlineData: {
-              mimeType: mimeType,
-              data: imageData
-            }
-          })
-        })
-      }
-
-      console.log(`🏗️ [Gemini Vision] Formatted ${request.images?.length || 0} image parts`)
-
-      // Make API call
-      console.log(`🌐 [Gemini Vision] Calling VertexAI API: ${this.config.modelName}`)
-
-      const result = await model.generateContent({
-        contents: [{
-          role: 'user',
-          parts: parts
-        }],
-      })
-
-      console.log(`✅ [Gemini Vision] API call successful`)
-
-      // Parse response
-      const response = result.response
-      const content = response.text()
-
-      if (!content) {
-        throw new Error('No content in Gemini Vision response')
-      }
-
-      const responseTime = Date.now() - startTime
-
-      // Extract structured data based on task type
-      const extractedData = this.extractStructuredData(content, request.task)
-
-      return {
-        content,
-        extractedData,
-        usage: {
-          inputTokens: Math.ceil(request.text.length / 4) + (request.images?.length || 0) * 85, // Approximate tokens (85 tokens per image)
-          outputTokens: Math.ceil(content.length / 4),
-          cost: this.calculateCost(request.text.length, content.length, request.images?.length || 0)
-        },
-        metadata: {
+        // Get Gemini Pro Vision model
+        const model = this.vertexAI.getGenerativeModel({
           model: this.config.modelName || 'gemini-1.5-pro',
-          provider: 'google',
-          responseTime,
-          success: true,
-          finishReason: response.candidates?.[0]?.finishReason || 'completed'
-        }
-      }
+          generationConfig: {
+            temperature: this.config.temperature || 0.1, // Lower temperature for OCR accuracy
+            maxOutputTokens: Math.min(request.maxTokens || 2048, this.config.maxTokens || 2048),
+            topK: 32,
+            topP: 1,
+          }
+        })
 
+        // Prepare content parts
+        const parts: any[] = [
+          { text: prompt }
+        ]
+
+        // Convert images to Gemini format - Gemini supports: png, jpeg, jpg, gif, webp
+        if (request.images && request.images.length > 0) {
+          request.images.forEach(image => {
+            let mimeType = 'image/png' // Default to PNG
+            let imageData = image
+
+            if (image.startsWith('data:')) {
+              const dataUrlType = image.split('data:')[1].split(';')[0]
+              // Convert common formats to Gemini-supported ones
+              if (dataUrlType === 'image/jpeg' || dataUrlType === 'image/jpg') {
+                mimeType = 'image/jpeg'
+              } else if (dataUrlType === 'image/png') {
+                mimeType = 'image/png'
+              } else if (dataUrlType === 'image/gif') {
+                mimeType = 'image/gif'
+              } else if (dataUrlType === 'image/webp') {
+                mimeType = 'image/webp'
+              } else {
+                // For unrecognized formats, default to PNG and let Gemini handle it
+                mimeType = 'image/png'
+              }
+              imageData = image.split(',')[1] // Extract base64 data from data URL
+              console.log(`🔧 [Gemini Vision] Detected format: ${dataUrlType} → Using: ${mimeType}`)
+            }
+
+            parts.push({
+              inlineData: {
+                mimeType: mimeType,
+                data: imageData
+              }
+            })
+          })
+        }
+
+        console.log(`🏗️ [Gemini Vision] Formatted ${request.images?.length || 0} image parts`)
+
+        // Make API call
+        console.log(`🌐 [Gemini Vision] Calling VertexAI API: ${this.config.modelName}`)
+
+        const result = await model.generateContent({
+          contents: [{
+            role: 'user',
+            parts: parts
+          }],
+        })
+
+        console.log(`✅ [Gemini Vision] API call successful`)
+
+        // Parse response
+        const response = result.response
+        const content = response.text()
+
+        if (!content) {
+          throw new Error('No content in Gemini Vision response')
+        }
+
+        const responseTime = Date.now() - startTime
+
+        // Extract structured data based on task type
+        const extractedData = this.extractStructuredData(content, request.task)
+
+        return {
+          content,
+          extractedData,
+          usage: {
+            inputTokens: Math.ceil(request.text.length / 4) + (request.images?.length || 0) * 85, // Approximate tokens (85 tokens per image)
+            outputTokens: Math.ceil(content.length / 4),
+            cost: this.calculateCost(request.text.length, content.length, request.images?.length || 0)
+          },
+          metadata: {
+            model: this.config.modelName || 'gemini-1.5-pro',
+            provider: 'google',
+            responseTime,
+            success: true,
+            finishReason: response.candidates?.[0]?.finishReason || 'completed'
+          }
+        }
+      } finally {
+        // CRITICAL: Restore original environment variable state
+        if (originalJsonCredentials !== undefined) {
+          process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON = originalJsonCredentials
+        } else {
+          process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON = undefined
+          delete process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
+        }
+        console.log('🔧 [VertexAI] Environment credentials restored')
+      }
     } catch (error) {
       console.error('Google Gemini Vision error:', error)
 
