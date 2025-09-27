@@ -18,6 +18,8 @@ const nextConfig = {
               request?.includes('onnxruntime') ||
               request?.includes('transformers') ||
               request?.includes('sharp') ||
+              request?.includes('@google-cloud/vertexai') ||
+              request?.includes('google-auth-library') ||
               request?.endsWith('.node')) {
             console.log(`🚫 WEBPACK (DEV): Excluding AI package ${request}`)
             return callback(null, `commonjs ${request}`);
@@ -74,6 +76,8 @@ const nextConfig = {
               request?.includes('onnxruntime') ||
               request?.includes('transformers') ||
               request?.includes('sharp') ||
+              request?.includes('@google-cloud/vertexai') ||
+              request?.includes('google-auth-library') ||
               request?.endsWith('.node')) {
             console.log(`🚫 WEBPACK (PRODUCTION): Excluding AI package ${request}`)
             return callback(null, `commonjs ${request}`);
