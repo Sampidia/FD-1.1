@@ -84,19 +84,29 @@ class GeminiServiceReal {
   private config: AIProviderConfig
   private project: string
   private location: string
+  private storedCredentials?: string
+  private storedProjectId?: string
 
-  constructor(config: AIProviderConfig) {
+  constructor(config: AIProviderConfig & {
+    storedCredentials?: string | null
+    storedProjectId?: string | null
+  }) {
     this.config = config
+    // Destructure stored credentials from config
+    const { storedCredentials, storedProjectId, ... remainingConfig } = config
+    // Reassign config without stored properties to avoid confusion
+    this.storedCredentials = storedCredentials || undefined
+    this.storedProjectId = storedProjectId || undefined
+
     // Extract project and location from config or use defaults
-    this.project = process.env.GOOGLE_CLOUD_PROJECT || 'fake-detector-449119'
+    this.project = this.storedProjectId || process.env.GOOGLE_CLOUD_PROJECT || 'fake-detector-449119'
     this.location = 'us-central1' // Default Google Cloud region
 
-    // PRODUCTION RUNTIME DETECTION - Multiple safety checks for Google Cloud initialization
-    // Only initialize when we have all production environment indicators
+    // PRODUCTION RUNTIME DETECTION - Use stored credentials for environment detection!
     const hasProductionEnvironment =
       process.env.NODE_ENV === 'production' &&
       process.env.DATABASE_URL &&
-      process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
+      (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || this.storedCredentials)
 
     // BUILD ENVIRONMENT BYPASS - Skip Google Cloud when production indicators are missing
     if (!hasProductionEnvironment) {
@@ -245,18 +255,28 @@ class GeminiServiceReal {
 
       try {
         // STEP 1: Use stored credentials from initialization (PRIORTY)
-        let jsonCredentials = (this as any)._storedJsonCredentials
+        let jsonCredentials = this.storedCredentials || (this as any)._storedJsonCredentials
+
+        // DEBUG: Log credential availability
+        console.log('🔧 [VertexAI] Credential check:', {
+          storedInProperty: !!this.storedCredentials,
+          storedInService: !!(this as any)._storedJsonCredentials,
+          hasCredentials: !!jsonCredentials,
+          credentialsLength: jsonCredentials?.length || 0
+        })
 
         // Fallback: Check current env var (might be restored from previous call)
         if (!jsonCredentials) {
           jsonCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
+          console.log('🔄 [VertexAI] Fell back to environment variable')
         }
 
         if (jsonCredentials) {
           process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON = jsonCredentials
           console.log('🔧 [VertexAI] Restored credentials from storage for API call')
         } else {
-          console.warn('⚠️ [VertexAI] No stored credentials available for API call')
+          console.warn('⚠️ [VertexAI] No stored credentials available for API call - this will fail!')
+          throw new Error('No Google Cloud credentials available for API call')
         }
 
         // Generate prompt based on task type
