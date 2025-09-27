@@ -42,6 +42,7 @@ FD is a Next.js web application that helps users identify counterfeit products b
    ```bash
    npm install
    ```
+   ```
 
 3. **Set up environment variables**
    ```bash
