@@ -63,8 +63,8 @@ export class GeminiService {
           // 🔐 STORE CREDENTIALS FOR RUNTIME OCR CALLS
           (this as any)._storedJsonCredentials = jsonCredentials
 
-          // SAFE JSON PARSING - Prevent build-time syntax errors
-          let credentials
+          // SAFE JSON PARSING - Prevent build-time syntax errors with inline assignment
+          let credentials: any
           try {
             credentials = JSON.parse(jsonCredentials.trim())
           } catch (parseError) {
@@ -73,7 +73,7 @@ export class GeminiService {
           }
 
           // Validate parsed JSON structure
-          if (!credentials || typeof credentials !== 'object' || !credentials.type || !credentials.private_key) {
+          if (!credentials || typeof credentials !== 'object' || !credentials.type) {
             console.warn('❌ Invalid Google credentials format, required fields missing, skipping Google auth')
             return // Skip Google auth if format is invalid
           }
