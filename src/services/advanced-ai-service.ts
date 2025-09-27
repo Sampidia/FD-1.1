@@ -1,4 +1,3 @@
-import { pipeline, Pipeline } from '@xenova/transformers'
 import { ocrFallbackManager } from './ocr-fallback-manager'
 
 // Type definitions - using flexible types to match Hugging Face pipeline
@@ -140,6 +139,9 @@ export class AdvancedCounterfeitDetectionAI {
     console.log('🤖 Initializing Hugging Face AI models...')
 
     try {
+      // Dynamically import @xenova/transformers to prevent ESM issues
+      const { pipeline } = await import('@xenova/transformers')
+
       // 🧠 Load advanced NLP model for semantic similarity
       this.nlpModel = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2')
       console.log('✅ NLP model loaded: all-MiniLM-L6-v2')
