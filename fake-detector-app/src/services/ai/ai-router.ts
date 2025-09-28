@@ -841,8 +841,8 @@ export class AIServiceRouter {
           return false
         }
 
-        const hasBatchNumbers = extractedData.batchNumbers && extractedData.batchNumbers.length > 0
-        const hasProductNames = extractedData.productNames && extractedData.productNames.length > 0
+        const hasBatchNumbers = extractedData.batchNumbers ? extractedData.batchNumbers.length > 0 : false
+        const hasProductNames = extractedData.productNames ? extractedData.productNames.length > 0 : false
 
         // At minimum, we need either a meaningful batch number OR product name for OCR to be considered successful
         const hasMeaningfulData = hasBatchNumbers || hasProductNames
