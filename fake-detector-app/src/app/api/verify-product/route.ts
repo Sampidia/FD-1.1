@@ -109,6 +109,36 @@ function sanitizeInput(input: string): string {
     .substring(0, 1000)
 }
 
+// Fuzzy product name matching function
+function fuzzyProductMatch(userInput: string, aiExtracted: string): boolean {
+  if (!userInput || !aiExtracted) return false
+
+  // Normalize strings for comparison
+  const normalize = (str: string) => str.toLowerCase().trim()
+    .replace(/[^\w\s]/g, ' ') // Remove punctuation
+    .replace(/\s+/g, ' ') // Normalize spaces
+    .split(/\s+/)
+
+  const userWords = normalize(userInput)
+  const aiWords = normalize(aiExtracted)
+
+  // Exact match is best
+  if (normalize(userInput).join(' ') === normalize(aiExtracted).join(' ')) {
+    return true
+  }
+
+  // Check for significant overlap (at least 60% of key words)
+  const keyWords = userWords.filter(word => word.length > 2)
+  if (keyWords.length === 0) return false
+
+  const matchingWords = keyWords.filter(word =>
+    aiWords.some(aiWord => aiWord.includes(word) || word.includes(aiWord))
+  )
+
+  const matchRatio = matchingWords.length / keyWords.length
+  return matchRatio >= 0.6 // At least 60% overlap
+}
+
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
   const clientIP = request.headers.get('x-forwarded-for') ||
@@ -708,7 +738,7 @@ export async function POST(request: NextRequest) {
     // 🎯 SMART BATCH COMPARISON LOGIC
     if (uniqueAlerts.length > 0) {
       let userBatchMatch = false
-      let productNameMatch = false
+      const productNameMatch = false
 
       // Check if AI extracted any batches from database content
       const aiExtractedBatches = aiBatchNumbers || []
@@ -840,11 +870,11 @@ export async function POST(request: NextRequest) {
         // 🟡 MEDIUM CONFIDENCE: Batch matches but product doesn't in SAME alert
         isCounterfeit = false
         confidence = Math.min(60, 35 + (batchOnlyMatches.length * 8))
-        alertType = "BATCH_NUMBER_SUSPICIOUS"
+        alertType = "BATCH NUMBER ALERT BUT DIFFERENT PRODUCT"
         batchNumber = userBatchNumber
         detectedAlerts = batchOnlyMatches.map(a => a.title)
 
-        summary = `🟡 BATCH NUMBER ALERT - DIFFERENT PRODUCT: Your batch "${userBatchNumber}" appears in ${batchOnlyMatches.length} alert(s), but for different product(s). This could indicate batch contamination or rebranding.`
+        summary = `🟡 BATCH NUMBER ALERTS FOUND - YOUR PRODUCT MAY NOT BE AFFECTED: Your batch "${userBatchNumber}" appears in ${batchOnlyMatches.length} alert(s), but for different product(s). This could indicate batch contamination or rebranding.`
 
         if (batchOnlyMatches.length <= 3) {
           summary += batchOnlyMatches.map((a, idx) => `\n${idx + 1}. ${a.title} (${a.productNames?.join(', ') || 'unknown product'})`).join('')
@@ -1189,73 +1219,92 @@ RESPONSE FORMAT (ONLY RETURN JSON, NO OTHER TEXT):
 
     console.log(`✅ Final Analysis State: AI=${aiEnhanced ? 'Enabled' : 'Disabled'}, Batches=${aiBatchNumbers.length}`)
 
-    // 🛟 POST-AI BATCH RE-VERIFICATION: Check if AI extracted batches ENHANCE the decision (don't upgrade batch alerts to counterfeit)
+    // 🛟 ENHANCED POST-AI DIFFERENTIAL MATCHING: Compare user input vs AI extractions for proper categorization
     if (aiEnhanced && uniqueAlerts.length > 0 && userProvidedBatch && aiBatchNumbers.length > 0) {
-      console.log(`🔄 POST-AI BATCH RE-VERIFICATION: Checking ${aiBatchNumbers.length} AI-extracted batches`)
+      console.log(`🔄 ENHANCED POST-AI DIFERENTIAL MATCHING: ${aiBatchNumbers.length} batches, AI product: "${enhancedProductName}"`)
 
-      // Check if any alert now has a batch that matches the user's batch (after AI extraction)
-      const aiMatchedAlerts = uniqueAlerts.filter(alert => {
-        // Check if AI extracted batches for this alert match user batch
-        const aiBatchesForAlert = aiBatchNumbers.filter(batch =>
-          batch.toUpperCase().trim() === userBatchNumber.toUpperCase().trim()
-        )
-        return aiBatchesForAlert.length > 0
-      })
+      // STEP 1: COMPARE AI EXTRACTIONS VS USER INPUT
+      const aiProductMatch = fuzzyProductMatch(productName, enhancedProductName || '')
+      const aiBatchMatch = aiBatchNumbers.some(aiBatch =>
+        aiBatch.toUpperCase().trim() === userBatchNumber.toUpperCase().trim()
+      )
 
-      if (aiMatchedAlerts.length > 0) {
-        console.log(`🎯 POST-AI SUCCESS: Found ${aiMatchedAlerts.length} alerts with AI-extracted matching batches!`)
+      console.log(`🔍 MATCH ANALYSIS: Product ${aiProductMatch ? '✅' : '❌'} | Batch ${aiBatchMatch ? '✅' : '❌'}`)
 
-        // CRITICAL FIX: Do NOT upgrade "BATCH ALERT - DIFFERENT PRODUCT" to counterfactual
-        // AI extracted batches enhance clarification but don't change the alert type if database said it's different product
+      // STEP 2: DECIDE RESULT BASED ON AI INPUT COMPARISON
+      const wasOriginallySafe = (alertType === "No Alert") || (alertType === "GENERAL_PRODUCT_ALERTS")
+      const wasOriginallyPartial = (alertType === "PRODUCT_ALERT_DIFFERENT_BATCH") || (alertType === "BATCH NUMBER ALERT BUT DIFFERENT PRODUCT")
+      const wasOriginallyCounterfeit = result.isCounterfeit
 
-        const wasOriginallyBatchAlert = (alertType === "BATCH_NUMBER_SUSPICIOUS")
-        const wasOriginallyProductAlert = (alertType === "PRODUCT_ALERT_DIFFERENT_BATCH")
+      if (aiProductMatch && aiBatchMatch) {
+        // 🔴 CONFIRMED COUNTERFEIT: BOTH AI product AND batch match user input
+        isCounterfeit = true
+        confidence = Math.min(95, 85 + (aiConfidence || 10))
+        alertType = "CONFIRMED COUNTERFEIT"
+        batchNumber = userBatchNumber
+        detectedAlerts = uniqueAlerts.map(a => a.title)
 
-        if (wasOriginallyBatchAlert || wasOriginallyProductAlert) {
-          // PRESERVE ORIGINAL DECISION: This is still a batch/product alert, not confirmed counterfeit
-          console.log(`🔒 PRESERVING ORIGINAL DECISION: ${alertType} (AI provides enhanced clarity but doesn't upgrade to counterfeit)`)
+        summary = `🔴 CONFIRMED FAKE/COUNTERFEIT DETECTED VIA AI ENHANCED ANALYSIS: "${productName}" with batch "${userBatchNumber}" matches NAFDAC alerts for "${enhancedProductName}".`
 
-          // Only boost confidence slightly for better batch matching clarity
-          confidence = Math.min(Math.max(confidence, 60), confidence + 15)
-
-          // Enhance summary with AI-extracted product information
-          if (enhancedProductName !== productName) {
-            summary += `\n\n🤖 AI Analysis found batch "${userBatchNumber}" matches "${enhancedProductName}" (different from your provided product "${productName}")`
-          } else {
-            summary += `\n\n🤖 AI Analysis confirmed batch "${userBatchNumber}" details from NAFDAC alerts`
-          }
-
-          console.log(`🎯 RESULT ENHANCED: ${alertType} (${confidence}% confidence) with AI clarification`)
-
-        } else if (result.isCounterfeit) {
-          // EXISTING COUNTERFEIT CASE: AI enhances existing confirmed cases
-          confidence = Math.min(95, confidence + 10)
-          summary += `\n\n🤖 AI confirmed batch details match counterfeit product information.`
-
-          // GENERATE CONTEXT-AWARE ALERT TYPE BASED ON AI ANALYSIS
-          let confirmedType = "CONFIRMED COUNTERFEIT" // Default
-          if (aiEnhanced && aiAlertType) {
-            const aiType = aiAlertType.toUpperCase()
-            if (aiType.includes("EXPIRED")) {
-              confirmedType = "CONFIRMED EXPIRED"
-            } else if (aiType.includes("RECALL")) {
-              confirmedType = "CONFIRMED RECALL"
-            } else if (aiType.includes("FAKE") || aiType.includes("CONTAMINATED")) {
-              confirmedType = "CONFIRMED COUNTERFEIT"
-            }
-          }
-          alertType = confirmedType
-
-          console.log(`🏷️ ALERT TYPE DETERMINED: ${confirmedType}`)
-
-          // UPDATE RESULT OBJECT for database save
-          result.alertType = alertType
-          result.confidence = confidence
-          result.summary = summary
+        if (aiReason) {
+          summary += `\n\n${aiReason}`
         }
+
+        console.log(`🎯 CONFIRMED COUNTERFEIT: Both AI product and batch match user input`)
+
+        // CONTEXT-AWARE TYPE BASED ON AI ALERT TYPE
+        if (aiAlertType) {
+          const aiType = aiAlertType.toUpperCase()
+          if (aiType.includes("EXPIRED")) {
+            alertType = "CONFIRMED EXPIRED"
+          } else if (aiType.includes("RECALL")) {
+            alertType = "CONFIRMED RECALL"
+          } else if (aiType.includes("CONTAMINATED")) {
+            alertType = "CONFIRMED CONTAMINATED"
+          }
+        }
+
+      } else if (aiProductMatch && !aiBatchMatch) {
+        // 🟡 PRODUCT ALERT - DIFFERENT BATCH: AI product matches, batch doesn't
+        isCounterfeit = false
+        confidence = Math.min(75, Math.max(confidence, 60))
+        alertType = "PRODUCT_ALERT_DIFFERENT_BATCH"
+        batchNumber = userBatchNumber
+
+        summary = `🟡 PRODUCT ALERTS FOUND - YOUR BATCH MAY NOT BE AFFECTED: ${productName} matches NAFDAC alerts for ${enhancedProductName}, but batch ${userBatchNumber} is not affected.`
+
+        if (aiReason) {
+          summary += `\n\nAI Analysis: ${aiReason}`
+        }
+
+        console.log(`🎯 PRODUCT ALERT - DIFFERENT BATCH: AI product matches, batch doesn't`)
+
+      } else if (!aiProductMatch && aiBatchMatch) {
+        // 🟡 BATCH ALERT - DIFFERENT PRODUCT: AI batch matches, product doesn't
+        isCounterfeit = false
+        confidence = Math.min(75, Math.max(confidence, 60))
+        alertType = "BATCH NUMBER ALERT BUT DIFFERENT PRODUCT"
+        batchNumber = userBatchNumber
+
+        summary = `🟡 BATCH NUMBER ALERTS FOUND - YOUR PRODUCT MAY NOT BE AFFECTED: Batch ${userBatchNumber} appears in NAFDAC alerts for "${enhancedProductName}" but not for your product "${productName}".`
+
+        if (aiReason) {
+          summary += `\n\nAI Analysis: ${aiReason}`
+        }
+
+        console.log(`🎯 BATCH ALERT - DIFFERENT PRODUCT: AI batch matches, product doesn't`)
+
       } else {
-        console.log(`🔍 POST-AI RESULT: No additional batch matches found in AI-extracted data, keeping original decision`)
+        // 🔄 NO NEW MATCHES: Keep original decision but enhance with AI info
+        console.log(`🔍 AI extractions don't match user input, keeping original decision: ${alertType}`)
       }
+
+      // UPDATE RESULT OBJECT
+      result.isCounterfeit = isCounterfeit
+      result.alertType = alertType
+      result.confidence = confidence
+      result.summary = summary
+      result.batchNumber = batchNumber
     }
 
     // Point consumption - deduct from the specific plan tier that was used for AI analysis
