@@ -15,7 +15,7 @@ async function main() {
       id: 'google_gemini_001',
       name: 'Google Gemini Vision',
       provider: 'google',
-      modelName: 'gemini-1.5-flash',
+      modelName: 'gemini-2.0-flash',
       costPerRequest: 0.0025,
       maxRequestsPerHour: 1000,
       maxRequestsPerDay: 5000,

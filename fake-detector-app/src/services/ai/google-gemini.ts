@@ -1,37 +1,13 @@
 import { AIProviderConfig, AIResponse, AIRequest } from './types-fixed'
 
-// 🔥 AGGRESSIVE ENVIRONMENT CLEARING: Prevent Google libraries from accessing JSON as file path
-process.env.GOOGLE_APPLICATION_CREDENTIALS = undefined
-delete process.env.GOOGLE_APPLICATION_CREDENTIALS
-console.log('🔥 [Google Cloud] Environment variable permanently cleared - preventing file path access')
-
-// Raw HTTP approach for VertexAI (bypasses library auth issues)
+// Setup axios for API calls
 let axios: any = null
 
 const loadAxios = async () => {
   if (!axios) {
     const axiosModule = await import('axios')
     axios = axiosModule.default
-    console.log('✅ [Google Cloud] Axios loaded for raw HTTP API calls')
-  }
-}
-
-// Keep library fallbacks for development/info purposes (but won't be used in production)
-let VertexAI: any = null
-let GoogleAuth: any = null
-
-const loadGoogleCloudLibrary = async () => {
-  try {
-    if (!VertexAI) {
-      const vertexModule = await import('@google-cloud/vertexai')
-      const authModule = await import('google-auth-library')
-      VertexAI = vertexModule.VertexAI
-      GoogleAuth = authModule.GoogleAuth
-      console.log('✅ [Google Cloud] Library loaded (fallback - will not use for auth)')
-    }
-  } catch (error) {
-    // This is expected - library auth doesn't work in Vercel
-    console.log('⚠️ [Google Cloud] Library fallback failed (expected)')
+    console.log('✅ [Google AI] Axios loaded for API calls')
   }
 }
 
@@ -668,21 +644,42 @@ MANDATORY: Both productName and batchNumbers must be populated with real extract
 
       // Multi-image patterns - look for main medicine names
       /(?:amoxicillin|paracetamol|vitamin|aspirin|ibuprofen)[^\n]+(?:capsules?|tablets?|syrup?|mg|ml)/i,
-      /([A-Z][a-zA-Z]{3,20}(?:\s+[A-Z][a-zA-Z]{2,15})*\s+\d+(?:mg|ml|g|mcg|IU))/g
+      /([A-Z][a-zA-Z]{3,20}(?:\s+[A-Z][a-zA-Z]{2,15})*\s+\d+(?:mg|ml|g|mcg|IU))/g,
+
+      // Additional pharmaceutical patterns
+      /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:Inj|Inj\.|Injection|Tab|Tab\.|Tablet|Cap|Cap\.|Capsule|Syrup|Susp|Susp\.|Suspension|Cream|Oint|Oint\.|Ointment|Gel|Lotion))\s*\d*/i
     ]
 
     for (const pattern of productPatterns) {
       const match = text.match(pattern)
       if (match && match[1]) {
-        const productName = match[1].trim()
-        // Validate it looks like a proper pharmaceutical name
-        if (productName.length >= 3 && productName.length <= 100
-            && !productName.toLowerCase().includes('batch')
-            && !productName.toLowerCase().includes('expiry')
-            && !/^\d+$/.test(productName)) {
-          result.productName = productName
-          console.log(`✅ Extracted product name from text: "${productName}"`)
-          break
+        const potentialName = match[1].trim()
+        // Skip placeholder names that might interfere with updates
+        const invalidNames = ['unknown', 'product name', 'n/a', 'not found', 'missing', 'none']
+
+        // Validate it looks like a proper pharmaceutical name and isn't a placeholder
+        if (potentialName.length >= 3 && potentialName.length <= 100
+            && !potentialName.toLowerCase().includes('batch')
+            && !potentialName.toLowerCase().includes('expiry')
+            && !/^\d+$/.test(potentialName)
+            && !invalidNames.some(invalid => potentialName.toLowerCase().includes(invalid))) {
+
+          // Allow updating existing product name if we find a better one
+          if (!result.productName || result.productName.includes('UNKNOWN') || invalidNames.some(invalid => result.productName.toLowerCase().includes(invalid))) {
+            result.productName = potentialName
+            console.log(`✅ Extracted product name from text: "${potentialName}" (updated: ${result.productName !== potentialName ? 'yes' : 'no'})`)
+            break
+          } else {
+            // If we already have a valid product name, only replace if this one is clearly better
+            const currentIsPharma = /[mg|ml|g|mcg|iu|tablet|capsule|injection|syrup]/i.test(result.productName)
+            const newIsPharma = /[mg|ml|g|mcg|iu|tablet|capsule|injection|syrup]/i.test(potentialName)
+
+            if (newIsPharma && !currentIsPharma) {
+              console.log(`🔄 Upgrading product name: "${result.productName}" → "${potentialName}"`)
+              result.productName = potentialName
+              break
+            }
+          }
         }
       }
     }
@@ -908,31 +905,11 @@ export function createGeminiService(config: AIProviderConfig & {
 }) {
   const { storedCredentials, storedProjectId, ...baseConfig } = config
 
-  // DEBUG: Check what's actually available in Vercel runtime
-  console.log('🔍 GOOGLE CLOUD ENV DEBUG:', {
-    NODE_ENV: process.env.NODE_ENV,
-    DATABASE_URL_EXISTS: !!process.env.DATABASE_URL,
-    GOOGLE_APPLICATION_CREDENTIALS_JSON_EXISTS: !!process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON,
-    GOOGLE_APPLICATION_CREDENTIALS_JSON_LENGTH: process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON?.length || 0,
-    GOOGLE_CLOUD_PROJECT: process.env.GOOGLE_CLOUD_PROJECT,
-    storedCredentials_EXISTS: !!storedCredentials,
-    storedCredentials_LENGTH: storedCredentials?.length || 0,
-    storedProjectId,
-    timestamp: new Date().toISOString()
-  })
-
-  // PRODUCTION DETECTION: Check multiple sources for credentials
+  // PRODUCTION DETECTION: Check if running in production
   const hasProductionEnvironment =
     process.env.NODE_ENV === 'production' &&
     process.env.DATABASE_URL &&
-    (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || storedCredentials)
-
-  console.log('🎯 Production environment detected:', hasProductionEnvironment, {
-    nodeEnv: process.env.NODE_ENV === 'production',
-    hasDbUrl: !!process.env.DATABASE_URL,
-    hasEnvCredentialsJson: !!process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON,
-    hasStoredCredentials: !!storedCredentials
-  })
+    process.env.GOOGLE_AI_API_KEY
 
   if (hasProductionEnvironment) {
     // Create real service and pass stored credentials if available

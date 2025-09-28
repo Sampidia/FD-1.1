@@ -590,7 +590,7 @@ export class AIServiceRouter {
         priority: 1,
         config: {
           apiKey: '', // Already set in gemini instance
-          modelName: 'gemini-1.5-flash',
+          modelName: 'gemini-2.0-flash',
           temperature: 0.7,
           maxTokens: 2048,
           costInput: 0.00000025,
@@ -613,7 +613,7 @@ export class AIServiceRouter {
           priority: 1,
           config: {
             apiKey: '',
-            modelName: 'gemini-1.5-flash',
+            modelName: 'gemini-2.0-flash',
             temperature: 0.7,
             maxTokens: 2048,
             costInput: 0.00000025,
@@ -630,7 +630,7 @@ export class AIServiceRouter {
             priority: 1,
             config: {
               apiKey: '',
-              modelName: 'gemini-1.5-flash',
+              modelName: 'gemini-2.0-flash',
               temperature: 0.7,
               maxTokens: 2048,
               costInput: 0.00000025,
@@ -663,7 +663,7 @@ export class AIServiceRouter {
              priority: 1,
              config: {
                apiKey: '',
-               modelName: 'gemini-1.5-flash',
+               modelName: 'gemini-2.0-flash',
                temperature: 0.7,
                maxTokens: 2048,
                costInput: 0.00000025,
@@ -870,7 +870,7 @@ export class AIServiceRouter {
       priority: 1,
       config: {
         apiKey: '',
-        modelName: 'gemini-1.5-flash',
+        modelName: 'gemini-2.0-flash',
         temperature: 0.7,
         maxTokens: 2048,
         costInput: 0.00000025,
