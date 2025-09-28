@@ -358,7 +358,7 @@ export async function POST(request: NextRequest) {
 
     // OCR Processing with Fallback Manager (includes metrics collection)
     let ocrText = ''
-    let aiExtractedData: any = null
+    let aiExtractedData: { productName?: string; batchNumbers?: string[]; manufacturers?: string[]; confidence?: number } | null = null
 
     if (images && images.length > 0) {
       try {
@@ -386,14 +386,16 @@ export async function POST(request: NextRequest) {
 
         // Fallback strategy order if plan assignments fail
         if (ocrStrategies.length === 0) {
-          if (userPlan === 'basic') {
-            ocrStrategies = ['gemini', 'tesseract']
+          // Priority 1: Gemini for all OCR
+          // Priority 2: Claude for all plans (fallback)
+          if (userPlan === 'free' || userPlan === 'basic') {
+            ocrStrategies = ['gemini', 'claude', 'tesseract']
           } else if (userPlan === 'standard') {
-            ocrStrategies = ['anthropic', 'gemini', 'tesseract']
+            ocrStrategies = ['gemini', 'claude', 'tesseract']
           } else if (userPlan === 'business') {
-            ocrStrategies = ['openai', 'anthropic', 'gemini', 'tesseract']
+            ocrStrategies = ['gemini', 'claude', 'tesseract']
           } else {
-            ocrStrategies = ['gemini', 'tesseract'] // Free tier
+            ocrStrategies = ['gemini', 'claude', 'tesseract'] // All plans
           }
         }
 
@@ -929,18 +931,41 @@ export async function POST(request: NextRequest) {
       console.log(`🤖 Starting enhanced ${aiProvider} AI analysis for ${uniqueAlerts.length} found alerts...`)
 
       try {
-        let aiService: any = null
+        // VERIFICATION PROVIDER PRIORITY (Priority 1: Primary, Priority 2: Fallback)
+        let providerPriority: string[] = []
+        if (userPlan === 'business') {
+          providerPriority = ['openai', 'gemini'] // OpenAI → Gemini
+        } else if (userPlan === 'standard') {
+          providerPriority = ['anthropic', 'gemini'] // Claude → Gemini
+        } else {
+          providerPriority = ['google', 'anthropic'] // Basic/Free: Gemini → Claude
+        }
 
-        if (aiProvider === 'google') {
-          aiService = aiRouter['aiInstances']?.gemini
-        } else if (aiProvider === 'anthropic') {
-          aiService = aiRouter['aiInstances']?.claude
-        } else if (aiProvider === 'openai') {
-          aiService = aiRouter['aiInstances']?.openai
+        let aiService: any = null
+        let finalAiProvider = aiProvider
+
+        // Try providers in priority order
+        for (const provider of providerPriority) {
+          if (provider === 'google') {
+            aiService = aiRouter['aiInstances']?.gemini
+            finalAiProvider = 'google'
+          } else if (provider === 'anthropic') {
+            aiService = aiRouter['aiInstances']?.claude
+            finalAiProvider = 'anthropic'
+          } else if (provider === 'openai') {
+            aiService = aiRouter['aiInstances']?.openai
+            finalAiProvider = 'openai'
+          }
+
+          if (aiService) {
+            console.log(`✅ AI Provider ${provider} available - using for verification`)
+            break
+          }
+          console.warn(`⚠️ AI Provider ${provider} unavailable - trying fallback`)
         }
 
         if (!aiService) {
-          console.warn(`⚠️ ${aiProvider} AI service unavailable`)
+          console.warn(`🚨 No AI providers available for plan ${userPlan}`)
         } else {
           console.log('🔍 AI Service initialized successfully')
 

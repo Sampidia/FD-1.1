@@ -243,3 +243,20 @@ curl -I http://localhost:3000/api/scraper/stats
 | **Server load** | Gentle | Respectful (with delays) |
 
 **Zero Downtime:** At least one method will work when others fail! 🚀
+
+
+priority 1
+
+plan	     |	OCR	     |	Verification
+free 	|	gemini	|	gemini
+basic	|	gemini	|	gemini
+standard  |	gemini	|	claude
+business  |	gemini	|	openAi
+
+priority 2 (fallback)	
+
+plan	     |	OCR	     |	Verification
+free	     |	claude	|	claude
+basic	|	claude	|	claude
+standard  |	claude	|	gemini
+business  |	claude	|	gemini
