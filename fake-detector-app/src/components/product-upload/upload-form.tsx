@@ -396,15 +396,19 @@ export function UploadForm() {
       }))
 
       // Auto-populate form with extracted data - only high-quality data (ignore invalid names)
-      // Only skip if user has already manually entered data
-      const invalidNames = ['unknown', 'product name', 'n/a', 'not found', 'missing', 'none', 'placeholder', 'dummy', '']
+      // Allow overwriting if field is empty OR contains invalid placeholder names from previous analysis
+      const invalidNames = ['unknown', 'product name', 'n/a', 'not found', 'missing', 'none', 'placeholder', 'dummy', 'productname', 'medicine name', 'name', 'unnamed', 'tentative', 'null', 'nil']
 
-      if (analysisResult.analysis.productName &&
-          !formData.productName &&
-          !invalidNames.some(invalid => analysisResult.analysis.productName!.toLowerCase().includes(invalid))) {
+      const extractedProductName = analysisResult.analysis.productName
+      const fieldIsEmptyOrInvalid = !formData.productName || invalidNames.some(invalid => formData.productName.toLowerCase().includes(invalid))
+
+      if (extractedProductName &&
+          fieldIsEmptyOrInvalid &&
+          !invalidNames.some(invalid => extractedProductName.toLowerCase().includes(invalid))) {
+        console.log('🔄 Auto-populating product name:', extractedProductName, '(field was:', formData.productName || 'empty', ')')
         setFormData(prev => ({
           ...prev,
-          productName: analysisResult.analysis.productName || ''
+          productName: extractedProductName
         }))
       }
 
