@@ -1295,19 +1295,22 @@ RESPONSE FORMAT (ONLY RETURN JSON, NO OTHER TEXT):
         console.log(`🎯 PRODUCT ALERT - DIFFERENT BATCH: AI product matches, batch doesn't`)
 
       } else if (!aiProductMatch && aiBatchMatch) {
-        // 🟡 BATCH ALERT - DIFFERENT PRODUCT: AI batch matches, product doesn't
+        // 🚨 BATCH ALERT - DIFFERENT PRODUCT: AI batch matches, product doesn't
         isCounterfeit = false
-        confidence = Math.min(75, Math.max(confidence, 60))
+        confidence = Math.min(70, Math.max(confidence, 55))
         alertType = "BATCH NUMBER ALERT BUT DIFFERENT PRODUCT"
         batchNumber = userBatchNumber
 
-        summary = `🟡 BATCH NUMBER ALERTS FOUND - YOUR PRODUCT MAY NOT BE AFFECTED: Batch ${userBatchNumber} appears in NAFDAC alerts for "${enhancedProductName}" but not for your product "${productName}".`
+        const aiProductNamesDisplay = enhancedProductName && enhancedProductName !== 'Unknown' ?
+          `product "${enhancedProductName}"` : 'unknown products'
+
+        summary = `🚨 BATCH ALERT DETECTED - PRODUCT MISMATCH: Your batch "${userBatchNumber}" appears in NAFDAC alerts for ${aiProductNamesDisplay}, but this may not affect your "${productName}".`
 
         if (aiReason) {
-          summary += `\n\nAI Analysis: ${aiReason}`
+          summary += `\n\n⚠️ Important: This batch number is associated with alerts for different products. Exercise caution but note that your specific product "${productName}" wasn't directly mentioned in these alerts.`
         }
 
-        console.log(`🎯 BATCH ALERT - DIFFERENT PRODUCT: AI batch matches, product doesn't`)
+        console.log(`🚨 BATCH ALERT - DIFFERENT PRODUCT: AI batch matches but product doesn't`)
 
       } else {
         // 🔄 NO NEW MATCHES: Keep original decision but enhance with AI info
