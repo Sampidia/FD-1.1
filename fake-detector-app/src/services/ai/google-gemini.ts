@@ -210,19 +210,20 @@ class GeminiServiceReal {
         }
       }
 
-      // Use model from config or default to flash
-      const modelName = this.config.modelName || 'gemini-1.5-flash'
-      const endpoint = `https://aiplatform.googleapis.com/v1/publishers/google/models/${modelName}:streamGenerateContent?key=${apiKey}`
+      // Use model from config or default to gemini-2.0-flash
+      const modelName = this.config.modelName || 'gemini-2.0-flash'
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`
 
-      console.log(`🌐 [Gemini Vision] Calling Google AI API: ${modelName}`)
+      console.log(`🌐 [Gemini Vision] Calling Google AI Gemini API: ${modelName}`)
 
-      // Make raw HTTP call to VertexAI
+      // Make raw HTTP call to Google AI Gemini API
       const response = await axios.post(
         endpoint,
         requestBody,
         {
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-goog-api-key': apiKey
           },
           timeout: 30000 // 30 second timeout
         }
@@ -334,18 +335,19 @@ class GeminiServiceReal {
         }
       }
 
-      const modelName = 'gemini-1.5-flash'
-      const endpoint = `https://aiplatform.googleapis.com/v1/publishers/google/models/${modelName}:streamGenerateContent?key=${apiKey}`
+      const modelName = this.config.modelName || 'gemini-2.0-flash'
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`
 
-      console.log(`🌐 [Gemini Text] Calling Google AI API: ${modelName}`)
+      console.log(`🌐 [Gemini Text] Calling Google AI Gemini API: ${modelName}`)
 
-      // Make raw HTTP call to Google AI API
+      // Make raw HTTP call to Google AI Gemini API
       const response = await axios.post(
         endpoint,
         requestBody,
         {
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-goog-api-key': apiKey
           },
           timeout: 30000
         }
