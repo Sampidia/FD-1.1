@@ -109,7 +109,7 @@ function sanitizeInput(input: string): string {
     .substring(0, 1000)
 }
 
-// Fuzzy product name matching function
+// Fuzzy product name matching function - STRICTER VERSION
 function fuzzyProductMatch(userInput: string, aiExtracted: string): boolean {
   if (!userInput || !aiExtracted) return false
 
@@ -117,26 +117,38 @@ function fuzzyProductMatch(userInput: string, aiExtracted: string): boolean {
   const normalize = (str: string) => str.toLowerCase().trim()
     .replace(/[^\w\s]/g, ' ') // Remove punctuation
     .replace(/\s+/g, ' ') // Normalize spaces
-    .split(/\s+/)
 
-  const userWords = normalize(userInput)
-  const aiWords = normalize(aiExtracted)
+  const userNormalized = normalize(userInput)
+  const aiNormalized = normalize(aiExtracted)
 
-  // Exact match is best
-  if (normalize(userInput).join(' ') === normalize(aiExtracted).join(' ')) {
+  // Exact match (case-insensitive)
+  if (userNormalized === aiNormalized) {
     return true
   }
 
-  // Check for significant overlap (at least 60% of key words)
+  // Substring check (whole user input must be contained in AI result)
+  if (aiNormalized.includes(userNormalized)) {
+    return true
+  }
+
+  // Split into words for more precise matching
+  const userWords = userNormalized.split(/\s+/)
+  const aiWords = aiNormalized.split(/\s+/)
+
+  // Single word: must match exactly
+  if (userWords.length === 1) {
+    return aiWords.includes(userNormalized)
+  }
+
+  // Multiple words: require at least 80% of key words (>2 chars) to match exactly
   const keyWords = userWords.filter(word => word.length > 2)
   if (keyWords.length === 0) return false
 
-  const matchingWords = keyWords.filter(word =>
-    aiWords.some(aiWord => aiWord.includes(word) || word.includes(aiWord))
-  )
+  const exactMatches = keyWords.filter(word => aiWords.includes(word))
+  const exactMatchRatio = exactMatches.length / keyWords.length
 
-  const matchRatio = matchingWords.length / keyWords.length
-  return matchRatio >= 0.6 // At least 60% overlap
+  // Require 80% exact matches, OR all words if <= 3 keywords
+  return exactMatchRatio >= 0.8 || (keyWords.length <= 3 && exactMatches.length === keyWords.length)
 }
 
 export async function POST(request: NextRequest) {
@@ -988,6 +1000,7 @@ export async function POST(request: NextRequest) {
           providerPriority = ['google', 'anthropic'] // Basic/Free: Gemini → Claude
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let aiService: any = null
         let finalAiProvider = aiProvider
 
