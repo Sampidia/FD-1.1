@@ -44,7 +44,7 @@ export class NafdacDatabaseService {
       // Build search conditions
       const OR: any[] = []
 
-      // Batch number search - check both original and AI-extracted batch numbers
+      // Batch number search - check both original and AI-extracted batch numbers, plus fullContent fallback
       if (batchNumber && batchNumber.trim()) {
         OR.push({
           batchNumbers: {
@@ -54,6 +54,13 @@ export class NafdacDatabaseService {
         OR.push({
           aiBatchNumbers: {
             hasSome: [batchNumber.trim().toUpperCase(), batchNumber.trim()]
+          }
+        })
+        // Fallback: search in fullContent text if arrays don't match
+        OR.push({
+          fullContent: {
+            contains: batchNumber.trim(),
+            mode: 'insensitive'
           }
         })
       }

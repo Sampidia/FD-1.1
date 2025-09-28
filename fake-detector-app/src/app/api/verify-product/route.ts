@@ -267,9 +267,24 @@ export async function POST(request: NextRequest) {
       return addSecurityHeaders(response)
     }
 
+    // Calculate total available points for logging (same formula as above)
+    const loggedTotalPoints = (user?.planBusinessPoints || 0) +
+                             (user?.planStandardPoints || 0) +
+                             (user?.planBasicPoints || 0) +
+                             (user?.planFreePoints || 0)
+
     console.log('🔍 DATABASE USER:', {
       found: !!user,
-      points_balance: user?.pointsBalance,
+      points_balance: {
+        legacy: user?.pointsBalance || 0,
+        total_plan_points: loggedTotalPoints,  // Show actual total
+        breakdown: {
+          business: user?.planBusinessPoints || 0,
+          standard: user?.planStandardPoints || 0,
+          basic: user?.planBasicPoints || 0,
+          free: user?.planFreePoints || 0
+        }
+      },
       user_email: user?.email
     })
 
