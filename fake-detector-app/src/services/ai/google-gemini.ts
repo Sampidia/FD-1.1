@@ -59,7 +59,7 @@ class GeminiServiceStub {
         cost: 0
       },
       metadata: {
-        model: this.config.modelName || 'gemini-1.5-flash',
+        model: this.config.modelName || 'gemini-2.0-flash',
         provider: 'google',
         responseTime: 0,
         success: true,
@@ -80,7 +80,7 @@ class GeminiServiceStub {
         cost: 0
       },
       metadata: {
-        model: this.config.modelName || 'gemini-1.5-flash',
+        model: this.config.modelName || 'gemini-2.0-flash',
         provider: 'google',
         responseTime: 0,
         success: true,
@@ -293,7 +293,7 @@ class GeminiServiceReal {
           cost: 0
         },
         metadata: {
-          model: this.config.modelName || 'gemini-1.5-flash',
+          model: this.config.modelName || 'gemini-2.0-flash',
           provider: 'google',
           responseTime: Date.now() - startTime,
           success: false,
@@ -416,7 +416,7 @@ class GeminiServiceReal {
           cost: 0
         },
         metadata: {
-          model: 'gemini-1.5-flash',
+          model: 'gemini-2.0-flash',
           provider: 'google',
           responseTime: Date.now() - startTime,
           success: false,
