@@ -132,76 +132,9 @@ class GeminiServiceReal {
     // No library-based initialization needed for raw HTTP approach
   }
 
-  // Get Bearer token using raw HTTP authentication (bypasses library issues)
-  private async getAccessToken(): Promise<string | null> {
-    try {
-      await loadAxios()
-
-      console.log(`🔐 Getting VertexAI access token...`)
-
-      // Use stored credentials or environment variable
-      let serviceAccountKey = this.storedCredentials || process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
-
-      if (!serviceAccountKey) {
-        console.warn('⚠️ No service account credentials available')
-        return null
-      }
-
-      let credentials: any
-      try {
-        credentials = JSON.parse(serviceAccountKey.trim())
-      } catch (error) {
-        console.warn('⚠️ Invalid JSON in service account credentials')
-        return null
-      }
-
-      // Request JWT token from Google OAuth
-      const tokenResponse = await axios.post(
-        'https://oauth2.googleapis.com/token',
-        new URLSearchParams({
-          grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-          assertion: this.createJWT(credentials)
-        }).toString(),
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
-        }
-      )
-
-      if (tokenResponse.data?.access_token) {
-        console.log(`✅ Got access token (expires: ${tokenResponse.data?.expires_in}s)`)
-        return tokenResponse.data.access_token
-      } else {
-        console.warn('⚠️ No access token in response')
-        return null
-      }
-
-    } catch (error: any) {
-      console.warn('⚠️ Failed to get access token:', error.message || error)
-      return null
-    }
-  }
-
-  // Create JWT assertion for service account auth
-  private createJWT(credentials: any): string {
-    const jwt = require('jsonwebtoken')
-
-    const now = Math.floor(Date.now() / 1000)
-    const exp = now + 3600 // 1 hour
-
-    const payload = {
-      iss: credentials.client_email,
-      scope: 'https://www.googleapis.com/auth/cloud-platform',
-      aud: 'https://oauth2.googleapis.com/token',
-      exp: exp,
-      iat: now
-    }
-
-    // Note: This requires crypto-js for RS256 signing in production
-    // For Vercel deployment, we'll need to use a different approach or ensure jwt library works
-    const token = jwt.sign(payload, credentials.private_key, { algorithm: 'RS256' })
-    return token
+  // Check if API key is available
+  private getApiKey(): string | null {
+    return process.env.GOOGLE_AI_API_KEY || null
   }
 
   async processVision(request: AIRequest): Promise<AIResponse> {
@@ -212,10 +145,10 @@ class GeminiServiceReal {
     try {
       await loadAxios()
 
-      // Get access token for authentication
-      const accessToken = await this.getAccessToken()
-      if (!accessToken) {
-        throw new Error('Failed to obtain access token for VertexAI')
+      // Get API key from environment
+      const apiKey = this.getApiKey()
+      if (!apiKey) {
+        throw new Error('Google AI API key not found in GOOGLE_AI_API_KEY environment variable')
       }
 
       // Generate prompt based on task type
@@ -277,11 +210,11 @@ class GeminiServiceReal {
         }
       }
 
-      // Use model from config or default to flash-002 (as in your curl example)
+      // Use model from config or default to flash
       const modelName = this.config.modelName || 'gemini-1.5-flash'
-      const endpoint = `https://us-central1-aiplatform.googleapis.com/v1/projects/${this.project}/locations/${this.location}/publishers/google/models/${modelName}:streamGenerateContent`
+      const endpoint = `https://aiplatform.googleapis.com/v1/publishers/google/models/${modelName}:streamGenerateContent?key=${apiKey}`
 
-      console.log(`🌐 [Gemini Vision] Calling VertexAI API: ${modelName}`)
+      console.log(`🌐 [Gemini Vision] Calling Google AI API: ${modelName}`)
 
       // Make raw HTTP call to VertexAI
       const response = await axios.post(
@@ -289,7 +222,6 @@ class GeminiServiceReal {
         requestBody,
         {
           headers: {
-            'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json'
           },
           timeout: 30000 // 30 second timeout
@@ -379,16 +311,16 @@ class GeminiServiceReal {
     try {
       await loadAxios()
 
-      // Get access token for authentication
-      const accessToken = await this.getAccessToken()
-      if (!accessToken) {
-        throw new Error('Failed to obtain access token for VertexAI')
+      // Get API key from environment
+      const apiKey = this.getApiKey()
+      if (!apiKey) {
+        throw new Error('Google AI API key not found in GOOGLE_AI_API_KEY environment variable')
       }
 
       // Generate prompt based on task type
       const prompt = this.generatePrompt(request.text, request.task)
 
-      // Prepare the VertexAI API request payload for text-only
+      // Prepare the Google AI API request payload for text-only
       const requestBody = {
         contents: [{
           role: 'user',
@@ -403,17 +335,16 @@ class GeminiServiceReal {
       }
 
       const modelName = 'gemini-1.5-flash'
-      const endpoint = `https://us-central1-aiplatform.googleapis.com/v1/projects/${this.project}/locations/${this.location}/publishers/google/models/${modelName}:streamGenerateContent`
+      const endpoint = `https://aiplatform.googleapis.com/v1/publishers/google/models/${modelName}:streamGenerateContent?key=${apiKey}`
 
-      console.log(`🌐 [Gemini Text] Calling VertexAI API: ${modelName}`)
+      console.log(`🌐 [Gemini Text] Calling Google AI API: ${modelName}`)
 
-      // Make raw HTTP call to VertexAI
+      // Make raw HTTP call to Google AI API
       const response = await axios.post(
         endpoint,
         requestBody,
         {
           headers: {
-            'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json'
           },
           timeout: 30000
@@ -958,9 +889,9 @@ MANDATORY: Both productName and batchNumbers must be populated with real extract
 
   async checkHealth(): Promise<boolean> {
     try {
-      // Health check - try to get access token
-      const token = await this.getAccessToken()
-      return token !== null && token.length > 0
+      // Health check - check if API key is available
+      const apiKey = this.getApiKey()
+      return apiKey !== null && apiKey.length > 0
     } catch {
       return false
     }
