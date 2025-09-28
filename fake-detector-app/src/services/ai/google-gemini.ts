@@ -186,8 +186,8 @@ class GeminiServiceReal {
         }
       }
 
-      // Use model from config or default to gemini-2.0-flash
-      const modelName = this.config.modelName || 'gemini-2.0-flash'
+      // FORCE CORRECT MODEL: Always use gemini-2.0-flash (ignore database config)
+      const modelName = 'gemini-2.0-flash'
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`
 
       console.log(`🌐 [Gemini Vision] Calling Google AI Gemini API: ${modelName}`)
@@ -311,7 +311,8 @@ class GeminiServiceReal {
         }
       }
 
-      const modelName = this.config.modelName || 'gemini-2.0-flash'
+      // FORCE CORRECT MODEL: Always use gemini-2.0-flash (ignore database config)
+      const modelName = 'gemini-2.0-flash'
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`
 
       console.log(`🌐 [Gemini Text] Calling Google AI Gemini API: ${modelName}`)

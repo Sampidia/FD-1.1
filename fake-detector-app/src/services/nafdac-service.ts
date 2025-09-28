@@ -56,7 +56,8 @@ export class EnhancedNafdacService {
   ]
 
   constructor() {
-    this.initializeAdvancedAI()
+    // Initialize advanced AI lazily - only when needed
+    // This prevents ESM errors during Vercel builds
   }
 
   private async initializeAdvancedAI() {
@@ -1242,6 +1243,9 @@ export class EnhancedNafdacService {
       // Run traditional NAFDAC analysis
       const traditionalResult = await this.deepVerifyProduct(productName, description, images)
       console.log(`📰 Traditional analysis: ${traditionalResult.isCounterfeit ? 'Counterfeit' : 'Safe'} (${traditionalResult.confidence}%)`)
+
+      // Initialize AI lazily before using
+      await this.initializeAdvancedAI()
 
       // Run advanced AI analysis
       const aiResult = await advancedAI.analyzeProduct(images, { name: productName, description, userBatches: [] })

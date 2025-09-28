@@ -540,7 +540,7 @@ export class OCRFallbackManager {
         this.geminiOCR = createGeminiService({
           id: 'gemini-fallback',
           apiKey: process.env.GOOGLE_AI_API_KEY || '',
-          modelName: 'gemini-1.5-pro', // Use the production-compatible model
+          modelName: 'gemini-2.0-flash', // Use the production-compatible model
           provider: 'google',
           temperature: 0.1,
           maxTokens: 1024,

@@ -60,14 +60,19 @@ export class ClaudeVisionOCR {
       // Process multiple images - include all images in the request
       const imageBlocks: ImageBlockParam[] = request.images.map((imageBase64, index) => {
         console.log(`🖼️ Processing image ${index + 1}/${request.images.length}, original length:`, imageBase64.length)
+
+        // Extract media type and base64 data properly
+        const mediaTypeMatch = imageBase64.match(/^data:image\/([^;]+);base64,/)
+        const mediaType = mediaTypeMatch ? `image/${mediaTypeMatch[1]}` : 'image/png' // Default to PNG if can't detect
         const base64Data = imageBase64.replace(/^data:image\/[^;]+;base64,/, '')
-        console.log(`🖼️ Image ${index + 1} cleaned base64 length:`, base64Data.length)
+
+        console.log(`🖼️ Image ${index + 1} detected media type: ${mediaType}, cleaned base64 length:`, base64Data.length)
 
         return {
           type: 'image',
           source: {
             type: 'base64',
-            media_type: 'image/jpeg',
+            media_type: mediaType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
             data: base64Data
           }
         }
