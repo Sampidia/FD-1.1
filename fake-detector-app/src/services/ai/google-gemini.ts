@@ -665,13 +665,14 @@ MANDATORY: Both productName and batchNumbers must be populated with real extract
             && !invalidNames.some(invalid => potentialName.toLowerCase().includes(invalid))) {
 
           // Allow updating existing product name if we find a better one
-          if (!result.productName || result.productName.includes('UNKNOWN') || invalidNames.some(invalid => result.productName.toLowerCase().includes(invalid))) {
+          const hasInvalidName = result.productName && invalidNames.some(invalid => result.productName!.toLowerCase().includes(invalid))
+          if (!result.productName || result.productName.includes('UNKNOWN') || hasInvalidName) {
             result.productName = potentialName
             console.log(`✅ Extracted product name from text: "${potentialName}" (updated: ${result.productName !== potentialName ? 'yes' : 'no'})`)
             break
           } else {
             // If we already have a valid product name, only replace if this one is clearly better
-            const currentIsPharma = /[mg|ml|g|mcg|iu|tablet|capsule|injection|syrup]/i.test(result.productName)
+            const currentIsPharma = /[mg|ml|g|mcg|iu|tablet|capsule|injection|syrup]/i.test(result.productName!)
             const newIsPharma = /[mg|ml|g|mcg|iu|tablet|capsule|injection|syrup]/i.test(potentialName)
 
             if (newIsPharma && !currentIsPharma) {
