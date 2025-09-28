@@ -344,12 +344,24 @@ export class AIServiceRouter {
             userId
           )
 
-          // Success! Log usage and return
-          console.log(`✅ [AI Router] ${assignment.provider} succeeded for ${enhancedRequest.task}`)
-          console.log(`📊 [AI Router] Result: ${result.metadata.success ? 'SUCCESS' : 'FAILED'}, extractedData:`, result.extractedData)
-          await this.logUsage(assignment, userId, enhancedRequest, result)
+          // Check if result is actually successful for this task type
+          if (this.isResultSuccessfulForTask(result, enhancedRequest.task)) {
+            // Success! Log usage and return
+            console.log(`✅ [AI Router] ${assignment.provider} succeeded for ${enhancedRequest.task}`)
+            console.log(`📊 [AI Router] Result: SUCCESS, extractedData:`, result.extractedData ? Object.keys(result.extractedData) : 'none')
+            await this.logUsage(assignment, userId, enhancedRequest, result)
+            return result
+          } else {
+            // Provider returned a response but it wasn't successful for the task
+            console.log(`⚠️ [AI Router] ${assignment.provider} executed but result not suitable for ${enhancedRequest.task}`)
+            console.log(`📊 [AI Router] Result: ${result.metadata.success ? 'RESPONSE_RECEIVED_BUT_INVALID' : 'FAILED'}, extractedData:`, result.extractedData ? Object.keys(result.extractedData) : 'none')
 
-          return result
+            // Store as last error and continue to next provider
+            lastError = new Error(`Provider ${assignment.provider} returned unsuitable result for ${enhancedRequest.task}`)
+
+            // Continue to next provider if this one failed to provide useful results
+            continue
+          }
 
         } catch (error) {
           console.warn(`❌ ${assignment.provider} failed:`, error instanceof Error ? error.message : 'Unknown error')
@@ -810,6 +822,43 @@ export class AIServiceRouter {
     }
 
     return result
+  }
+
+  // Check if a result is successful for a given task type
+  private isResultSuccessfulForTask(result: AIResponse, task: string): boolean {
+    // If metadata indicates failure, result is not successful
+    if (!result.metadata.success || result.metadata.success === undefined) {
+      return false
+    }
+
+    // Task-specific success criteria
+    switch (task) {
+      case 'ocr':
+        // For OCR, we need meaningful extracted data (at least batch number or product name)
+        const extractedData = result.extractedData
+        if (!extractedData) {
+          console.log(`🔍 OCR result check: No extracted data`)
+          return false
+        }
+
+        const hasBatchNumbers = extractedData.batchNumbers && extractedData.batchNumbers.length > 0
+        const hasProductNames = extractedData.productNames && extractedData.productNames.length > 0
+
+        // At minimum, we need either a meaningful batch number OR product name for OCR to be considered successful
+        const hasMeaningfulData = hasBatchNumbers || hasProductNames
+
+        console.log(`🔍 OCR result check: batchNumbers=${hasBatchNumbers}, productNames=${hasProductNames}, meaningful=${hasMeaningfulData}`)
+        return hasMeaningfulData
+
+      case 'verification':
+      case 'extraction':
+        // For other tasks, metadata success is sufficient (they process text differently)
+        return true
+
+      default:
+        // Default to metadata success for unknown tasks
+        return result.metadata.success
+    }
   }
 
   // Get free tier fallback if database fails
