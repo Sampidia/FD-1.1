@@ -5,17 +5,33 @@ process.env.GOOGLE_APPLICATION_CREDENTIALS = undefined
 delete process.env.GOOGLE_APPLICATION_CREDENTIALS
 console.log('🔥 [Google Cloud] Environment variable permanently cleared - preventing file path access')
 
-// Dynamic import for Google Cloud libraries (ESM compatibility) - SAFELY AFTER ENVIRONMENT CLEARING
-let VertexAI: any
-let GoogleAuth: any
+// Raw HTTP approach for VertexAI (bypasses library auth issues)
+let axios: any = null
 
-const initializeGoogleCloud = async () => {
-  if (!VertexAI) {
-    const vertexModule = await import('@google-cloud/vertexai')
-    const authModule = await import('google-auth-library')
-    VertexAI = vertexModule.VertexAI
-    GoogleAuth = authModule.GoogleAuth
-    console.log('✅ [Google Cloud] Libraries loaded safely after environment clearing')
+const loadAxios = async () => {
+  if (!axios) {
+    const axiosModule = await import('axios')
+    axios = axiosModule.default
+    console.log('✅ [Google Cloud] Axios loaded for raw HTTP API calls')
+  }
+}
+
+// Keep library fallbacks for development/info purposes (but won't be used in production)
+let VertexAI: any = null
+let GoogleAuth: any = null
+
+const loadGoogleCloudLibrary = async () => {
+  try {
+    if (!VertexAI) {
+      const vertexModule = await import('@google-cloud/vertexai')
+      const authModule = await import('google-auth-library')
+      VertexAI = vertexModule.VertexAI
+      GoogleAuth = authModule.GoogleAuth
+      console.log('✅ [Google Cloud] Library loaded (fallback - will not use for auth)')
+    }
+  } catch (error) {
+    // This is expected - library auth doesn't work in Vercel
+    console.log('⚠️ [Google Cloud] Library fallback failed (expected)')
   }
 }
 
@@ -80,7 +96,6 @@ class GeminiServiceStub {
 }
 
 class GeminiServiceReal {
-  private vertexAI: any = null
   private config: AIProviderConfig
   private project: string
   private location: string
@@ -95,14 +110,13 @@ class GeminiServiceReal {
     // Destructure stored credentials from config FIRST
     const { storedCredentials, storedProjectId } = config
 
-    // PRODUCTION RUNTIME DETECTION - Use PARAMETER credentials (not instance properties)!
-    // This must happen BEFORE any property assignment
+    // PRODUCTION RUNTIME DETECTION
     const hasProductionEnvironment =
       process.env.NODE_ENV === 'production' &&
       process.env.DATABASE_URL &&
       (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || storedCredentials)
 
-    // NOW set instance properties after production detection
+    // Set instance properties
     this.storedCredentials = storedCredentials || undefined
     this.storedProjectId = storedProjectId || undefined
 
@@ -110,287 +124,232 @@ class GeminiServiceReal {
     this.project = this.storedProjectId || process.env.GOOGLE_CLOUD_PROJECT || 'fake-detector-449119'
     this.location = 'us-central1' // Default Google Cloud region
 
-    // BUILD ENVIRONMENT BYPASS - Skip Google Cloud when production indicators are missing
     if (!hasProductionEnvironment) {
       console.log('[BUILD-ENV] Skipping Google Cloud initialization - not production environment')
-      this.vertexAI = null
       return
     }
 
-    // Initialize Google Cloud auth (lazy) - ONLY in production runtime
-    this.initializeAuth()
+    // No library-based initialization needed for raw HTTP approach
   }
 
-  private async initializeAuth() {
-    await initializeGoogleCloud()
-
+  // Get Bearer token using raw HTTP authentication (bypasses library issues)
+  private async getAccessToken(): Promise<string | null> {
     try {
-      console.log(`🔐 Initializing Google Cloud auth for project: ${this.project}`)
+      await loadAxios()
 
-      // 🔥 CLEAR ENVIRONMENT VARIABLE BEFORE ANY GOOGLE AUTH CALLS to prevent file path confusion
-      process.env.GOOGLE_APPLICATION_CREDENTIALS = undefined
-      delete process.env.GOOGLE_APPLICATION_CREDENTIALS
-      console.log(`🧹 Cleared GOOGLE_APPLICATION_CREDENTIALS from environment (preventing file path access)`)
+      console.log(`🔐 Getting VertexAI access token...`)
 
-      const auth = new GoogleAuth({
-        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-      })
+      // Use stored credentials or environment variable
+      let serviceAccountKey = this.storedCredentials || process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
 
-      // Handle Google Cloud authentication - prioritize Vercel best practice
-      let client
-      let jsonCredentials: string | undefined
+      if (!serviceAccountKey) {
+        console.warn('⚠️ No service account credentials available')
+        return null
+      }
 
+      let credentials: any
       try {
-        // Step 1: Check GOOGLE_APPLICATION_CREDENTIALS_JSON first (Vercel best practice)
-        jsonCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
-        if (jsonCredentials) {
-          // 🔐 STORE CREDENTIALS FOR RUNTIME OCR CALLS
-          (this as any)._storedJsonCredentials = jsonCredentials
+        credentials = JSON.parse(serviceAccountKey.trim())
+      } catch (error) {
+        console.warn('⚠️ Invalid JSON in service account credentials')
+        return null
+      }
 
-          // SAFE JSON PARSING - Prevent build-time syntax errors with inline assignment
-          let credentials: any
-          try {
-            credentials = JSON.parse(jsonCredentials.trim())
-          } catch (parseError) {
-            console.warn('❌ Invalid JSON in GOOGLE_APPLICATION_CREDENTIALS_JSON, skipping Google auth:', parseError instanceof Error ? parseError.message : 'Unknown error')
-            return // Skip Google auth initialization completely
+      // Request JWT token from Google OAuth
+      const tokenResponse = await axios.post(
+        'https://oauth2.googleapis.com/token',
+        new URLSearchParams({
+          grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+          assertion: this.createJWT(credentials)
+        }).toString(),
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
           }
+        }
+      )
 
-          // Validate parsed JSON structure
-          if (!credentials || typeof credentials !== 'object' || !credentials.type) {
-            console.warn('❌ Invalid Google credentials format, required fields missing, skipping Google auth')
-            return // Skip Google auth if format is invalid
-          }
-          const authWithCredentials = new GoogleAuth({
-            credentials: credentials,
-            scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-          })
-          client = await authWithCredentials.getClient()
-
-          console.log(`✅ Successfully authenticated with service account credentials`)
-        } else {
-          // Step 2: Fall back to GOOGLE_APPLICATION_CREDENTIALS detection
-          const googleAppCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS
-          if (googleAppCredentials && typeof googleAppCredentials === 'string') {
-            console.log(`📄 GOOGLE_APPLICATION_CREDENTIALS found, detecting format...`)
-
-            // BULLETPROOF TYPE ASSERTION: Guarantee TypeScript never sees 'never' type
-            const credentialsString: string = googleAppCredentials as string
-
-            // Check if it's a JSON string (service account credentials)
-            if (credentialsString.trim().startsWith('{')) {
-              console.log(`🔑 Using inline service account credentials from GOOGLE_APPLICATION_CREDENTIALS`)
-
-              const credentials = JSON.parse(googleAppCredentials)
-              const authWithCredentials = new GoogleAuth({
-                credentials: credentials,
-                scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-              })
-              client = await authWithCredentials.getClient()
-
-              // Clear the environment variable to prevent VertexAI from trying to use it as a file path again
-              process.env.GOOGLE_APPLICATION_CREDENTIALS = undefined
-              console.log(`🧹 Cleared GOOGLE_APPLICATION_CREDENTIALS from environment to prevent file path confusion`)
-            } else {
-              // Check if it's a file path
-              console.log(`📁 Using service account key file: ${googleAppCredentials}`)
-              const authWithFile = new GoogleAuth({
-                keyFile: googleAppCredentials,
-                scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-              })
-              client = await authWithFile.getClient()
-            }
+      if (tokenResponse.data?.access_token) {
+        console.log(`✅ Got access token (expires: ${tokenResponse.data?.expires_in}s)`)
+        return tokenResponse.data.access_token
       } else {
-        // Explicit warning: application default credentials are intentionally not available
-        console.warn(`🚨 No credentials configured for Google Cloud - this is expected in some environments`)
-        console.warn(`🔍 To use Google Cloud services, set GOOGLE_APPLICATION_CREDENTIALS_JSON environment variable`)
-        return // Don't throw - allow non-Google Cloud initialization for testing
-      }
-      }
-      } catch (credentialError) {
-        console.error('❌ Failed to parse Google credentials:', credentialError)
-        console.warn(`🚨 Google Cloud authentication failed - Gemini service will be unavailable`)
-        console.warn(`🔍 To use Google Cloud services, check GOOGLE_APPLICATION_CREDENTIALS_JSON`)
-        return // Don't throw - allow non-Google Cloud initialization for testing
+        console.warn('⚠️ No access token in response')
+        return null
       }
 
-      // FIX: VertexAI needs GOOGLE_APPLICATION_CREDENTIALS_JSON for internal auth
-      const originalJsonCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
-      if (!originalJsonCredentials && jsonCredentials) {
-        process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON = jsonCredentials
-      }
-
-      try {
-        this.vertexAI = new VertexAI({
-          project: this.project,
-          location: this.location,
-        })
-
-        console.log(`✅ Google Cloud VertexAI initialized successfully`)
-      } finally {
-        // IMMEDIATELY clear to prevent future file path confusion
-        process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON = undefined
-        delete process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
-      }
-    } catch (error) {
-      console.error('❌ Failed to initialize Google Cloud auth:', error)
-      throw error
+    } catch (error: any) {
+      console.warn('⚠️ Failed to get access token:', error.message || error)
+      return null
     }
+  }
+
+  // Create JWT assertion for service account auth
+  private createJWT(credentials: any): string {
+    const jwt = require('jsonwebtoken')
+
+    const now = Math.floor(Date.now() / 1000)
+    const exp = now + 3600 // 1 hour
+
+    const payload = {
+      iss: credentials.client_email,
+      scope: 'https://www.googleapis.com/auth/cloud-platform',
+      aud: 'https://oauth2.googleapis.com/token',
+      exp: exp,
+      iat: now
+    }
+
+    // Note: This requires crypto-js for RS256 signing in production
+    // For Vercel deployment, we'll need to use a different approach or ensure jwt library works
+    const token = jwt.sign(payload, credentials.private_key, { algorithm: 'RS256' })
+    return token
   }
 
   async processVision(request: AIRequest): Promise<AIResponse> {
     const startTime = Date.now()
 
-    console.log(`🤖 [Gemini Vision] Processing OCR request with ${request.images?.length || 0} images`)
+    console.log(`🤖 [Gemini Vision] Processing OCR request with raw HTTP - ${request.images?.length || 0} images`)
 
     try {
-      // Ensure VertexAI is initialized
-      if (!this.vertexAI) {
-        await this.initializeAuth()
-        if (!this.vertexAI) {
-          throw new Error('VertexAI failed to initialize')
-        }
+      await loadAxios()
+
+      // Get access token for authentication
+      const accessToken = await this.getAccessToken()
+      if (!accessToken) {
+        throw new Error('Failed to obtain access token for VertexAI')
       }
 
-      // CRITICAL FIX: VertexAI needs credentials during API calls, not just creation
-      // Temporarily restore for this API call only
-      const originalJsonCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
+      // Generate prompt based on task type
+      const prompt = this.generatePrompt(request.text, request.task)
+      console.log(`💬 [Gemini Vision] Generated prompt: ${prompt.substring(0, 200)}...`)
 
-      try {
-        // STEP 1: Use stored credentials from initialization (PRIORTY)
-        let jsonCredentials = this.storedCredentials || (this as any)._storedJsonCredentials
+      // Prepare content parts array
+      const parts: any[] = [
+        { text: prompt }
+      ]
 
-        // DEBUG: Log credential availability
-        console.log('🔧 [VertexAI] Credential check:', {
-          storedInProperty: !!this.storedCredentials,
-          storedInService: !!(this as any)._storedJsonCredentials,
-          hasCredentials: !!jsonCredentials,
-          credentialsLength: jsonCredentials?.length || 0
-        })
+      // Convert images to Gemini format for inline data
+      if (request.images && request.images.length > 0) {
+        request.images.forEach(image => {
+          let mimeType = 'image/png' // Default to PNG
+          let imageData = image
 
-        // Fallback: Check current env var (might be restored from previous call)
-        if (!jsonCredentials) {
-          jsonCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
-          console.log('🔄 [VertexAI] Fell back to environment variable')
-        }
-
-        if (jsonCredentials) {
-          process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON = jsonCredentials
-          console.log('🔧 [VertexAI] Restored credentials from storage for API call')
-        } else {
-          console.warn('⚠️ [VertexAI] No stored credentials available for API call - this will fail!')
-          throw new Error('No Google Cloud credentials available for API call')
-        }
-
-        // Generate prompt based on task type
-        const prompt = this.generatePrompt(request.text, request.task)
-        console.log(`💬 [Gemini Vision] Generated prompt: ${prompt.substring(0, 200)}...`)
-
-        // Get Gemini 1.5 Flash Vision model
-        const model = this.vertexAI.getGenerativeModel({
-          model: this.config.modelName || 'gemini-1.5-flash',
-          generationConfig: {
-            temperature: this.config.temperature || 0.1, // Lower temperature for OCR accuracy
-            maxOutputTokens: Math.min(request.maxTokens || 2048, this.config.maxTokens || 2048),
-            topK: 32,
-            topP: 1,
-          }
-        })
-
-        // Prepare content parts
-        const parts: any[] = [
-          { text: prompt }
-        ]
-
-        // Convert images to Gemini format - Gemini supports: png, jpeg, jpg, gif, webp
-        if (request.images && request.images.length > 0) {
-          request.images.forEach(image => {
-            let mimeType = 'image/png' // Default to PNG
-            let imageData = image
-
-            if (image.startsWith('data:')) {
-              const dataUrlType = image.split('data:')[1].split(';')[0]
-              // Convert common formats to Gemini-supported ones
-              if (dataUrlType === 'image/jpeg' || dataUrlType === 'image/jpg') {
-                mimeType = 'image/jpeg'
-              } else if (dataUrlType === 'image/png') {
-                mimeType = 'image/png'
-              } else if (dataUrlType === 'image/gif') {
-                mimeType = 'image/gif'
-              } else if (dataUrlType === 'image/webp') {
-                mimeType = 'image/webp'
-              } else {
-                // For unrecognized formats, default to PNG and let Gemini handle it
-                mimeType = 'image/png'
-              }
-              imageData = image.split(',')[1] // Extract base64 data from data URL
-              console.log(`🔧 [Gemini Vision] Detected format: ${dataUrlType} → Using: ${mimeType}`)
+          if (image.startsWith('data:')) {
+            const dataUrlType = image.split('data:')[1].split(';')[0]
+            // Convert common formats to Gemini-supported ones
+            if (dataUrlType === 'image/jpeg' || dataUrlType === 'image/jpg') {
+              mimeType = 'image/jpeg'
+            } else if (dataUrlType === 'image/png') {
+              mimeType = 'image/png'
+            } else if (dataUrlType === 'image/gif') {
+              mimeType = 'image/gif'
+            } else if (dataUrlType === 'image/webp') {
+              mimeType = 'image/webp'
+            } else {
+              // For unrecognized formats, default to PNG and let Gemini handle it
+              mimeType = 'image/png'
             }
+            imageData = image.split(',')[1] // Extract base64 data from data URL
+            console.log(`🔧 [Gemini Vision] Detected format: ${dataUrlType} → Using: ${mimeType}`)
+          }
 
-            parts.push({
-              inlineData: {
-                mimeType: mimeType,
-                data: imageData
-              }
-            })
+          parts.push({
+            inlineData: {
+              mimeType: mimeType,
+              data: imageData
+            }
           })
-        }
-
-        console.log(`🏗️ [Gemini Vision] Formatted ${request.images?.length || 0} image parts`)
-
-        // Make API call
-        console.log(`🌐 [Gemini Vision] Calling VertexAI API: ${this.config.modelName}`)
-
-        const result = await model.generateContent({
-          contents: [{
-            role: 'user',
-            parts: parts
-          }],
         })
+      }
 
-        console.log(`✅ [Gemini Vision] API call successful`)
+      console.log(`🏗️ [Gemini Vision] Formatted ${request.images?.length || 0} image parts`)
 
-        // Parse response
-        const response = result.response
-        const content = response.text()
-
-        if (!content) {
-          throw new Error('No content in Gemini Vision response')
+      // Prepare the VertexAI API request payload
+      const requestBody = {
+        contents: [{
+          role: 'user',
+          parts: parts
+        }],
+        generationConfig: {
+          temperature: this.config.temperature || 0.1, // Lower temperature for OCR accuracy
+          maxOutputTokens: Math.min(request.maxTokens || 2048, this.config.maxTokens || 2048),
+          topK: 32,
+          topP: 1,
         }
+      }
 
-        const responseTime = Date.now() - startTime
+      // Use model from config or default to flash-002 (as in your curl example)
+      const modelName = this.config.modelName || 'gemini-1.5-flash-002'
+      const endpoint = `https://us-central1-aiplatform.googleapis.com/v1/projects/${this.project}/locations/${this.location}/publishers/google/models/${modelName}:streamGenerateContent`
 
-        // Extract structured data based on task type
-        const extractedData = this.extractStructuredData(content, request.task)
+      console.log(`🌐 [Gemini Vision] Calling VertexAI API: ${modelName}`)
 
-        return {
-          content,
-          extractedData,
-          usage: {
-            inputTokens: Math.ceil(request.text.length / 4) + (request.images?.length || 0) * 85, // Approximate tokens (85 tokens per image)
-            outputTokens: Math.ceil(content.length / 4),
-            cost: this.calculateCost(request.text.length, content.length, request.images?.length || 0)
+      // Make raw HTTP call to VertexAI
+      const response = await axios.post(
+        endpoint,
+        requestBody,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
           },
-          metadata: {
-            model: this.config.modelName || 'gemini-1.5-pro',
-            provider: 'google',
-            responseTime,
-            success: true,
-            finishReason: response.candidates?.[0]?.finishReason || 'completed'
+          timeout: 30000 // 30 second timeout
+        }
+      )
+
+      console.log(`✅ [Gemini Vision] Raw HTTP API call successful`)
+
+      // Process streaming response
+      let content = ''
+      if (response.data && Array.isArray(response.data)) {
+        // Handle streaming response
+        for (const chunk of response.data) {
+          if (chunk.candidates && chunk.candidates[0] && chunk.candidates[0].content && chunk.candidates[0].content.parts) {
+            for (const part of chunk.candidates[0].content.parts) {
+              if (part.text) {
+                content += part.text
+              }
+            }
           }
         }
-      } finally {
-        // CRITICAL: Restore original environment variable state
-        if (originalJsonCredentials !== undefined) {
-          process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON = originalJsonCredentials
-        } else {
-          process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON = undefined
-          delete process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
+      } else if (response.data && response.data.candidates && response.data.candidates[0]) {
+        // Handle non-streaming response
+        const candidate = response.data.candidates[0]
+        if (candidate.content && candidate.content.parts) {
+          for (const part of candidate.content.parts) {
+            if (part.text) {
+              content += part.text
+            }
+          }
         }
-        console.log('🔧 [VertexAI] Environment credentials restored')
       }
-    } catch (error) {
-      console.error('Google Gemini Vision error:', error)
+
+      if (!content) {
+        throw new Error('No content in Gemini Vision response')
+      }
+
+      const responseTime = Date.now() - startTime
+
+      // Extract structured data based on task type
+      const extractedData = this.extractStructuredData(content, request.task)
+
+      return {
+        content,
+        extractedData,
+        usage: {
+          inputTokens: Math.ceil(request.text.length / 4) + (request.images?.length || 0) * 85, // Approximate tokens
+          outputTokens: Math.ceil(content.length / 4),
+          cost: this.calculateCost(request.text.length, content.length, request.images?.length || 0)
+        },
+        metadata: {
+          model: modelName,
+          provider: 'google',
+          responseTime,
+          success: true,
+          finishReason: 'completed'
+        }
+      }
+    } catch (error: any) {
+      console.error('Google Gemini Vision error:', error.response?.data || error.message)
 
       return {
         content: '',
@@ -401,11 +360,11 @@ class GeminiServiceReal {
           cost: 0
         },
         metadata: {
-          model: this.config.modelName || 'gemini-1.5-pro',
+          model: this.config.modelName || 'gemini-1.5-flash-002',
           provider: 'google',
           responseTime: Date.now() - startTime,
           success: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: error.response?.data?.error?.message || error.message || 'Unknown error',
           finishReason: 'error'
         }
       }
@@ -415,46 +374,76 @@ class GeminiServiceReal {
   async processText(request: AIRequest): Promise<AIResponse> {
     const startTime = Date.now()
 
-    console.log(`🤖 [Gemini Text] Processing text request`)
+    console.log(`🤖 [Gemini Text] Processing text request with raw HTTP`)
 
     try {
-      // Ensure VertexAI is initialized
-      if (!this.vertexAI) {
-        await this.initializeAuth()
-        if (!this.vertexAI) {
-          throw new Error('VertexAI failed to initialize')
-        }
+      await loadAxios()
+
+      // Get access token for authentication
+      const accessToken = await this.getAccessToken()
+      if (!accessToken) {
+        throw new Error('Failed to obtain access token for VertexAI')
       }
 
       // Generate prompt based on task type
       const prompt = this.generatePrompt(request.text, request.task)
 
-      // Get Gemini Pro model for text-only processing
-      const model = this.vertexAI.getGenerativeModel({
-        model: 'gemini-1.5-flash', // Use flash model for text-only tasks
+      // Prepare the VertexAI API request payload for text-only
+      const requestBody = {
+        contents: [{
+          role: 'user',
+          parts: [{ text: prompt }]
+        }],
         generationConfig: {
           temperature: this.config.temperature || 0.7,
           maxOutputTokens: Math.min(request.maxTokens || 2048, this.config.maxTokens || 2048),
           topK: 40,
           topP: 0.95,
         }
-      })
+      }
 
-      // Make API call for text-only request
-      console.log(`🌐 [Gemini Text] Calling VertexAI API: gemini-1.5-flash`)
+      const modelName = 'gemini-1.5-flash'
+      const endpoint = `https://us-central1-aiplatform.googleapis.com/v1/projects/${this.project}/locations/${this.location}/publishers/google/models/${modelName}:streamGenerateContent`
 
-      const result = await model.generateContent({
-        contents: [{
-          role: 'user',
-          parts: [{ text: prompt }]
-        }],
-      })
+      console.log(`🌐 [Gemini Text] Calling VertexAI API: ${modelName}`)
 
-      console.log(`✅ [Gemini Text] API call successful`)
+      // Make raw HTTP call to VertexAI
+      const response = await axios.post(
+        endpoint,
+        requestBody,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 30000
+        }
+      )
 
-      // Parse response
-      const response = result.response
-      const content = response.text()
+      console.log(`✅ [Gemini Text] Raw HTTP API call successful`)
+
+      // Process streaming response
+      let content = ''
+      if (response.data && Array.isArray(response.data)) {
+        for (const chunk of response.data) {
+          if (chunk.candidates && chunk.candidates[0] && chunk.candidates[0].content && chunk.candidates[0].content.parts) {
+            for (const part of chunk.candidates[0].content.parts) {
+              if (part.text) {
+                content += part.text
+              }
+            }
+          }
+        }
+      } else if (response.data && response.data.candidates && response.data.candidates[0]) {
+        const candidate = response.data.candidates[0]
+        if (candidate.content && candidate.content.parts) {
+          for (const part of candidate.content.parts) {
+            if (part.text) {
+              content += part.text
+            }
+          }
+        }
+      }
 
       if (!content) {
         throw new Error('No content in Gemini Text response')
@@ -474,16 +463,16 @@ class GeminiServiceReal {
           cost: this.calculateCost(request.text.length, content.length)
         },
         metadata: {
-          model: 'gemini-1.5-flash',
+          model: modelName,
           provider: 'google',
           responseTime,
           success: true,
-          finishReason: response.candidates?.[0]?.finishReason || 'completed'
+          finishReason: 'completed'
         }
       }
 
-    } catch (error) {
-      console.error('Google Gemini Text error:', error)
+    } catch (error: any) {
+      console.error('Google Gemini Text error:', error.response?.data || error.message)
 
       return {
         content: '',
@@ -498,7 +487,7 @@ class GeminiServiceReal {
           provider: 'google',
           responseTime: Date.now() - startTime,
           success: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: error.response?.data?.error?.message || error.message || 'Unknown error',
           finishReason: 'error'
         }
       }
@@ -969,13 +958,9 @@ MANDATORY: Both productName and batchNumbers must be populated with real extract
 
   async checkHealth(): Promise<boolean> {
     try {
-      // Health check using VertexAI
-      // Try to initialize auth and check if VertexAI is available
-      if (!this.vertexAI) {
-        await this.initializeAuth()
-      }
-
-      return this.vertexAI !== null && this.vertexAI !== undefined
+      // Health check - try to get access token
+      const token = await this.getAccessToken()
+      return token !== null && token.length > 0
     } catch {
       return false
     }
