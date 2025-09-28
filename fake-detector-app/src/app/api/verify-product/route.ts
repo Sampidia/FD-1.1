@@ -549,7 +549,7 @@ export async function POST(request: NextRequest) {
         })
 
         // Fallback: Look for individual keywords if no exact matches
-        let keywordProductMatches: AlertSearchResult[] = []
+        const keywordProductMatches: AlertSearchResult[] = []
         if (exactProductMatches.length === 0) {
           // Search for each keyword separately
           for (const term of searchTerms.slice(0, 2)) {
@@ -803,7 +803,9 @@ export async function POST(request: NextRequest) {
           alertBatch.toLowerCase().trim() === userBatchNumber.toLowerCase().trim()
         )
 
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         console.log(`   ✅ Product Match: ${productMatch} (search terms: ${searchTerms.join(', ')})`)
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         console.log(`   ✅ Batch Match: ${batchMatch} (user batch: ${userBatchNumber})`)
         console.log(`   🎯 Overall Match: ${productMatch && batchMatch}`)
       })
@@ -1063,7 +1065,7 @@ RESPONSE FORMAT (ONLY RETURN JSON, NO OTHER TEXT):
             // 🎯 SMART PRODUCT NAME PRESERVATION
             // Only replace user's product name if it doesn't match any alerts
             // This prevents AI from overwriting user input with title-extracted names
-            const userProductMatchesAlert = uniqueAlerts.some((alert: any) =>
+            const userProductMatchesAlert = uniqueAlerts.some((alert) =>
               alert.productNames?.some((alertProduct: string) =>
                 alertProduct.toLowerCase().includes(productName.toLowerCase())
               )
@@ -1383,7 +1385,7 @@ RESPONSE FORMAT (ONLY RETURN JSON, NO OTHER TEXT):
       // Original structure for backward compatibility
       ...(aiEnhanced && { aiEnhanced: true, aiConfidence }),
       enhancedProductName: aiEnhanced ? enhancedProductName : productName,
-      newBalance: user.pointsBalance - 1
+      newBalance: consumptionResult.pointsRemaining.total
     }
 
     logSecurityEvent('Verification completed', {
