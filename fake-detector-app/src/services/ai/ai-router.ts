@@ -68,16 +68,19 @@ export class AIServiceRouter {
       // Initialize each provider
       for (const provider of providers) {
         try {
-          const apiKey = await this.getAPIKey(this.constructProviderKeyId(provider.provider))
+          // Skip API key requirement for local services like Tesseract
+          const apiKey = provider.provider === 'tesseract'
+            ? 'local-service'  // Placeholder for local services
+            : await this.getAPIKey(this.constructProviderKeyId(provider.provider))
 
-          if (!apiKey) {
+          if (!apiKey && provider.provider !== 'tesseract') {
             console.warn(`❌ No API key found for ${provider.name}`)
             continue
           }
 
           const config = {
             id: provider.id,
-            apiKey,
+            apiKey: apiKey || '', // Ensure it's always a string
             modelName: provider.modelName,
             provider: provider.provider as 'google' | 'google-vision' | 'openai' | 'anthropic',
             temperature: 0.7, // Default temperature
@@ -248,8 +251,14 @@ export class AIServiceRouter {
         }
       }
 
-      // Health check all providers
-      await this.performHealthChecks()
+      // Health check all providers (non-blocking)
+      try {
+        await this.performHealthChecks()
+        console.log('🎯 AI Router health checks completed')
+      } catch (healthCheckError) {
+        console.warn('⚠️ Some AI provider health checks failed, but continuing with initialization:', healthCheckError instanceof Error ? healthCheckError.message : 'Unknown error')
+        console.log('🎯 AI Router initialized with partial health check results')
+      }
 
       console.log('🎯 AI Router initialized successfully')
 
@@ -351,8 +360,24 @@ export class AIServiceRouter {
         }
       }
 
-      // All providers failed
-      throw lastError || new Error('All AI providers failed')
+      // All providers failed - return graceful degradation response
+      console.warn('❌ All AI providers failed, returning graceful degradation response')
+      const degradationMessage = lastError instanceof Error ? lastError.message : 'All AI providers failed'
+      console.warn(`📝 Degradation: ${degradationMessage}`)
+
+      return {
+        content: '',
+        extractedData: null,
+        usage: { inputTokens: 0, outputTokens: 0, cost: 0 },
+        metadata: {
+          model: 'degraded',
+          provider: 'fallback',
+          responseTime: Date.now() - Date.now(),
+          success: false,
+          error: degradationMessage,
+          finishReason: 'degraded'
+        }
+      }
 
     } catch (error) {
       console.error('❌ AI Router processing error:', error)

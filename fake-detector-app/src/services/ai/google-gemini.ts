@@ -200,17 +200,18 @@ class GeminiServiceReal {
               })
               client = await authWithFile.getClient()
             }
-          } else {
-            // Last resort: application default credentials
-            console.log(`🏠 Falling back to application default credentials`)
-            client = await auth.getClient()
-          }
-        }
+      } else {
+        // Explicit warning: application default credentials are intentionally not available
+        console.warn(`🚨 No credentials configured for Google Cloud - this is expected in some environments`)
+        console.warn(`🔍 To use Google Cloud services, set GOOGLE_APPLICATION_CREDENTIALS_JSON environment variable`)
+        return // Don't throw - allow non-Google Cloud initialization for testing
+      }
+      }
       } catch (credentialError) {
         console.error('❌ Failed to parse Google credentials:', credentialError)
-        // Final fallback: application default credentials
-        console.log(`🚨 Authentication failed, using application default credentials as last resort`)
-        client = await auth.getClient()
+        console.warn(`🚨 Google Cloud authentication failed - Gemini service will be unavailable`)
+        console.warn(`🔍 To use Google Cloud services, check GOOGLE_APPLICATION_CREDENTIALS_JSON`)
+        return // Don't throw - allow non-Google Cloud initialization for testing
       }
 
       // FIX: VertexAI needs GOOGLE_APPLICATION_CREDENTIALS_JSON for internal auth
