@@ -92,21 +92,23 @@ class GeminiServiceReal {
     storedProjectId?: string | null
   }) {
     this.config = config
-    // Destructure stored credentials from config
-    const { storedCredentials, storedProjectId, ... remainingConfig } = config
-    // Reassign config without stored properties to avoid confusion
+    // Destructure stored credentials from config FIRST
+    const { storedCredentials, storedProjectId } = config
+
+    // PRODUCTION RUNTIME DETECTION - Use PARAMETER credentials (not instance properties)!
+    // This must happen BEFORE any property assignment
+    const hasProductionEnvironment =
+      process.env.NODE_ENV === 'production' &&
+      process.env.DATABASE_URL &&
+      (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || storedCredentials)
+
+    // NOW set instance properties after production detection
     this.storedCredentials = storedCredentials || undefined
     this.storedProjectId = storedProjectId || undefined
 
     // Extract project and location from config or use defaults
     this.project = this.storedProjectId || process.env.GOOGLE_CLOUD_PROJECT || 'fake-detector-449119'
     this.location = 'us-central1' // Default Google Cloud region
-
-    // PRODUCTION RUNTIME DETECTION - Use stored credentials for environment detection!
-    const hasProductionEnvironment =
-      process.env.NODE_ENV === 'production' &&
-      process.env.DATABASE_URL &&
-      (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || this.storedCredentials)
 
     // BUILD ENVIRONMENT BYPASS - Skip Google Cloud when production indicators are missing
     if (!hasProductionEnvironment) {
