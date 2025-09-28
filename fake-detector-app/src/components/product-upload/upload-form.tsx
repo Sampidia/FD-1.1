@@ -395,9 +395,13 @@ export function UploadForm() {
         hasAnalyzed: true
       }))
 
-      // Auto-populate form with extracted data - always populate useful data regardless of overall validation
+      // Auto-populate form with extracted data - only high-quality data (ignore invalid names)
       // Only skip if user has already manually entered data
-      if (analysisResult.analysis.productName && !formData.productName) {
+      const invalidNames = ['unknown', 'product name', 'n/a', 'not found', 'missing', 'none', 'placeholder', 'dummy', '']
+
+      if (analysisResult.analysis.productName &&
+          !formData.productName &&
+          !invalidNames.some(invalid => analysisResult.analysis.productName!.toLowerCase().includes(invalid))) {
         setFormData(prev => ({
           ...prev,
           productName: analysisResult.analysis.productName || ''
