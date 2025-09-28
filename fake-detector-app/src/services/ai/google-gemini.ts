@@ -286,9 +286,9 @@ class GeminiServiceReal {
         const prompt = this.generatePrompt(request.text, request.task)
         console.log(`💬 [Gemini Vision] Generated prompt: ${prompt.substring(0, 200)}...`)
 
-        // Get Gemini Pro Vision model
+        // Get Gemini 1.5 Flash Vision model
         const model = this.vertexAI.getGenerativeModel({
-          model: this.config.modelName || 'gemini-1.5-pro',
+          model: this.config.modelName || 'gemini-1.5-flash',
           generationConfig: {
             temperature: this.config.temperature || 0.1, // Lower temperature for OCR accuracy
             maxOutputTokens: Math.min(request.maxTokens || 2048, this.config.maxTokens || 2048),
