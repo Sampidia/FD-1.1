@@ -654,8 +654,8 @@ MANDATORY: Both productName and batchNumbers must be populated with real extract
       const match = text.match(pattern)
       if (match && match[1]) {
         const potentialName = match[1].trim()
-        // Skip placeholder names that might interfere with updates
-        const invalidNames = ['unknown', 'product name', 'n/a', 'not found', 'missing', 'none']
+        // Define invalid placeholder names that should be IGNORED entirely
+        const invalidNames = ['unknown', 'product name', 'n/a', 'not found', 'missing', 'none', 'placeholder', 'dummy']
 
         // Validate it looks like a proper pharmaceutical name and isn't a placeholder
         if (potentialName.length >= 3 && potentialName.length <= 100
@@ -664,11 +664,14 @@ MANDATORY: Both productName and batchNumbers must be populated with real extract
             && !/^\d+$/.test(potentialName)
             && !invalidNames.some(invalid => potentialName.toLowerCase().includes(invalid))) {
 
-          // Allow updating existing product name if we find a better one
-          const hasInvalidName = result.productName && invalidNames.some(invalid => result.productName!.toLowerCase().includes(invalid))
-          if (!result.productName || result.productName.includes('UNKNOWN') || hasInvalidName) {
+          // IGNORE APPROACH: Never store invalid names - if we have an invalid existing name,
+          // clear it so valid names can take priority
+          const hasInvalidExistingName = result.productName && invalidNames.some(invalid => result.productName!.toLowerCase().includes(invalid))
+
+          if (!result.productName || hasInvalidExistingName) {
+            // No existing valid name, or existing name is invalid - set the new valid name
             result.productName = potentialName
-            console.log(`✅ Extracted product name from text: "${potentialName}" (updated: ${result.productName !== potentialName ? 'yes' : 'no'})`)
+            console.log(`✅ Extracted product name from text: "${potentialName}" (ignored invalid existing name: ${hasInvalidExistingName ? 'yes' : 'no'})`)
             break
           } else {
             // If we already have a valid product name, only replace if this one is clearly better
