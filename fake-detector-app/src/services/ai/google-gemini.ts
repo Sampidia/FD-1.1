@@ -59,7 +59,7 @@ class GeminiServiceStub {
         cost: 0
       },
       metadata: {
-        model: this.config.modelName || 'gemini-1.5-flash',
+        model: this.config.modelName || 'gemini-1.5-pro',
         provider: 'google',
         responseTime: 0,
         success: true,
@@ -80,7 +80,7 @@ class GeminiServiceStub {
         cost: 0
       },
       metadata: {
-        model: this.config.modelName || 'gemini-1.5-flash',
+        model: this.config.modelName || 'gemini-1.5-pro',
         provider: 'google',
         responseTime: 0,
         success: true,
@@ -278,7 +278,7 @@ class GeminiServiceReal {
       }
 
       // Use model from config or default to flash-002 (as in your curl example)
-      const modelName = this.config.modelName || 'gemini-1.5-flash'
+      const modelName = this.config.modelName || 'gemini-1.5-pro'
       const endpoint = `https://us-central1-aiplatform.googleapis.com/v1/projects/${this.project}/locations/${this.location}/publishers/google/models/${modelName}:streamGenerateContent`
 
       console.log(`🌐 [Gemini Vision] Calling VertexAI API: ${modelName}`)
@@ -360,7 +360,7 @@ class GeminiServiceReal {
           cost: 0
         },
         metadata: {
-          model: this.config.modelName || 'gemini-1.5-flash',
+          model: this.config.modelName || 'gemini-1.5-pro',
           provider: 'google',
           responseTime: Date.now() - startTime,
           success: false,
@@ -402,7 +402,7 @@ class GeminiServiceReal {
         }
       }
 
-      const modelName = 'gemini-1.5-flash'
+      const modelName = 'gemini-1.5-pro'
       const endpoint = `https://us-central1-aiplatform.googleapis.com/v1/projects/${this.project}/locations/${this.location}/publishers/google/models/${modelName}:streamGenerateContent`
 
       console.log(`🌐 [Gemini Text] Calling VertexAI API: ${modelName}`)
@@ -483,7 +483,7 @@ class GeminiServiceReal {
           cost: 0
         },
         metadata: {
-          model: 'gemini-1.5-flash',
+          model: 'gemini-1.5-pro',
           provider: 'google',
           responseTime: Date.now() - startTime,
           success: false,
