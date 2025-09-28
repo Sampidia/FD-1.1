@@ -384,12 +384,29 @@ export function BatchUploadForm({ userPlan, userBalance }: BatchUploadFormProps)
         return currentSlots
       }
 
-      // If we already have valid results and the slot is analyzed, don't re-analyze
-      if (currentSlot.isAnalyzed && currentSlot.analysisResult && currentSlot.analysisResult.validation.isValid) {
-        console.log(`✅ [${new Date().toISOString()}] Slot ${slotId} already has valid OCR results, skipping re-analysis`)
+      // COUNTS FOR MULTI-IMAGE RE-ANALYSIS
+      const currentImageCount = Object.values(currentSlot.images).filter(img => img !== null).length
+      const analyzedImageCount = currentSlot.analysisResult ? currentSlot.analysisResult.metadata.imageCount : 0
+
+      // Check if we need to re-analyze due to new images (multi-image scenario)
+      const hasNewImagesForReanalysis = currentImageCount > analyzedImageCount
+
+      console.log(`🔍 [${new Date().toISOString()}] Slot ${slotId} analysis check:`)
+      console.log(`   Current images: ${currentImageCount}, Analyzed images: ${analyzedImageCount}`)
+      console.log(`   Re-analysis needed: ${hasNewImagesForReanalysis}`)
+
+      // If we already have valid results, only skip if NO new images were added
+      if (currentSlot.isAnalyzed && currentSlot.analysisResult && currentSlot.analysisResult.validation.isValid && !hasNewImagesForReanalysis) {
+        console.log(`✅ [${new Date().toISOString()}] Slot ${slotId} already has valid OCR results and no new images, skipping re-analysis`)
         return currentSlots.map(s =>
           s.id === slotId ? { ...s, showOCRAnalysis: true } : s
         )
+      }
+
+      // For multi-image re-analysis, clear the old single-image results to allow combined analysis
+      if (hasNewImagesForReanalysis) {
+        console.log(`🔄 [${new Date().toISOString()}] Re-analyzing slot ${slotId} with ${currentImageCount} images (previously ${analyzedImageCount})`)
+        // Don't reset analysis state here, let the combined analysis decide the validity
       }
 
       shouldAnalyze = true
