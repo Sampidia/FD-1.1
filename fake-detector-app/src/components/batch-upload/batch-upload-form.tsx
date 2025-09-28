@@ -496,26 +496,43 @@ export function BatchUploadForm({ userPlan, userBalance }: BatchUploadFormProps)
       console.log(`   Manufacturers: ${analysisResult.analysis.manufacturers?.join(', ') || 'EMPTY'}`)
       console.log(`   Extracted Text Length: ${analysisResult.analysis.extractedText?.length || 0}`)
 
-      // ✅ FIX: Update results using state updater pattern
+      // ✅ FIX: Update results using state updater pattern with SMART AUTO-POPULATION FILTERING
       setBatchSlots(prev => {
         console.log(`💾 [${new Date().toISOString()}] UPDATING SLOT STATE for slot ${slotId}`)
 
         return prev.map(s => {
           if (s.id !== slotId) return s
 
-          // CRITICAL FIX: Calculate what will be set
-          const newProductName = s.productName || (analysisResult.analysis.productName || '')
-          const newBatchNumber = s.batchNumber || (analysisResult.analysis.batchNumbers?.[0] || '')
+          // Apply same "UNKNOWN" filtering as single upload - prevent invalid names from auto-populating
+          const invalidNames = ['unknown', 'product name', 'n/a', 'not found', 'missing', 'none', 'placeholder', 'dummy', 'productname', 'medicine name', 'name', 'unnamed', 'tentative', 'null', 'nil']
+
+          const extractedProductName = analysisResult.analysis.productName
+          const extractedBatchNumber = analysisResult.analysis.batchNumbers?.[0] || ''
+
+          // SMART AUTO-POPULATION: Only populate empty fields OR overwrite invalid placeholder names
+          const productNameIsEmptyOrInvalid = !s.productName || invalidNames.some(invalid => s.productName.toLowerCase().includes(invalid))
+          const batchNumberIsEmptyOrInvalid = !s.batchNumber || invalidNames.some(invalid => s.batchNumber.toLowerCase().includes(invalid))
+
+          const shouldAutoPopulateProduct = extractedProductName &&
+            productNameIsEmptyOrInvalid &&
+            !invalidNames.some(invalid => extractedProductName.toLowerCase().includes(invalid))
+
+          const shouldAutoPopulateBatch = extractedBatchNumber &&
+            batchNumberIsEmptyOrInvalid &&
+            !invalidNames.some(invalid => extractedBatchNumber.toLowerCase().includes(invalid))
+
+          const finalProductName = shouldAutoPopulateProduct ? extractedProductName : s.productName
+          const finalBatchNumber = shouldAutoPopulateBatch ? extractedBatchNumber : s.batchNumber
 
           console.log(`🔄 [${new Date().toISOString()}] SLOT ${slotId} FIELD UPDATES:`)
-          console.log(`   Product: "${s.productName}" → "${newProductName}"`)
-          console.log(`   Batch: "${s.batchNumber}" → "${newBatchNumber}"`)
+          console.log(`   Product: "${s.productName}" → "${finalProductName}" (${shouldAutoPopulateProduct ? 'AUTO-POPULATED' : 'PRESERVED'})`)
+          console.log(`   Batch: "${s.batchNumber}" → "${finalBatchNumber}" (${shouldAutoPopulateBatch ? 'AUTO-POPULATED' : 'PRESERVED'})`)
 
           return {
             ...s,
-            // CRITICAL FIX: Only fill EMPTY fields with OCR data, NEVER overwrite manual input
-            productName: newProductName,
-            batchNumber: newBatchNumber,
+            // SMART FILTERING: Only fill valid data, allow overwrite of invalid placeholders, NEVER overwrite user input
+            productName: finalProductName,
+            batchNumber: finalBatchNumber,
             isAnalyzed: true,
             analysisResult,
             isOCRAnalyzing: false,
