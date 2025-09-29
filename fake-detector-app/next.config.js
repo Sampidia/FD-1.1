@@ -1,4 +1,4 @@
-import { withSentryConfig } from "@sentry/nextjs";
+const { withSentryConfig } = require("@sentry/nextjs");
 
 const nextConfig = {
   // ✅ FORCE Node.js runtime for middleware (fixes edge runtime errors)
@@ -10,24 +10,16 @@ const nextConfig = {
   webpack: (config, {}) => {
     // 🎯 AGGRESSIVE AI PACKAGE EXCLUSION FOR DEVELOPMENT
     if (process.env.NODE_ENV !== 'production') {
-      config.externals = [
-        ...config.externals,
+      config.externals.push({
         // 🎯 STRICT AI PACKAGE EXCLUSION - Prevent binary parsing errors
-        ({ request }, callback) => {
-          // Include ANY AI/ML packages that might cause compilation errors
-          if (request?.includes('@xenova/transformers') ||
-              request?.includes('onnxruntime') ||
-              request?.includes('transformers') ||
-              request?.includes('sharp') ||
-              request?.includes('@google-cloud/vertexai') ||
-              request?.includes('google-auth-library') ||
-              request?.endsWith('.node')) {
-            console.log(`🚫 WEBPACK (DEV): Excluding AI package ${request}`)
-            return callback(null, `commonjs ${request}`);
-          }
-          callback();
-        }
-      ];
+        '@xenova/transformers': 'commonjs @xenova/transformers',
+        'onnxruntime-node': 'commonjs onnxruntime-node',
+        'onnxruntime-web': 'commonjs onnxruntime-web',
+        'transformers': 'commonjs transformers',
+        'sharp': 'commonjs sharp',
+        '@google-cloud/vertexai': 'commonjs @google-cloud/vertexai',
+        'google-auth-library': 'commonjs google-auth-library',
+      });
 
       // 🎯 COMPLETE RESOLVE ALIASES - Prevent auto-imports that break compilation
       config.resolve = {
@@ -68,24 +60,16 @@ const nextConfig = {
 
     // 🎯 PRODUCTION MODE - Exclude AI/ML binaries to prevent webpack parsing errors
     } else {
-      config.externals = [
-        ...config.externals,
+      config.externals.push({
         // 🎯 STRICT AI PACKAGE EXCLUSION - Prevent binary parsing errors in production
-        ({ request }, callback) => {
-          // Include ANY AI/ML packages that might cause compilation errors
-          if (request?.includes('@xenova/transformers') ||
-              request?.includes('onnxruntime') ||
-              request?.includes('transformers') ||
-              request?.includes('sharp') ||
-              request?.includes('@google-cloud/vertexai') ||
-              request?.includes('google-auth-library') ||
-              request?.endsWith('.node')) {
-            console.log(`🚫 WEBPACK (PRODUCTION): Excluding AI package ${request}`)
-            return callback(null, `commonjs ${request}`);
-          }
-          callback();
-        }
-      ];
+        '@xenova/transformers': 'commonjs @xenova/transformers',
+        'onnxruntime-node': 'commonjs onnxruntime-node',
+        'onnxruntime-web': 'commonjs onnxruntime-web',
+        'transformers': 'commonjs transformers',
+        'sharp': 'commonjs sharp',
+        '@google-cloud/vertexai': 'commonjs @google-cloud/vertexai',
+        'google-auth-library': 'commonjs google-auth-library',
+      });
 
       // 🎯 COMPLETE RESOLVE ALIASES FOR PRODUCTION - Prevent auto-imports that break compilation
       config.resolve = {
@@ -148,7 +132,7 @@ const nextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'"
+            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.sentry.io; worker-src 'self' blob: 'unsafe-eval' 'unsafe-inline';"
           }
         ]
       },
@@ -166,7 +150,7 @@ const nextConfig = {
   },
 }
 
-export default withSentryConfig(nextConfig, {
+module.exports = withSentryConfig(nextConfig, {
   // For all available options, see:
   // https://github.com/getsentry/sentry-webpack-plugin#options
 
