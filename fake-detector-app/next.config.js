@@ -132,7 +132,7 @@ const nextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.sentry.io; worker-src 'self' blob: 'unsafe-eval' 'unsafe-inline';"
+            value: "default-src 'self'; script-src 'self' https://www.google.com https://www.gstatic.com 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://*.sentry.io; frame-src 'self' https://www.google.com; worker-src 'self' blob: 'unsafe-eval' 'unsafe-inline';"
           }
         ]
       },

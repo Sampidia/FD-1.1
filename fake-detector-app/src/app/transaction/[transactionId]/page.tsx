@@ -17,7 +17,8 @@ import {
   DollarSign,
   Clock,
   ExternalLink,
-  Receipt
+  Receipt,
+  Trash2
 } from "lucide-react"
 
 interface TransactionDetail {
@@ -213,11 +214,19 @@ export default function TransactionDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Transaction ID:</span>
-                  <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
-                    {transaction.transactionId}
-                  </span>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                  <span className="text-gray-600 font-medium">Transaction ID:</span>
+                  <div className="flex-1 min-w-0 max-w-full">
+                    <div className="font-mono text-sm bg-gray-100 px-3 py-2 rounded-lg border overflow-x-auto whitespace-nowrap break-all">
+                      {transaction.transactionId}
+                    </div>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(transaction.transactionId)}
+                      className="mt-1 text-xs text-blue-600 hover:text-blue-800 md:hidden"
+                    >
+                      Tap to copy
+                    </button>
+                  </div>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Amount:</span>
@@ -302,8 +311,30 @@ export default function TransactionDetailPage() {
             </Card>
           )}
 
-          {/* Actions */}
-          <div className="mt-8 flex gap-4">
+          {/* Mobile Action Buttons - Main actions */}
+          <div className="mt-8 md:hidden">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link href="/transactions" className="flex-1">
+                <Button variant="outline" className="w-full">
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Transactions
+                </Button>
+              </Link>
+              <Link href="/dashboard" className="flex-1">
+                <Button variant="outline" className="w-full">
+                  Go to Dashboard
+                </Button>
+              </Link>
+            </div>
+            <Link href="/pricing" className="block mt-3">
+              <Button className="w-full">
+                Purchase More Points
+              </Button>
+            </Link>
+          </div>
+
+          {/* Desktop Action Buttons */}
+          <div className="mt-8 hidden md:flex gap-4">
             <Link href="/transactions">
               <Button variant="outline">
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -321,6 +352,25 @@ export default function TransactionDetailPage() {
               </Button>
             </Link>
           </div>
+
+          {/* Delete Transaction Button - Bottom only */}
+          {(transaction.status === 'failed' || transaction.status === 'cancelled') && (
+            <div className="fixed bottom-20 left-4 right-4 md:static md:bottom-auto md:left-auto md:right-auto md:mt-8">
+              <Button
+                variant="destructive"
+                className="w-full md:w-auto shadow-lg md:shadow-none"
+                onClick={() => {
+                  if (confirm('Are you sure you want to delete this transaction? This action cannot be undone.')) {
+                    // TODO: Implement delete transaction API
+                    alert('Delete transaction functionality would be implemented here');
+                  }
+                }}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Transaction
+              </Button>
+            </div>
+          )}
         </div>
       </main>
 

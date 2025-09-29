@@ -21,6 +21,10 @@ const faqQuestions = [
     answer: "Free users receive 5 scans per day. You can purchase additional points to increase your daily limit. Points reset every 24 hours."
   },
   {
+    question: "How do I detect substandard and falsified (SF) medical products such as anti-malarial and antibiotic medicines?",
+    answer: "By using Mobile Authentication Service (MAS), users are to scratch codes on medicine and send the pin for free using Short Messaging Service (SMS) to 38351 or 38353 or 38120 or 20966 or 1393. Read more: https://nafdac.gov.ng/our-services/pharmacovigilance-post-market-surveillance/mobile-authentication-service-mas/"
+  },
+  {
     question: "Is the NAFDAC database always up to date?",
     answer: "Yes! We continuously update our database with the latest counterfeit alerts and safety information from NAFDAC's official sources."
   },

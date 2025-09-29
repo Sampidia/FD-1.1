@@ -1,16 +1,11 @@
 "use client"
 
-import { useSession } from "next-auth/react"
 import { useState } from "react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import Logo from "@/components/ui/logo"
 import PriceTable from "@/components/price-table"
 import { BetaModal } from "@/components/ui/beta-modal"
-import { ChevronLeft } from "lucide-react"
+import { MobileHeader } from "@/components/ui/mobile-header-dashboard"
 
 export default function PricingPage() {
-  const { data: session } = useSession()
   const [isBetaModalOpen, setIsBetaModalOpen] = useState(false)
 
   const handleDownloadClick = (e: React.MouseEvent) => {
@@ -20,68 +15,12 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-white/80 backdrop-blur-sm">
-        <div className="container flex h-16 items-center justify-between px-4">
-          <Link
-            href="/"
-            className="flex items-center gap-2 font-bold text-xl"
-          >
-            <Logo />
-            Fake Detector
-          </Link>
-
-          <div className="flex items-center gap-4">
-            <Link href="/">
-              <Button variant="ghost" className="flex items-center gap-2">
-                <ChevronLeft className="w-4 h-4" />
-                Back to Home
-              </Button>
-            </Link>
-
-            {session ? (
-              <Link href="/dashboard">
-                <Button>Go to Dashboard</Button>
-              </Link>
-            ) : (
-              <>
-                <Link href="/auth/signin">
-                  <Button variant="ghost">Sign in</Button>
-                </Link>
-                <Link href="/auth/signup">
-                  <Button>Get Started</Button>
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
+      {/* Mobile Hamburger Menu Header */}
+      <MobileHeader />
 
       {/* Main Content */}
       <main className="py-8">
         <div className="container px-4 mx-auto max-w-7xl">
-          {/* Breadcrumb */}
-          <nav className="flex mb-8" aria-label="Breadcrumb">
-            <ol className="inline-flex items-center space-x-1 md:space-x-3">
-              <li className="inline-flex items-center">
-                <Link
-                  href="/"
-                  className="inline-flex items-center text-sm font-medium text-gray-700 hover:text-blue-600"
-                >
-                  Home
-                </Link>
-              </li>
-              <li>
-                <div className="flex items-center">
-                  <span className="mx-1 text-gray-400">/</span>
-                  <span className="ml-1 text-sm font-medium text-gray-500 md:ml-2">
-                    Pricing Plans
-                  </span>
-                </div>
-              </li>
-            </ol>
-          </nav>
-
           {/* Page Title */}
           <div className="text-center mb-12">
             <h1 className="text-4xl font-bold text-gray-900 mb-4">
@@ -142,9 +81,8 @@ export default function PricingPage() {
       <footer className="bg-gray-900 text-white py-4 sm:py-6 px-4">
         <div className="container mx-auto">
           <div className="flex flex-col lg:flex-row justify-between items-center gap-6 w-full">
-            {/* Left Section: Logo and Brand */}
+            {/* Left Section: Brand */}
             <div className="flex items-center gap-2 sm:gap-3">
-              <Logo />
               <span className="text-sm sm:text-base font-bold text-white">Fake Detector</span>
             </div>
 

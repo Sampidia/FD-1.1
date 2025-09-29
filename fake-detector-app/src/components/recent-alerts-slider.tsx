@@ -90,15 +90,21 @@ export default function RecentAlertsSlider({
   if (isLoading) {
     return (
       <div className="w-full max-w-4xl mx-auto">
-        <div className="animate-pulse flex items-center justify-between p-6 bg-gray-50 rounded-lg">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
-            <div>
-              <div className="w-48 h-4 bg-gray-200 rounded mb-2"></div>
-              <div className="w-24 h-3 bg-gray-200 rounded"></div>
+        <div className="animate-pulse bg-gray-50 rounded-lg p-6">
+          <div className="flex flex-col items-center gap-4 md:flex-row md:justify-between md:items-center">
+            <div className="flex flex-col items-center md:flex-row md:items-center md:gap-4">
+              <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+              <div className="text-center md:text-left mt-3 md:mt-0">
+                <div className="w-48 h-4 bg-gray-200 rounded mb-2"></div>
+                <div className="w-24 h-3 bg-gray-200 rounded mx-auto md:mx-0"></div>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-3 md:mt-0 md:ml-4">
+              <div className="w-2 h-2 bg-gray-200 rounded-full"></div>
+              <div className="w-2 h-2 bg-gray-200 rounded-full"></div>
+              <div className="w-2 h-2 bg-gray-200 rounded-full"></div>
             </div>
           </div>
-          <div className="w-16 h-6 bg-gray-200 rounded"></div>
         </div>
       </div>
     )
@@ -129,16 +135,18 @@ export default function RecentAlertsSlider({
       {/* Main Alert Display */}
       <Card className="bg-gradient-to-r from-red-50 to-orange-50 border-red-200 hover:shadow-lg transition-all duration-300">
         <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col items-center gap-4 md:flex-row md:justify-between md:items-center">
+            {/* Mobile: Icon at top, Desktop: Icon on left */}
+            <div className="flex flex-col items-center md:flex-row md:items-center md:gap-4">
               <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
                 <AlertTriangle className="w-6 h-6 text-red-600" />
               </div>
-              <div className="flex-1 min-w-0">
+
+              <div className="text-center md:text-left mt-3 md:mt-0 md:flex-1 md:min-w-0">
                 <h3 className="font-semibold text-gray-900 truncate text-lg mb-1">
                   {currentAlert.productName}
                 </h3>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center md:justify-start gap-3">
                   <Badge
                     variant={getAlertBadgeVariant(currentAlert.alertType)}
                     className="text-xs"
@@ -153,8 +161,8 @@ export default function RecentAlertsSlider({
               </div>
             </div>
 
-            {/* Manual Navigation Dots */}
-            <div className="flex gap-2 ml-4">
+            {/* Navigation Dots - Mobile: below alert, Desktop: on right */}
+            <div className="flex flex-row gap-2 mt-3 md:mt-0 md:ml-4">
               {alerts.map((_, index) => (
                 <button
                   key={index}

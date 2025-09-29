@@ -6,6 +6,8 @@ import { MaintenanceModeProvider } from "@/components/maintenance-mode";
 import { SentryProvider } from "@/components/sentry-provider";
 import { ServiceWorkerProvider } from "@/components/service-worker-provider";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
+import MobileBottomNav from "@/components/mobile-bottom-nav";
+import { HideSentryWidget } from "@/components/hide-sentry-widget";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -77,8 +79,22 @@ export default async function RootLayout({
           <SentryProvider>
             <AuthProvider>
               <MaintenanceModeProvider>
-                {children}
-                <PWAInstallPrompt />
+                <div className="min-h-screen flex flex-col">
+                  <div className="flex-1">
+                    {children}
+                  </div>
+
+                  {/* Hide Sentry Widget on Mobile */}
+                  <HideSentryWidget />
+
+                  {/* Mobile Bottom Section - PWA Prompt above Navigation */}
+                  <div className="md:hidden">
+                    <div className="fixed bottom-36 right-4 z-30 pb-safe">
+                      <PWAInstallPrompt />
+                    </div>
+                    <MobileBottomNav />
+                  </div>
+                </div>
               </MaintenanceModeProvider>
             </AuthProvider>
           </SentryProvider>

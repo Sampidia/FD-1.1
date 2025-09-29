@@ -196,3 +196,22 @@ body {
     background-position: 200% 0;
   }
 }
+
+/* Hide Sentry feedback widget on mobile screens to avoid obstructing navigation */
+@media (max-width: 768px) {
+  .sentry-feedback,
+  .widget__actor,
+  [data-sentry-feedback-widget],
+  button[aria-label*="Report"],
+  .sentry-report-dialog,
+  div[class*="sentry-feedback"] {
+    position: fixed !important;
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    height: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
+  }
+}

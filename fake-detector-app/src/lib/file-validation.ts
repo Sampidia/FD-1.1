@@ -33,9 +33,12 @@ export const OCR_LIMITS: OCRValidationLimits = {
     'image/jpeg',     // Best OCR performance
     'image/jpg',      // JPG with different extension
     'image/png',      // Good OCR support with text
-    // Note: WebP excluded due to limited OCR engine support
+    'image/webp',     // Modern format, increasingly OCR supported
+    'image/heic',     // iOS HEIF format
+    'image/heif',     // HEIF container format
+    'image/gif',      // Sometimes used for documents
   ],
-  LOAD_TIMEOUT: 5000, // 5 seconds to load image
+  LOAD_TIMEOUT: 10000, // 10 seconds to load image (increased for slower networks/files)
 };
 
 /**
@@ -150,13 +153,20 @@ export const validateBase64ImageForOCR = async (base64Data: string): Promise<Val
     // More advanced dimension checking would require additional libraries like sharp
 
     // Check if it's actually image data by checking magic bytes
-    const magicBytes = buffer.subarray(0, 8);
+    const magicBytes = buffer.subarray(0, 12); // Need more bytes for WebP/HEIC detection
     const isJPEG = magicBytes[0] === 0xFF && magicBytes[1] === 0xD8;
     const isPNG = magicBytes[0] === 0x89 && magicBytes[1] === 0x50 &&
                   magicBytes[2] === 0x4E && magicBytes[3] === 0x47;
+    const isWebP = magicBytes[0] === 0x52 && magicBytes[1] === 0x49 &&
+                   magicBytes[2] === 0x46 && magicBytes[3] === 0x46 &&
+                   magicBytes[8] === 0x57 && magicBytes[9] === 0x45 &&
+                   magicBytes[10] === 0x42 && magicBytes[11] === 0x50;
+    // HEIC/HEIF uses MP4 container - more complex detection
+    const isMP4Container = magicBytes[4] === 0x66 && magicBytes[5] === 0x74 &&
+                          magicBytes[6] === 0x79 && magicBytes[7] === 0x70;
 
-    if (!isJPEG && !isPNG) {
-      return { valid: false, error: 'Not a valid JPEG or PNG image' };
+    if (!isJPEG && !isPNG && !isWebP && !isMP4Container) {
+      return { valid: false, error: 'Not a valid image file. Please use JPG, PNG, or WebP format.' };
     }
 
     return { valid: true };
