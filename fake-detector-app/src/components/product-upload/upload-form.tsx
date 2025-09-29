@@ -2,9 +2,11 @@
 
 import { useState, useCallback, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 import { UploadZone } from "./upload-zone"
 import { Button } from "@/components/ui/button"
 import { imagePreprocessing, PreprocessingResult, ImagePreprocessingService } from "@/services/image-preprocessing"
+import { showBasicPointAd, canEarnAdRewardToday, getUserRewardStatus, isMobileAdMobAvailable } from "@/lib/mobile-admob"
 
 interface ProductFormData {
   productName: string
@@ -117,6 +119,12 @@ export function UploadForm() {
   const [hasSufficientPoints, setHasSufficientPoints] = useState(false)
   const [lastAnalyzedImageCount, setLastAnalyzedImageCount] = useState(0)
 
+  // New state for ad reward functionality
+  const [isWatchingAd, setIsWatchingAd] = useState(false)
+  const [canEarnAdReward, setCanEarnAdReward] = useState(false)
+  const [adRewardStatusLoaded, setAdRewardStatusLoaded] = useState(false)
+  const { data: session } = useSession()
+
   // 🔒 IMMEDIATE POINT VALIDATION ON COMPONENT MOUNT
   useEffect(() => {
     const validateUserPoints = async () => {
@@ -177,12 +185,33 @@ export function UploadForm() {
     validateUserPoints()
   }, [])
 
-  // Fetch daily points status when insufficient points modal opens
+  // Fetch daily points and ad reward status when insufficient points modal opens
   useEffect(() => {
     if (isInsufficientPointsMode && !dailyStatusLoaded) {
       fetchDailyPointsStatus()
+      fetchAdRewardStatus()
     }
   }, [isInsufficientPointsMode, dailyStatusLoaded])
+
+  // Function to check ad reward availability
+  const fetchAdRewardStatus = async () => {
+    try {
+      const rewardStatus = await getUserRewardStatus()
+      if (rewardStatus && 'canEarnReward' in rewardStatus) {
+        setCanEarnAdReward(rewardStatus.canEarnReward)
+      } else {
+        // Fallback to check function
+        const canEarn = await canEarnAdRewardToday()
+        setCanEarnAdReward(canEarn)
+      }
+      setAdRewardStatusLoaded(true)
+      console.log('✅ Ad reward status loaded:', rewardStatus)
+    } catch (error) {
+      console.error('❌ Failed to check ad reward status:', error)
+      setCanEarnAdReward(false)
+      setAdRewardStatusLoaded(true)
+    }
+  }
 
   // 🔄 SMART AUTO-OCR: Only trigger when images uploaded AND points validated as sufficient
   useEffect(() => {
@@ -646,6 +675,46 @@ export function UploadForm() {
     setIsUpgrading(true)
     // Redirect to pricing page
     window.location.href = '/pricing'
+  }
+
+  // Handler for watching ad to earn points
+  const handleWatchAd = async () => {
+    if (!canEarnAdReward) {
+      console.log('❌ Cannot earn ad reward today - limit reached')
+      return
+    }
+
+    setIsWatchingAd(true)
+
+    try {
+      const sessionUser = session?.user as any // Type assertion for custom properties
+      if (!sessionUser?.id) {
+        throw new Error('User not authenticated')
+      }
+
+      console.log('🎬 Starting ad reward flow for user:', sessionUser.id)
+
+      // Call AdMob to show the ad
+      const adResult = await showBasicPointAd(sessionUser.id)
+
+      if (adResult.success) {
+        console.log('✅ Ad completed successfully, points should be awarded')
+
+        // Refresh the daily reward status
+        await fetchAdRewardStatus()
+
+        // Close modal and refresh page to update point count
+        setIsInsufficientPointsMode(false)
+        window.location.reload()
+      } else {
+        console.error('❌ Ad failed:', adResult.error)
+        // Could show an error message to user
+      }
+    } catch (error) {
+      console.error('❌ Ad reward error:', error)
+    } finally {
+      setIsWatchingAd(false)
+    }
   }
 
   return (
@@ -1144,6 +1213,32 @@ export function UploadForm() {
                 )}
               </Button>
             </div>
+
+            {/* Watch Ad to Earn Points Button */}
+            {adRewardStatusLoaded && isMobileAdMobAvailable() && (
+              <div className="flex justify-center">
+                <Button
+                  onClick={handleWatchAd}
+                  disabled={!canEarnAdReward || isWatchingAd}
+                  className={`px-6 py-3 transition-all duration-200 ${
+                    canEarnAdReward && !isWatchingAd
+                      ? 'bg-purple-600 hover:bg-purple-700 text-white hover:scale-105'
+                      : 'bg-gray-400 text-gray-200 cursor-not-allowed opacity-60'
+                  }`}
+                >
+                  {isWatchingAd ? (
+                    <span className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Loading Ad...
+                    </span>
+                  ) : !canEarnAdReward ? (
+                    <>⏰ Daily Ad Limit Reached</>
+                  ) : (
+                    <>📺 Watch Ad to Earn Points</>
+                  )}
+                </Button>
+              </div>
+            )}
 
             {/* Exit Button */}
             <div className="flex justify-center mt-4">

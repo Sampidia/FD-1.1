@@ -221,9 +221,32 @@ export async function GET(request: NextRequest) {
     if (!verificationResult.success || !verificationResult.verified) {
       console.error('Flutterwave callback: Payment verification failed', verificationResult.error)
 
-      // Send payment failure notification
+      // Find user by transaction reference (same method as successful payments)
+      // Extract user email from transaction reference format: "user.email-timestamp"
+      let userId = 'unknown'
+      if (idToUse && idToUse.includes('-')) {
+        try {
+          const refParts = idToUse.split('-')
+          if (refParts.length >= 2) {
+            const emailPart = refParts[refParts.length - 2] // email is second-last part
+            if (emailPart.includes('@')) {
+              const user = await prisma.user.findUnique({
+                where: { email: emailPart },
+                select: { id: true }
+              })
+              if (user) {
+                userId = user.id
+              }
+            }
+          }
+        } catch (userLookupError) {
+          console.error('Failed to lookup user from transaction reference:', userLookupError)
+        }
+      }
+
+      // Send payment failure notification with real userId
       await sendPaymentFailureNotification(
-        'unknown', // User ID not available in GET callback
+        userId,
         0, // Amount not available in GET callback
         'NGN',
         'flutterwave',
@@ -291,8 +314,24 @@ export async function POST(request: NextRequest) {
           error: verificationResult.error
         })
 
+        // Find user by email (same method as successful payments)
+        let userId = 'unknown'
+        if (data.customer?.email) {
+          try {
+            const user = await prisma.user.findUnique({
+              where: { email: data.customer.email },
+              select: { id: true }
+            })
+            if (user) {
+              userId = user.id
+            }
+          } catch (userLookupError) {
+            console.error('Failed to lookup user from customer email:', userLookupError)
+          }
+        }
+
         await sendPaymentFailureNotification(
-          data.customer?.email || 'unknown',
+          userId,
           data.charged_amount || data.amount || 0,
           data.currency || 'NGN',
           'flutterwave',
@@ -402,8 +441,24 @@ export async function POST(request: NextRequest) {
           error: verificationResult.error
         })
 
+        // Find user by email (same method as successful payments)
+        let userId = 'unknown'
+        if (customer?.email) {
+          try {
+            const user = await prisma.user.findUnique({
+              where: { email: customer.email },
+              select: { id: true }
+            })
+            if (user) {
+              userId = user.id
+            }
+          } catch (userLookupError) {
+            console.error('Failed to lookup user from customer email:', userLookupError)
+          }
+        }
+
         await sendPaymentFailureNotification(
-          customer?.email || 'unknown',
+          userId,
           transactionAmount,
           currency || 'NGN',
           'flutterwave',

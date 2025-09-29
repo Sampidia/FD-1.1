@@ -168,7 +168,55 @@ export async function POST(request: NextRequest) {
 
     console.log('Paystack webhook received:', { event, reference: data?.reference })
 
-    if (event === 'charge.success') {
+    if (event === 'charge.failed') {
+      const { reference, amount, customer, gateway_response, status } = data
+
+      console.log('Paystack webhook: Processing failed charge', {
+        reference,
+        amount: amount / 100,
+        email: customer?.email,
+        status,
+        reason: gateway_response?.message
+      })
+
+      // Find user by email (same method as successful payments)
+      let userId = 'unknown'
+      if (customer?.email) {
+        try {
+          const user = await prisma.user.findUnique({
+            where: { email: customer.email },
+            select: { id: true }
+          })
+          if (user) {
+            userId = user.id
+          }
+        } catch (userLookupError) {
+          console.error('Paystack webhook: Failed to lookup user for failed charge:', userLookupError)
+        }
+      }
+
+      // Send payment failure notification with proper userId
+      await sendPaymentFailureNotification(
+        userId,
+        amount / 100, // Convert from kobo
+        'NGN',
+        'paystack',
+        reference,
+        gateway_response?.message || `Charge ${status}: Charge failed`
+      )
+
+      return NextResponse.json({
+        status: 'failure_recorded',
+        message: 'Failed payment recorded',
+        data: {
+          reference,
+          userId,
+          amount: amount / 100,
+          reason: gateway_response?.message
+        }
+      })
+
+    } else if (event === 'charge.success') {
       const { reference, amount, customer, metadata } = data
 
       console.log('Paystack webhook: Processing successful charge', {
