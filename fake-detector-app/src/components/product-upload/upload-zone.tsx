@@ -1,8 +1,9 @@
 "use client"
 
 import { useRef, useState } from "react"
-import { Camera, Upload, X } from "lucide-react"
+import { Camera, Upload, X, AlertCircle } from "lucide-react"
 import Image from "next/image"
+import { validateImageForOCR, getOCRErrorMessage } from "@/lib/file-validation"
 
 interface UploadZoneProps {
   zone: 'front' | 'back' | 'left' | 'right'
@@ -21,16 +22,40 @@ export function UploadZone({
 }: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [preview, setPreview] = useState<string | null>(image || null)
+  const [isValidating, setIsValidating] = useState(false)
+  const [validationError, setValidationError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleFileSelect = (file: File) => {
-    if (file && file.type.startsWith('image/')) {
+  const handleFileSelect = async (file: File) => {
+    if (!file) return
+
+    setIsValidating(true)
+    setValidationError(null)
+
+    try {
+      // Validate file for OCR compatibility
+      const validation = await validateImageForOCR(file)
+
+      if (!validation.valid) {
+        const userFriendlyError = getOCRErrorMessage(validation.error || 'Unknown error')
+        setValidationError(userFriendlyError)
+        setIsValidating(false)
+        return
+      }
+
+      // File is valid for OCR processing
       onImageSelect(file)
       const reader = new FileReader()
       reader.onload = (e) => {
         setPreview(e.target?.result as string)
       }
       reader.readAsDataURL(file)
+
+    } catch (error) {
+      console.error('File validation error:', error)
+      setValidationError('Failed to validate image. Please try again.')
+    } finally {
+      setIsValidating(false)
     }
   }
 
@@ -89,7 +114,10 @@ export function UploadZone({
           <div className="absolute inset-0 bg-black/20 rounded-lg opacity-0 hover:opacity-100 transition-opacity">
             <div className="absolute top-2 right-2 flex gap-1">
               <button
-                onClick={() => setPreview(null)}
+                onClick={() => {
+                  setPreview(null)
+                  setValidationError(null) // Clear any validation errors
+                }}
                 className="bg-white/80 hover:bg-white p-1.5 rounded-full"
                 title="Remove image"
               >
@@ -109,8 +137,11 @@ export function UploadZone({
 
   return (
     <div
-      className={`upload-zone border-2 border-dashed border-gray-300 hover:border-blue-500 rounded-lg cursor-pointer transition-all duration-200 ${
-        isDragging ? 'border-blue-500 bg-blue-50' : ''
+      className={`upload-zone border-2 border-dashed rounded-lg transition-all duration-200 ${
+        isDragging ? 'border-blue-500 bg-blue-50' :
+        validationError ? 'border-red-300 bg-red-50' :
+        isValidating ? 'border-yellow-300 bg-yellow-50' :
+        'border-gray-300 hover:border-blue-500'
       } ${className}`}
       onDrop={handleDrop}
       onDragOver={(e) => {
@@ -118,39 +149,71 @@ export function UploadZone({
         setIsDragging(true)
       }}
       onDragLeave={() => setIsDragging(false)}
-      onClick={() => fileInputRef.current?.click()}
+      onClick={() => !isValidating && fileInputRef.current?.click()}
     >
       <div className="flex flex-col items-center justify-center p-6 text-center h-full">
-        <div className="text-4xl mb-2">{getZoneIcon(zone)}</div>
-        <div className="font-medium text-gray-900 mb-1">{label}</div>
-        <div className="text-sm text-gray-500 mb-4">Tap to upload or drag & drop</div>
+        {/* Validation States */}
+        {isValidating && (
+          <div className="flex flex-col items-center">
+            <div className="w-8 h-8 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+            <div className="text-sm text-yellow-700 font-medium">Validating image...</div>
+            <div className="text-xs text-yellow-600 mt-1">Checking OCR compatibility</div>
+          </div>
+        )}
 
-        <div className="flex flex-col gap-2 mb-2">
-          <button
-            type="button"
-            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-              e.stopPropagation()
-              fileInputRef.current?.click()
-            }}
-            className="flex items-center justify-center gap-1 px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 rounded border w-full"
-          >
-            <Upload className="w-3 h-3" />
-            Browse
-          </button>
-          <button
-            type="button"
-            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-              e.stopPropagation()
-              handleCameraCapture()
-            }}
-            className="flex items-center justify-center gap-1 px-3 py-1.5 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded w-full"
-          >
-            <Camera className="w-3 h-3" />
-            Camera
-          </button>
-        </div>
+        {/* Error State */}
+        {validationError && (
+          <div className="flex flex-col items-center">
+            <AlertCircle className="w-8 h-8 text-red-500 mb-2" />
+            <div className="text-sm text-red-700 font-medium">Upload Failed</div>
+            <div className="text-xs text-red-600 mt-1 max-w-48">{validationError}</div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setValidationError(null)
+              }}
+              className="mt-2 text-xs text-red-600 hover:text-red-800 underline"
+            >
+              Try again
+            </button>
+          </div>
+        )}
 
-        <div className="text-xs text-gray-400">JPG, PNG up to 5MB</div>
+        {/* Default Upload UI */}
+        {!isValidating && !validationError && (
+          <>
+            <div className="text-4xl mb-2">{getZoneIcon(zone)}</div>
+            <div className="font-medium text-gray-900 mb-1">{label}</div>
+            <div className="text-sm text-gray-500 mb-4">Tap to upload or drag & drop</div>
+
+            <div className="flex flex-col gap-2 mb-2">
+              <button
+                type="button"
+                onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                  e.stopPropagation()
+                  fileInputRef.current?.click()
+                }}
+                className="flex items-center justify-center gap-1 px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 rounded border w-full"
+              >
+                <Upload className="w-3 h-3" />
+                Browse
+              </button>
+              <button
+                type="button"
+                onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                  e.stopPropagation()
+                  handleCameraCapture()
+                }}
+                className="flex items-center justify-center gap-1 px-3 py-1.5 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded w-full"
+              >
+                <Camera className="w-3 h-3" />
+                Camera
+              </button>
+            </div>
+
+            <div className="text-xs text-gray-400">JPG, PNG up to 5MB</div>
+          </>
+        )}
 
         <input
           ref={fileInputRef}

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth-minimal'
 import { aiRouter } from '@/services/ai/ai-router'
 import prisma from '@/lib/prisma'
 import { z } from 'zod'
+import { validateBase64ImageForOCR } from '@/lib/file-validation'
 import "@/types/nextauth" // Import NextAuth type augmentation
 
 // Input validation schema for image analysis
@@ -53,6 +54,26 @@ export async function POST(request: NextRequest) {
     }
 
     const { images, analysisType } = validationResult.data
+
+    // 🔐 SERVER-SIDE IMAGE VALIDATION
+    for (const base64Image of images) {
+      const validation = await validateBase64ImageForOCR(base64Image)
+      if (!validation.valid) {
+        console.error(`❌ [ANALYZE-IMAGE] Invalid image rejected: ${validation.error}`)
+        return NextResponse.json(
+          {
+            error: 'Invalid image detected',
+            message: validation.error,
+            recommendations: [
+              'Ensure images are JPG or PNG format',
+              'Check file size is under 5MB',
+              'Verify images are not corrupted'
+            ]
+          },
+          { status: 400 }
+        )
+      }
+    }
 
     // Initialize AI router
     await aiRouter.initializeProviders()

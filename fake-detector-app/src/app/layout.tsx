@@ -3,6 +3,9 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import AuthProvider from "@/components/providers/session-provider";
 import { MaintenanceModeProvider } from "@/components/maintenance-mode";
+import { SentryProvider } from "@/components/sentry-provider";
+import { ServiceWorkerProvider } from "@/components/service-worker-provider";
+import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -57,14 +60,29 @@ export default async function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#2563eb" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="ProductChecker" />
+        <link rel="apple-touch-icon" href="/logo.png" />
+        <meta name="msapplication-TileImage" content="/logo.png" />
+        <meta name="msapplication-TileColor" content="#2563eb" />
+
         {/* Google reCAPTCHA v2 invisible - Loaded conditionally per page */}
       </head>
       <body className="font-sans antialiased">
-        <AuthProvider>
-          <MaintenanceModeProvider>
-            {children}
-          </MaintenanceModeProvider>
-        </AuthProvider>
+        <ServiceWorkerProvider>
+          <SentryProvider>
+            <AuthProvider>
+              <MaintenanceModeProvider>
+                {children}
+                <PWAInstallPrompt />
+              </MaintenanceModeProvider>
+            </AuthProvider>
+          </SentryProvider>
+        </ServiceWorkerProvider>
       </body>
     </html>
   );

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Fake Products Detector</string>
+    <string name="title_activity_main">Fake Products Detector</string>
+    <string name="package_name">com.sampidia.productchecker</string>
+    <string name="custom_url_scheme">com.sampidia.productchecker</string>
+</resources>

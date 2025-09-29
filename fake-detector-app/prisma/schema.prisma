@@ -64,6 +64,7 @@ model User {
   processedImages   ProcessedImageFile[] @relation("UserProcessedImages")
   deviceTokens      DeviceToken[] @relation("DeviceToUser")   // ✅ Mobile push notifications
   mobileSessions    MobileSession[] @relation("MobileSessionToUser") // ✅ Mobile analytics
+  adRewardLogs      AdRewardLog[] @relation("AdRewardToUser") // ✅ Ad reward tracking
 }
 
 // NOTE: AI Providers, Usage Tracking, and Plan Assignments
@@ -555,4 +556,25 @@ model MobileSession {
 
   @@index([userId, lastActive])
   @@index([appVersion])
+}
+
+// ============ AD REWARD TRACKING ============
+// Track rewarded video ad completions for analytics and abuse prevention
+
+model AdRewardLog {
+  id            String   @id @default(cuid()) @map("_id")
+  userId        String
+  rewardType    String   @default("BASIC_POINT_AD") // Type of reward earned
+  pointsGranted Int      @default(1)                // Points awarded
+  grantedAt     DateTime @default(now())
+  // Optional metadata for analytics
+  metadata      Json?    // platform, adNetwork, customData, etc.
+
+  // Bidirectional relation
+  user          User     @relation("AdRewardToUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Indexes for analytics queries
+  @@index([userId, grantedAt])
+  @@index([rewardType, grantedAt])
+  @@index([grantedAt])
 }
