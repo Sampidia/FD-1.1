@@ -23,14 +23,19 @@
     "scrape:status": "curl -X GET 'http://localhost:3000/api/scraper/stats' | jq . || echo '⚠️  STATUS: jq not available - use scrape:test instead'"
   },
   "dependencies": {
+    "@marsidev/react-turnstile": "^0.6.0",
     "@anthropic-ai/sdk": "^0.63.0",
     "@auth/prisma-adapter": "^2.10.0",
     "@capacitor-community/admob": "^7.0.3",
     "@capacitor/android": "^7.4.3",
     "@capacitor/camera": "^7.0.2",
     "@capacitor/filesystem": "^7.1.4",
+    "@capacitor/ios": "^7.4.3",
+    "@capacitor/splash-screen": "^7.0.1",
     "@capacitor/status-bar": "^7.0.3",
-    "@capgo/capacitor-social-login": "^7.11.10",
+    "@capawesome/capacitor-android-edge-to-edge-support": "^7.2.3",
+    "@capacitor/browser": "^7.0.1",
+
     "@google-cloud/vertexai": "^1.10.0",
     "@google/generative-ai": "^0.21.0",
     "@next-auth/prisma-adapter": "^1.0.7",
@@ -46,7 +51,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
     "fuse.js": "^7.1.0",
-    "google-auth-library": "^10.3.0",
+
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.294.0",
     "next": "^14.0.4",
@@ -55,7 +60,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-dropzone": "^14.2.3",
-    "react-google-recaptcha-v3": "^1.10.1",
+
     "recharts": "^2.12.0",
     "sharp": "^0.33.0",
     "tailwind-merge": "^3.3.1",

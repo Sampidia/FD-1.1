@@ -8,6 +8,8 @@ import { ServiceWorkerProvider } from "@/components/service-worker-provider";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import MobileBottomNav from "@/components/mobile-bottom-nav";
 import { HideSentryWidget } from "@/components/hide-sentry-widget";
+import { SplashScreenManager } from "@/components/splash-screen-manager";
+import { EdgeToEdgeSupport } from "@/components/edge-to-edge-support";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -79,6 +81,8 @@ export default async function RootLayout({
           <SentryProvider>
             <AuthProvider>
               <MaintenanceModeProvider>
+                <SplashScreenManager />
+                <EdgeToEdgeSupport />
                 <div className="min-h-screen flex flex-col">
                   <div className="flex-1">
                     {children}

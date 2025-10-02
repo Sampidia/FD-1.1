@@ -1,79 +1,68 @@
-import { useRef, useState } from 'react'
-
-// Type declarations for Google reCAPTCHA
-declare global {
-  interface Window {
-    grecaptcha: {
-      ready: (callback: () => void) => void
-      execute: (siteKey: string, options: { action: string }) => Promise<string>
-    }
-  }
-}
+import { useState } from 'react'
 
 export const useRecaptcha = () => {
-  const recaptchaRef = useRef<HTMLDivElement | null>(null)
-  const [isRecaptchaLoaded, setIsRecaptchaLoaded] = useState(false)
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null)
 
-  // Initialize reCAPTCHA when loaded
-  const handleRecaptchaLoad = () => {
-    if (typeof window !== 'undefined' && window.grecaptcha) {
-      setIsRecaptchaLoaded(true)
-    }
+  // Handle successful Turnstile verification
+  const handleSuccess = (token: string) => {
+    setRecaptchaToken(token)
   }
 
-  // Execute invisible reCAPTCHA
-  const executeRecaptcha = (): Promise<string | null> => {
-    return new Promise((resolve, reject) => {
-      if (!isRecaptchaLoaded || typeof window === 'undefined' || !window.grecaptcha) {
-        console.error('reCAPTCHA not loaded or not available')
-        // Return placeholder for development
-        const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || process.env.RECAPTCHA_SITE_KEY_PLACEHOLDER || 'RECAPTCHA_SITE_KEY_PLACEHOLDER'
-        if (siteKey === 'RECAPTCHA_SITE_KEY_PLACEHOLDER') {
-          resolve('placeholder-token-for-development')
-          return
-        }
-        reject(new Error('reCAPTCHA not loaded'))
-        return
-      }
+  // Handle Turnstile error
+  const handleError = () => {
+    console.error('Turnstile verification failed')
+    setRecaptchaToken(null)
+  }
 
-      const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || process.env.RECAPTCHA_SITE_KEY_PLACEHOLDER || 'RECAPTCHA_SITE_KEY_PLACEHOLDER'
+  // Get Turnstile site key
+  const getSiteKey = () => {
+    return process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'
+  }
+
+  // Execute verification (for Turnstile, this is automatic)
+  const executeRecaptcha = (): Promise<string | null> => {
+    return new Promise((resolve) => {
+      const siteKey = getSiteKey()
 
       // For development/placeholder, return a mock token
-      if (siteKey === 'RECAPTCHA_SITE_KEY_PLACEHOLDER') {
+      if (siteKey === '1x00000000000000000000AA') {
         resolve('placeholder-token-for-development')
         return
       }
 
-      // Execute invisible reCAPTCHA
-      try {
-        window.grecaptcha.ready(() => {
-          window.grecaptcha.execute(siteKey, { action: 'submit' }).then((token: string) => {
-            setRecaptchaToken(token)
-            resolve(token)
-          }).catch((error: Error) => {
-            console.error('reCAPTCHA execution failed:', error)
-            reject(error)
-          })
-        })
-      } catch (error: unknown) {
-        console.error('Error executing reCAPTCHA:', error)
-        reject(error instanceof Error ? error : new Error('Unknown reCAPTCHA error'))
+      // Wait for token or timeout
+      const checkToken = () => {
+        if (recaptchaToken) {
+          resolve(recaptchaToken)
+        } else {
+          // Wait a bit for user interaction
+          setTimeout(checkToken, 1000)
+        }
       }
+
+      checkToken()
+
+      // Timeout after 30 seconds
+      setTimeout(() => {
+        if (!recaptchaToken) {
+          console.warn('Turnstile timeout - no token received')
+          resolve(null)
+        }
+      }, 30000)
     })
   }
 
-  // Reset reCAPTCHA state
+  // Reset Turnstile state
   const resetRecaptcha = () => {
     setRecaptchaToken(null)
   }
 
   return {
-    recaptchaRef,
     recaptchaToken,
-    isRecaptchaLoaded,
     executeRecaptcha,
     resetRecaptcha,
-    handleRecaptchaLoad
+    handleSuccess,
+    handleError,
+    getSiteKey
   }
 }

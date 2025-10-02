@@ -12,12 +12,28 @@ const config: CapacitorConfig = {
       androidAppId: process.env.ADMOB_ANDROID_APP_ID,
       iosAppId: process.env.ADMOB_IOS_APP_ID
     },
-    // Social Login Configuration (better Google Auth)
-    "@cap-go/capacitor-social-login": {
-      googleClientId: process.env.GOOGLE_ANDROID_CLIENT_ID || "104134177023-e46bef4f1t0b1loaco03sujt9g2nphjo.apps.googleusercontent.com",
-      googleScopes: ["profile", "email"],
-      googleRedirectUrl: "com.sampidia.fakeproductdetector:/",
-    }
+    // Status Bar Configuration (required for edge-to-edge)
+    StatusBar: {
+      style: "DARK",
+      backgroundColor: "#2563eb",
+      overlaysWebView: true
+    },
+    // Splash Screen Configuration with Fade In/Out Animation
+    SplashScreen: {
+      launchShowDuration: 2000,
+      launchAutoHide: true,
+      splashFullScreen: true,
+      splashImmersive: true,
+      backgroundColor: "#ffffff",
+      showSpinner: true,
+      spinnerColor: "#2563eb"
+    },
+    // Android Edge-to-Edge Support
+    AndroidEdgeToEdgeSupport: {
+      enabled: true
+    },
+    // Browser - for in-app web views (payment flows)
+    Browser: {}
   }
 };
 

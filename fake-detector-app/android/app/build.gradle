@@ -2,10 +2,10 @@ apply plugin: 'com.android.application'
 apply plugin: 'com.google.gms.google-services'
 
 android {
-    namespace "com.sampidia.productchecker"
+    namespace "com.sampidia.fakeproductdetector"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.sampidia.productchecker"
+        applicationId "com.sampidia.fakeproductdetector"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

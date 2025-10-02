@@ -1,18 +1,18 @@
 /**
- * Google reCAPTCHA verification utilities
+ * Cloudflare Turnstile verification utilities
  */
 
-// Verify reCAPTCHA token with Google's API
+// Verify Turnstile token with Cloudflare's API
 export async function verifyRecaptcha(token: string): Promise<boolean> {
-  const secret = process.env.RECAPTCHA_SECRET_KEY || process.env.RECAPTCHA_SECRET_KEY_PLACEHOLDER;
+  const secret = process.env.TURNSTILE_SECRET_KEY || '1x0000000000000000000000000000000AA';
 
-  if (!secret || secret === process.env.RECAPTCHA_SECRET_KEY_PLACEHOLDER) {
-    console.warn("⚠️ reCAPTCHA secret key not configured, bypassing verification");
+  if (!secret || secret === '1x0000000000000000000000000000000AA') {
+    console.warn("⚠️ Cloudflare Turnstile secret key not configured, bypassing verification");
     return true; // Allow in development/debugging
   }
 
   try {
-    const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+    const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -26,32 +26,26 @@ export async function verifyRecaptcha(token: string): Promise<boolean> {
     const data = await response.json();
 
     if (!data.success) {
-      console.error('❌ reCAPTCHA verification failed:', data['error-codes']);
+      console.error('❌ Cloudflare Turnstile verification failed:', data['error-codes']);
       return false;
     }
 
-    // Verify score for v3 (though we'll mostly use v2 invisible, keeping flexible)
-    if (data.score !== undefined && data.score < 0.5) {
-      console.error('❌ reCAPTCHA score too low:', data.score);
-      return false;
-    }
-
-    console.log('✅ reCAPTCHA verification successful');
+    console.log('✅ Cloudflare Turnstile verification successful');
     return true;
   } catch (error) {
-    console.error('❌ reCAPTCHA verification error:', error);
+    console.error('❌ Cloudflare Turnstile verification error:', error);
     // In production, you might want to return false here
     // For development/debugging, allow through
     return false;
   }
 }
 
-// Verify reCAPTCHA token for NextAuth credentials (with request context)
+// Verify Turnstile token for NextAuth credentials (with request context)
 export async function verifyRecaptchaForSignIn(token: string, email: string): Promise<{ success: boolean; error?: string }> {
-  const secret = process.env.RECAPTCHA_SECRET_KEY || process.env.RECAPTCHA_SECRET_KEY_PLACEHOLDER;
+  const secret = process.env.TURNSTILE_SECRET_KEY || '1x0000000000000000000000000000000AA';
 
-  if (!secret || secret === process.env.RECAPTCHA_SECRET_KEY_PLACEHOLDER) {
-    console.warn("⚠️ reCAPTCHA secret key not configured for sign-in, allowing access");
+  if (!secret || secret === '1x0000000000000000000000000000000AA') {
+    console.warn("⚠️ Cloudflare Turnstile secret key not configured for sign-in, allowing access");
     return { success: true };
   }
 
@@ -60,12 +54,12 @@ export async function verifyRecaptchaForSignIn(token: string, email: string): Pr
     if (!isValid) {
       return {
         success: false,
-        error: "reCAPTCHA verification failed. Please complete the captcha again."
+        error: "Cloudflare Turnstile verification failed. Please complete the captcha again."
       };
     }
     return { success: true };
   } catch (error) {
-    console.error('❌ reCAPTCHA verification error during sign-in:', error);
+    console.error('❌ Cloudflare Turnstile verification error during sign-in:', error);
     return {
       success: false,
       error: "Unable to verify captcha at this time. Please try again."

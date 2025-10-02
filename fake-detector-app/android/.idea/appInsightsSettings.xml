@@ -22,10 +22,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.sampidia.fakeproductdetector" />
+                  <option name="mobileSdkAppId" value="1:104134177023:android:6fddf54c097f9f45449cca" />
+                  <option name="projectId" value="fake-detector-mobile" />
+                  <option name="projectNumber" value="104134177023" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
