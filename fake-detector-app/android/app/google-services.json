@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "104134177023",
+    "project_id": "fake-detector-mobile",
+    "storage_bucket": "fake-detector-mobile.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:104134177023:android:6fddf54c097f9f45449cca",
+        "android_client_info": {
+          "package_name": "com.sampidia.fakeproductdetector"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "104134177023-gh5l4pdb7fp8o3bfd60eshrtr0hod0t3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.sampidia.fakeproductdetector",
+            "certificate_hash": "69839f6cdc6a60ccd8fadb4704071b5897061ea7"
+          }
+        },
+        {
+          "client_id": "104134177023-e46bef4f1t0b1loaco03sujt9g2nphjo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAGvpYSuZuDx8nerp1R4TkVKlu29pFVrUU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "104134177023-e46bef4f1t0b1loaco03sujt9g2nphjo.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -4,6 +4,7 @@ import Credentials from "next-auth/providers/credentials"
 import { ensureUserExists } from "@/lib/auth-db"
 import prisma from "@/lib/prisma"
 import bcrypt from "bcryptjs"
+import { OAuth2Client } from "google-auth-library"
 
 // ULTRA MINIMAL NextAuth config - CORRECT exports
 const authOptions = {
@@ -27,13 +28,55 @@ const authOptions = {
         password: { label: "Password", type: "password" },
       },
       authorize: async (credentials: any): Promise<any> => {
-        // Real database authentication for email/password users
-        if (!credentials?.email || !credentials?.password) {
-          console.log('🔐 Missing email or password in credentials')
-          return null
-        }
-
         try {
+          // Check if this is mobile Google authentication (has idToken)
+          if (credentials?.idToken && credentials?.googleId) {
+            console.log('🔐 Mobile Google Auth attempt for:', credentials.email)
+
+            // Verify Google ID token
+            const client = new OAuth2Client(process.env.GOOGLE_ANDROID_CLIENT_ID || process.env.GOOGLE_CLIENT_ID)
+            const ticket = await client.verifyIdToken({
+              idToken: credentials.idToken,
+              audience: process.env.GOOGLE_ANDROID_CLIENT_ID || process.env.GOOGLE_CLIENT_ID,
+            })
+
+            const payload = ticket.getPayload()
+            if (!payload) {
+              console.log('🔐 Invalid Google token')
+              return null
+            }
+
+            // Ensure the token email matches the provided email
+            if (payload.email !== credentials.email) {
+              console.log('🔐 Email mismatch in token')
+              return null
+            }
+
+            console.log('🔐 Google token verified for:', payload.email)
+
+            // Ensure user exists (this will create if not exists)
+            const user = await ensureUserExists({
+              id: payload.sub, // Google user ID
+              email: payload.email!,
+              name: payload.name || credentials.name,
+              image: payload.picture || credentials.image,
+            })
+
+            // Return user data
+            return {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              image: user.image,
+            }
+          }
+
+          // Email/password authentication
+          if (!credentials?.email || !credentials?.password) {
+            console.log('🔐 Missing email or password in credentials')
+            return null
+          }
+
           console.log('🔐 Attempting to authenticate user:', credentials.email)
 
           // Find user in database

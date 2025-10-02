@@ -37,6 +37,12 @@ const nextConfig = {
           'node:fs': false,
           'node:http': false,
           'node:https': false,
+
+          // Capacitor plugins (only available in mobile/native builds)
+          '@cap-go/capacitor-social-login': false,
+
+          // Capacitor plugins (only available in mobile/native builds)
+          '@cap-go/capacitor-social-login': false,
         }
       };
 
@@ -69,6 +75,8 @@ const nextConfig = {
         'sharp': 'commonjs sharp',
         '@google-cloud/vertexai': 'commonjs @google-cloud/vertexai',
         'google-auth-library': 'commonjs google-auth-library',
+        // Capacitor plugins (only available in mobile/native builds)
+        '@cap-go/capacitor-social-login': 'commonjs @cap-go/capacitor-social-login',
       });
 
       // 🎯 COMPLETE RESOLVE ALIASES FOR PRODUCTION - Prevent auto-imports that break compilation

@@ -2,6 +2,8 @@
 <resources>
     <string name="app_name">Fake Products Detector</string>
     <string name="title_activity_main">Fake Products Detector</string>
-    <string name="package_name">com.sampidia.productchecker</string>
-    <string name="custom_url_scheme">com.sampidia.productchecker</string>
+    <string name="package_name">com.sampidia.fakeproductdetector</string>
+    <string name="custom_url_scheme">com.sampidia.fakeproductdetector</string>
+    <string name="admob_app_id">ca-app-pub-1169009766287256~1198481965</string>
+    <string name="server_client_id">104134177023-gh5l4pdb7fp8o3bfd60eshrtr0hod0t3.apps.googleusercontent.com</string>
 </resources>

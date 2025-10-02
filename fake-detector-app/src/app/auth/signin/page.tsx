@@ -13,6 +13,15 @@ import { AlertTriangle, Loader2, Eye, EyeOff } from "lucide-react"
 import { useRecaptcha } from "@/hooks/use-recaptcha"
 import Head from "next/head"
 
+// Type declarations for Capacitor
+declare global {
+  interface Window {
+    Capacitor?: {
+      isNativePlatform?: () => boolean;
+    };
+  }
+}
+
 export default function SignInPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [emailMethod, setEmailMethod] = useState(false)
@@ -53,15 +62,50 @@ export default function SignInPage() {
   const handleGoogleSignIn = async () => {
     setIsLoading(true)
     setError(null)
+
     try {
-      await signIn("google", {
-        callbackUrl: "/dashboard",
-        redirect: true
-      })
+      // Check if running on Capacitor (mobile app)
+      const isCapacitor = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.()
+
+      if (isCapacitor) {
+        // Use Cap-go Social Login plugin for mobile (better Google Auth)
+        // @ts-expect-error Dynamic import for runtime Capacitor detection
+        const { SocialLogin } = await import('@cap-go/capacitor-social-login')
+        const result = await SocialLogin.login({
+          provider: 'google',
+          options: {}
+        })
+
+        if (result && result.result) {
+          // Send the Google user info to NextAuth for session creation
+          const authResult = await signIn("credentials", {
+            email: result.result.email,
+            name: result.result.name,
+            image: result.result.imageUrl,
+            googleId: result.result.id,
+            idToken: result.result.authentication?.idToken,
+            redirect: false,
+            // This is a special flow for mobile Google Auth
+          })
+
+          if (authResult?.ok) {
+            router.push("/dashboard")
+          } else {
+            setError("Failed to sign in with Google. Please try again.")
+          }
+        }
+      } else {
+        // Use NextAuth Google provider for web
+        await signIn("google", {
+          callbackUrl: "/dashboard",
+          redirect: true
+        })
+      }
     } catch (error: unknown) {
       console.error("Sign-in error:", error)
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred during sign in. Please try again."
       setError(errorMessage)
+    } finally {
       setIsLoading(false)
     }
   }
