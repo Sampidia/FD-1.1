@@ -143,7 +143,7 @@ export const loadBasicPointAd = async (): Promise<boolean> => {
 };
 
 /**
- * Show the rewarded ad (ad must be loaded first)
+ * Show the rewarded ad (prepares the ad if needed, then shows it)
  */
 export const showBasicPointAd = async (userId: string): Promise<AdRewardResult> => {
   if (!Capacitor.isNativePlatform()) {
@@ -151,56 +151,81 @@ export const showBasicPointAd = async (userId: string): Promise<AdRewardResult> 
     return { success: false, error: 'Not running on mobile platform' };
   }
 
-  return new Promise((resolve) => {
-    try {
-      // Listen for ad rewarded event (points awarded)
-      AdMob.addListener(RewardAdPluginEvents.Rewarded, async (rewardItem: AdMobRewardItem) => {
-        console.log('🎉 User earned reward from ad:', rewardItem);
+  const platform = Capacitor.getPlatform().toLowerCase();
+  const rewardedAdId = ADMOB_CONFIG[platform as keyof typeof ADMOB_CONFIG]?.rewardedAdId;
 
+  if (!rewardedAdId || rewardedAdId.includes('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')) {
+    console.warn('⚠️ AdMob rewarded ad ID not configured properly');
+    return { success: false, error: 'Ad ID not configured' };
+  }
+
+  return new Promise(async (resolve) => {
+    try {
+      console.log('🎬 Preparing and showing reward video ad...');
+
+      // First, ensure the ad is prepared/loaded
+      try {
+        await AdMob.prepareRewardVideoAd({
+          adId: rewardedAdId,
+          isTesting: process.env.NODE_ENV === 'development'
+        });
+        console.log('✅ Ad prepared successfully');
+      } catch (prepareError) {
+        console.error('❌ Failed to prepare ad:', prepareError);
+        resolve({ success: false, error: 'Failed to prepare ad' });
+        return;
+      }
+
+      // Wait a moment for the ad to be ready, then show it
+      setTimeout(async () => {
         try {
-          // Award the basic point via API (now event-driven!)
-          const response = await fetch('/api/rewards/ad-basic-point', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId })
+          console.log('📺 Showing reward video ad...');
+          await AdMob.showRewardVideoAd();
+
+          // Set up listeners AFTER showing the ad
+          const rewardListener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, async (rewardItem: AdMobRewardItem) => {
+            console.log('🎉 User earned reward from ad:', rewardItem);
+
+            try {
+              // Award the basic point via API (now event-driven!)
+              const response = await fetch('/api/rewards/ad-basic-point', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId })
+              });
+
+              if (response.ok) {
+                const data = await response.json();
+                console.log('✅ Basic point awarded via reward event:', data);
+                resolve({ success: true, reward: rewardItem });
+              } else {
+                const errorData = await response.json();
+                console.error('❌ Failed to award points:', errorData);
+                resolve({ success: false, error: errorData.message });
+              }
+            } catch (apiError) {
+              console.error('❌ API error awarding points:', apiError);
+              resolve({ success: false, error: 'Failed to award points' });
+            }
+
+            // Clean up listener
+            rewardListener.remove();
           });
 
-          if (response.ok) {
-            const data = await response.json();
-            console.log('✅ Basic point awarded via reward event:', data);
-            resolve({ success: true, reward: rewardItem });
-          } else {
-            const errorData = await response.json();
-            console.error('❌ Failed to award points:', errorData);
-            resolve({ success: false, error: errorData.message });
-          }
-        } catch (apiError) {
-          console.error('❌ API error awarding points:', apiError);
-          resolve({ success: false, error: 'Failed to award points' });
+          const failedListener = await AdMob.addListener(RewardAdPluginEvents.FailedToLoad, (error) => {
+            console.error('❌ Reward ad failed to load after show:', error);
+            resolve({ success: false, error: 'Ad failed to load' });
+            failedListener.remove();
+          });
+
+        } catch (showError) {
+          console.error('❌ Failed to show reward ad:', showError);
+          resolve({ success: false, error: 'Failed to show ad' });
         }
-      });
-
-      // Listen for failed to load events
-      AdMob.addListener(RewardAdPluginEvents.FailedToLoad, (error) => {
-        console.error('❌ Reward ad failed to load:', error);
-        resolve({ success: false, error: 'Ad failed to load' });
-      });
-
-      // Listen for opened events (for analytics)
-      // Note: Opened event might not be available in all versions
-      console.log('📺 Reward ad opened');
-
-      // Note: Reward events handle completion - no separate closed event needed
-      // The promise will resolve when reward or failure occurs
-
-      // Show the ad (this will trigger the events above)
-      AdMob.showRewardVideoAd().catch(error => {
-        console.error('❌ Failed to show reward ad:', error);
-        resolve({ success: false, error: 'Failed to show ad' });
-      });
+      }, 1000); // Give ad time to load
 
     } catch (error) {
-      console.error('❌ Failed to setup reward ad listeners:', error);
+      console.error('❌ Failed to setup reward ad flow:', error);
       resolve({ success: false, error: 'Failed to setup ad' });
     }
   });
