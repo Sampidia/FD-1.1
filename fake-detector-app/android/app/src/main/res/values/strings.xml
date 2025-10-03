@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Fake Products Detector</string>
-    <string name="title_activity_main">Fake Products Detector</string>
+    <string name="app_name">Fake Detector</string>
+    <string name="title_activity_main">Fake Detector</string>
     <string name="package_name">com.sampidia.fakeproductdetector</string>
     <string name="custom_url_scheme">com.sampidia.fakeproductdetector</string>
     <string name="admob_app_id">ca-app-pub-1169009766287256~1198481965</string>

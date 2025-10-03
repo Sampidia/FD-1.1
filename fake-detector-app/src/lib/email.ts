@@ -85,7 +85,7 @@ export const emailTemplates = {
 
         <div style="background: #f9f9f9; padding: 30px; border-radius: 10px; margin: 20px 0;">
           <p style="font-size: 16px; line-height: 1.6; color: #333;">
-            Thank you for joining Fake Products Detector! Your account has been successfully created with <strong>5 daily points</strong> to start scanning products and protecting your health.
+            Thank you for joining Fake Detector ! Your account has been successfully created with <strong>5 daily points</strong> to start scanning products and protecting your health.
           </p>
 
           <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #FFD700;">
@@ -146,7 +146,7 @@ export const emailTemplates = {
         </div>
 
         <div style="text-align: center; margin-top: 20px; color: #666; font-size: 12px;">
-          <p>Fake Products Detector - Verify Before You Buy</p>
+          <p>Fake Detector - Verify Podicts Before You Buy</p>
         </div>
       </div>
     `,
@@ -370,7 +370,7 @@ export const emailTemplates = {
         </div>
 
         <div style="text-align: center; margin-top: 20px; color: #666; font-size: 12px;">
-          <p>Fake Products Detector - Payment Monitoring Alert</p>
+          <p>Fake Detector - Payment Monitoring Alert</p>
           <p>This is an automated notification for payment processing failures.</p>
         </div>
       </div>

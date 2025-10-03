@@ -18,23 +18,23 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Fake Products Detector - Verify Before You Buy",
+  title: "Fake Detector - Verify Products Before You Buy",
   description: "Discover counterfeit products before you buy. Scan, verify authenticity with NAFDAC integration and protect your health.",
   keywords: ["fake products", "counterfeit detection", "product verification", "NAFDAC", "drug safety", "health protection"],
   authors: [{ name: "Sam TECH" }],
-  creator: "Fake Products Detector",
-  publisher: "Fake Products Detector",
+  creator: "Fake Detector",
+  publisher: "Fake Detector",
   openGraph: {
     type: "website",
     locale: "en_NG",
     url: "https://scan.sampidia.com",
-    title: "Fake Products Detector - Verify Before You Buy",
+    title: "Fake Detector - Verify Produts Before You Buy",
     description: "Discover counterfeit products before you buy. Scan, verify authenticity with NAFDAC integration and protect your health.",
-    siteName: "Fake Products Detector",
+    siteName: "Fake Detector",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Fake Products Detector - Verify Before You Buy",
+    title: "Fake Detector - Verify Products Before You Buy",
     description: "Discover counterfeit products before you buy. Scan, verify authenticity with NAFDAC integration and protect your health.",
   },
   robots: {

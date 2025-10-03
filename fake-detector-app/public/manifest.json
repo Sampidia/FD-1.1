@@ -1,7 +1,7 @@
 {
-  "name": "Fake Products Detector",
-  "short_name": "ProductChecker",
-  "description": "Scan and verify medications against NAFDAC database. Protect your health with advanced AI and official government data.",
+  "name": "Fake Detector",
+  "short_name": "ProductDetector",
+  "description": "Scan and verify products against NAFDAC database. Protect your health with advanced AI and official government data.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
