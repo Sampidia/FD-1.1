@@ -13,4 +13,8 @@ ext {
     androidxJunitVersion = '1.2.1'
     androidxEspressoCoreVersion = '3.6.1'
     cordovaAndroidVersion = '10.1.1'
+
+    // AdMob Required Versions (from capacitor-admob documentation)
+    playServicesAdsVersion = '23.0.0'
+    androidxCoreKTXVersion = '1.13.0'
 }

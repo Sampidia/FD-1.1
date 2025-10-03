@@ -1,11 +1,18 @@
-import { AdMob, AdMobRewardItem, RewardAdPluginEvents } from '@capacitor-community/admob';
+import {
+  AdMob,
+  AdMobRewardItem,
+  RewardAdPluginEvents,
+  AdLoadInfo,
+  AdmobConsentStatus,
+  AdmobConsentDebugGeography
+} from '@capacitor-community/admob';
 import { Capacitor } from '@capacitor/core';
 
 // AdMob Configuration
 const ADMOB_CONFIG = {
   android: {
-    appId: process.env.ADMOB_ANDROID_APP_ID || 'ca-app-pub-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
-    rewardedAdId: process.env.ADMOB_ANDROID_REWARDED_AD_ID || 'ca-app-pub-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+    appId: process.env.ADMOB_ANDROID_APP_ID || 'ca-app-pub-1169009766287256~1198481965',
+    rewardedAdId: process.env.ADMOB_ANDROID_REWARDED_AD_ID || 'ca-app-pub-1169009766287256/5704703183'
   },
   ios: {
     appId: process.env.ADMOB_IOS_APP_ID || 'ca-app-pub-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
@@ -13,7 +20,7 @@ const ADMOB_CONFIG = {
   }
 };
 
-// Test device IDs for development
+// Test device IDs for development (replace with actual device IDs)
 const TEST_DEVICE_IDS = [
   'ANDROID_TEST_DEVICE_ID',
   'IOS_TEST_DEVICE_ID'
@@ -36,7 +43,7 @@ export interface AdStatus {
 }
 
 /**
- * Initialize AdMob for the mobile app
+ * Initialize AdMob with GDPR/UMP compliance following official documentation
  */
 export const initializeMobileAdMob = async (): Promise<void> => {
   // Only initialize in native mobile apps
@@ -46,14 +53,51 @@ export const initializeMobileAdMob = async (): Promise<void> => {
   }
 
   try {
+    console.log('🚀 Starting AdMob initialization with GDPR compliance...');
+
     const isDevelopment = process.env.NODE_ENV === 'development';
 
+    // Step 1: Gather consent information (GDPR/UMP compliance)
+    const consentInfo = await AdMob.requestConsentInfo({
+      // For testing on real devices, uncomment and set your device ID:
+      // debugGeography: AdmobConsentDebugGeography.EEA,
+      // testDeviceIdentifiers: ['YOUR_DEVICE_ID']
+    });
+
+    console.log('📋 Consent info retrieved:', consentInfo);
+
+    // Step 2: Handle tracking authorization (required on iOS)
+    const trackingInfo = await AdMob.trackingAuthorizationStatus();
+
+    if (trackingInfo.status === 'notDetermined') {
+      console.log('🔍 Requesting tracking authorization...');
+      await AdMob.requestTrackingAuthorization();
+    }
+
+    const finalTrackingStatus = await AdMob.trackingAuthorizationStatus();
+    console.log('📱 Tracking authorization status:', finalTrackingStatus);
+
+    // Step 3: Show consent form if required
+    const shouldShowConsent = consentInfo.isConsentFormAvailable &&
+                             consentInfo.status === AdmobConsentStatus.REQUIRED &&
+                             finalTrackingStatus.status === 'authorized';
+
+    if (shouldShowConsent) {
+      console.log('📜 Showing GDPR consent form...');
+      const consentResult = await AdMob.showConsentForm();
+      console.log('✅ Consent form result:', consentResult);
+    } else {
+      console.log('ℹ️ Consent form not required or already handled');
+    }
+
+    // Step 4: Initialize AdMob
     await AdMob.initialize({
       testingDevices: isDevelopment ? TEST_DEVICE_IDS : [],
       initializeForTesting: isDevelopment
     });
 
-    console.log('✅ AdMob initialized successfully');
+    console.log('✅ AdMob fully initialized with GDPR compliance');
+
   } catch (error) {
     console.error('❌ Failed to initialize AdMob:', error);
     throw error;
@@ -61,7 +105,7 @@ export const initializeMobileAdMob = async (): Promise<void> => {
 };
 
 /**
- * Load a rewarded video ad
+ * Load a rewarded video ad with proper event listeners
  */
 export const loadBasicPointAd = async (): Promise<boolean> => {
   // Only work on mobile platforms
@@ -74,25 +118,32 @@ export const loadBasicPointAd = async (): Promise<boolean> => {
     const platform = Capacitor.getPlatform().toLowerCase();
     const rewardedAdId = ADMOB_CONFIG[platform as keyof typeof ADMOB_CONFIG]?.rewardedAdId;
 
-    if (!rewardedAdId) {
-      throw new Error(`No rewarded ad ID configured for ${platform}`);
+    if (!rewardedAdId || rewardedAdId.includes('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')) {
+      console.warn('⚠️ AdMob rewarded ad ID not configured properly');
+      return false;
     }
 
+    // Listen for ad loaded event
+    AdMob.addListener(RewardAdPluginEvents.Loaded, (info: AdLoadInfo) => {
+      console.log('✅ Reward ad loaded successfully:', info);
+    });
+
+    // Prepare the rewarded ad (this will trigger the Loaded event when ready)
     await AdMob.prepareRewardVideoAd({
       adId: rewardedAdId,
       isTesting: process.env.NODE_ENV === 'development'
     });
 
-    console.log('✅ Basic point reward ad loaded');
+    console.log('🎬 Basic point reward ad loading...');
     return true;
   } catch (error) {
-    console.error('❌ Failed to load basic point ad:', error);
+    console.error('❌ Failed to start loading basic point ad:', error);
     return false;
   }
 };
 
 /**
- * Show the rewarded ad and return the result
+ * Show the rewarded ad (ad must be loaded first)
  */
 export const showBasicPointAd = async (userId: string): Promise<AdRewardResult> => {
   if (!Capacitor.isNativePlatform()) {
@@ -100,35 +151,78 @@ export const showBasicPointAd = async (userId: string): Promise<AdRewardResult> 
     return { success: false, error: 'Not running on mobile platform' };
   }
 
+  return new Promise((resolve) => {
+    try {
+      // Listen for ad rewarded event (points awarded)
+      AdMob.addListener(RewardAdPluginEvents.Rewarded, async (rewardItem: AdMobRewardItem) => {
+        console.log('🎉 User earned reward from ad:', rewardItem);
+
+        try {
+          // Award the basic point via API (now event-driven!)
+          const response = await fetch('/api/rewards/ad-basic-point', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId })
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log('✅ Basic point awarded via reward event:', data);
+            resolve({ success: true, reward: rewardItem });
+          } else {
+            const errorData = await response.json();
+            console.error('❌ Failed to award points:', errorData);
+            resolve({ success: false, error: errorData.message });
+          }
+        } catch (apiError) {
+          console.error('❌ API error awarding points:', apiError);
+          resolve({ success: false, error: 'Failed to award points' });
+        }
+      });
+
+      // Listen for failed to load events
+      AdMob.addListener(RewardAdPluginEvents.FailedToLoad, (error) => {
+        console.error('❌ Reward ad failed to load:', error);
+        resolve({ success: false, error: 'Ad failed to load' });
+      });
+
+      // Listen for opened events (for analytics)
+      // Note: Opened event might not be available in all versions
+      console.log('📺 Reward ad opened');
+
+      // Note: Reward events handle completion - no separate closed event needed
+      // The promise will resolve when reward or failure occurs
+
+      // Show the ad (this will trigger the events above)
+      AdMob.showRewardVideoAd().catch(error => {
+        console.error('❌ Failed to show reward ad:', error);
+        resolve({ success: false, error: 'Failed to show ad' });
+      });
+
+    } catch (error) {
+      console.error('❌ Failed to setup reward ad listeners:', error);
+      resolve({ success: false, error: 'Failed to setup ad' });
+    }
+  });
+};
+
+/**
+ * Show GDPR consent form manually (for user settings/preferences)
+ */
+export const showConsentForm = async (): Promise<boolean> => {
   try {
-    // Show the ad
-    await AdMob.showRewardVideoAd();
+    const consentInfo = await AdMob.requestConsentInfo();
 
-    // For now, assume reward was granted if no error
-    // In production, you'd want proper event listeners
-    console.log('🎉 Ad shown successfully, requesting reward...');
-
-    // Award the basic point via API immediately for POC
-    // In production, this should be triggered by AdMob events
-    const response = await fetch('/api/rewards/ad-basic-point', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId })
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      console.log('✅ Basic point awarded:', data);
-      return { success: true };
-    } else {
-      const errorData = await response.json();
-      console.error('❌ Failed to award points:', errorData);
-      return { success: false, error: errorData.message };
+    if (consentInfo.isConsentFormAvailable && consentInfo.status === AdmobConsentStatus.REQUIRED) {
+      const result = await AdMob.showConsentForm();
+      console.log('📜 Consent form shown:', result);
+      return true;
     }
 
+    return false; // Consent form not needed
   } catch (error) {
-    console.error('❌ Failed to show rewarded ad:', error);
-    return { success: false, error: 'Failed to show ad' };
+    console.error('❌ Failed to show consent form:', error);
+    return false;
   }
 };
 
@@ -149,7 +243,7 @@ export const canEarnAdRewardToday = async (): Promise<boolean> => {
     console.error('Failed to check reward status:', error);
   }
 
-  // Default to true if we can't check (allow ad display)
+  // Default to false if we can't check (prevent spam)
   return false;
 };
 

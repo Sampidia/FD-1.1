@@ -10,6 +10,7 @@ import MobileBottomNav from "@/components/mobile-bottom-nav";
 import { HideSentryWidget } from "@/components/hide-sentry-widget";
 import { SplashScreenManager } from "@/components/splash-screen-manager";
 import { EdgeToEdgeSupport } from "@/components/edge-to-edge-support";
+import { AdMobProvider } from "@/components/admob-provider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -83,6 +84,7 @@ export default async function RootLayout({
               <MaintenanceModeProvider>
                 <SplashScreenManager />
                 <EdgeToEdgeSupport />
+                <AdMobProvider />
                 <div className="min-h-screen flex flex-col">
                   <div className="flex-1">
                     {children}

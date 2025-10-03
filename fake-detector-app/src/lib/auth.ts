@@ -204,45 +204,58 @@ function buildProviders() {
   return providersArray
 }
 
-// WORKING NextAuth config using proper providers
 const authOptions = NextAuth({
+  adapter: PrismaAdapter(prisma),
   secret: process.env.NEXTAUTH_SECRET,
-  providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      authorization: {
-        params: {
-          prompt: "consent",
-          access_type: "offline",
-          response_type: "code"
-        }
-      }
-    }),
-    Credentials({
-      name: "credentials",
-      credentials: {
-        email: { label: "Email", type: "email", placeholder: "Enter email" },
-        password: { label: "Password", type: "password", placeholder: "Enter password" },
-      },
-      authorize: async (credentials): Promise<any> => {
-        // Return mock user - this is just for testing
-        if (credentials?.email && credentials?.password) {
-          return {
-            id: "test-user",
-            email: credentials.email,
-            name: "Test User",
-          }
-        }
-        return null
-      },
-    }),
-  ],
+  providers: buildProviders(),
   pages: {
     signIn: "/auth/signin",
     error: "/auth/error",
   },
-  debug: true,
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        // Fetch complete user data from database including plan points
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            image: true,
+            planBasicPoints: true,
+            planStandardPoints: true,
+            planBusinessPoints: true,
+            createdAt: true,
+          },
+        })
+
+        if (dbUser) {
+          // Add plan points to JWT token
+          token.planBasicPoints = dbUser.planBasicPoints
+          token.planStandardPoints = dbUser.planStandardPoints
+          token.planBusinessPoints = dbUser.planBusinessPoints
+          token.createdAt = dbUser.createdAt
+        }
+      }
+      return token
+    },
+    async session({ session, token }) {
+      if (session.user && token) {
+        // Add plan points and createdAt to session (extended user properties)
+        const extendedUser = session.user as any
+        extendedUser.planBasicPoints = token.planBasicPoints as number
+        extendedUser.planStandardPoints = token.planStandardPoints as number
+        extendedUser.planBusinessPoints = token.planBusinessPoints as number
+        extendedUser.createdAt = token.createdAt as Date
+      }
+      return session
+    },
+  },
+  session: {
+    strategy: "jwt",
+  },
+  debug: process.env.NODE_ENV === "development",
 })
 
 export { authOptions }

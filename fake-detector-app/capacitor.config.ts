@@ -22,6 +22,7 @@ const config: CapacitorConfig = {
     SplashScreen: {
       launchShowDuration: 2000,
       launchAutoHide: true,
+      launchFadeOutDuration: 800, // Required for Android 12+ Splash Screen API animation
       splashFullScreen: true,
       splashImmersive: true,
       backgroundColor: "#ffffff",
