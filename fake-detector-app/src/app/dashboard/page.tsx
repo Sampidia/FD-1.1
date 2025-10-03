@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import Logo from "@/components/ui/logo"
 import { MobileHeader } from "@/components/ui/mobile-header-dashboard"
 import { BetaModal } from "@/components/ui/beta-modal"
+import { DailyRewardsModal } from "@/components/daily-rewards-modal"
 import {
   CreditCard,
   Download,
@@ -85,11 +86,37 @@ export default function DashboardPage() {
   const [recentTransactions, setRecentTransactions] = useState<RecentPayment[]>([])
   const [transactionsLoading, setTransactionsLoading] = useState(false)
   const [isBetaModalOpen, setIsBetaModalOpen] = useState(false)
+  const [isDailyRewardsModalOpen, setIsDailyRewardsModalOpen] = useState(false)
+  const [buttonClickCount, setButtonClickCount] = useState(0)
+  const [buttonCooldownUntil, setButtonCooldownUntil] = useState<string | null>(null)
 
   const handleDownloadClick = (e: React.MouseEvent) => {
     e.preventDefault()
     setIsBetaModalOpen(true)
   }
+
+  // Initialize button state from localStorage
+  useEffect(() => {
+    const storedClickCount = localStorage.getItem('rewardButtonClicks')
+    const storedCooldown = localStorage.getItem('rewardButtonCooldown')
+
+    if (storedClickCount) {
+      setButtonClickCount(parseInt(storedClickCount))
+    }
+
+    if (storedCooldown) {
+      const cooldownDate = new Date(storedCooldown)
+      if (cooldownDate > new Date()) {
+        setButtonCooldownUntil(cooldownDate.toISOString())
+      } else {
+        // Cooldown expired, reset everything
+        localStorage.removeItem('rewardButtonClicks')
+        localStorage.removeItem('rewardButtonCooldown')
+        setButtonClickCount(0)
+        setButtonCooldownUntil(null)
+      }
+    }
+  }, [])
 
   // Fetch user balance and recent scans on component mount
   useEffect(() => {
@@ -204,6 +231,51 @@ export default function DashboardPage() {
     } else {
       return 'Free'
     }
+  }
+
+  // Handle rewards button clicks with limit and cooldown
+  const handleRewardsButtonClick = () => {
+    if (buttonCooldownUntil && new Date(buttonCooldownUntil) > new Date()) {
+      return // Button is in cooldown
+    }
+
+    const newClickCount = buttonClickCount + 1
+    setButtonClickCount(newClickCount)
+    localStorage.setItem('rewardButtonClicks', newClickCount.toString())
+
+    if (newClickCount >= 5) {
+      // Set 24-hour cooldown
+      const cooldownDate = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+      setButtonCooldownUntil(cooldownDate.toISOString())
+      localStorage.setItem('rewardButtonCooldown', cooldownDate.toISOString())
+      console.log('Button limit reached! Cooldown started for 24 hours.')
+    }
+
+    // Open the rewards modal
+    setIsDailyRewardsModalOpen(true)
+  }
+
+  // Handle points claimed from modal
+  const handlePointsClaimed = () => {
+    // Refresh user balance after points are awarded
+    const fetchUserData = async () => {
+      try {
+        const response = await fetch('/api/user/balance')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success) {
+            setStats(prev => ({
+              ...prev,
+              pointsBalance: data.data.totalAvailablePoints || data.data.pointsBalance
+            }))
+          }
+        }
+      } catch (error) {
+        console.error('Failed to refresh balance:', error)
+      }
+    }
+
+    fetchUserData()
   }
 
   if (status === "loading") {
@@ -369,10 +441,20 @@ export default function DashboardPage() {
                   <span>Cost per scan:</span>
                   <span>1 point</span>
                 </div>
-                {stats.canClaimDaily && (
-                  <Button onClick={claimDailyPoints} className="w-full mt-4 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-amber-500/25 hover:bg-amber-600 hover:border-amber-600">
+                {buttonCooldownUntil && new Date(buttonCooldownUntil) > new Date() ? (
+                  <div className="text-center text-gray-500 mt-4 p-3 bg-gray-50 rounded-lg">
+                    <p className="text-sm font-medium">Button on cooldown</p>
+                    <p className="text-xs">
+                      Available in {Math.ceil((new Date(buttonCooldownUntil).getTime() - Date.now()) / (1000 * 60))} minutes
+                    </p>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={handleRewardsButtonClick}
+                    className="w-full mt-4 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-amber-500/25 hover:bg-amber-600 hover:border-amber-600"
+                  >
                     <Download className="w-4 h-4 mr-2 transition-transform duration-300 hover:translate-y-1" />
-                    Claim 5 Free Points
+                    Get Free Points
                   </Button>
                 )}
               </div>
@@ -828,6 +910,13 @@ export default function DashboardPage() {
       <BetaModal
         isOpen={isBetaModalOpen}
         onClose={() => setIsBetaModalOpen(false)}
+      />
+
+      {/* Daily Rewards Modal */}
+      <DailyRewardsModal
+        isOpen={isDailyRewardsModalOpen}
+        onClose={() => setIsDailyRewardsModalOpen(false)}
+        onPointsClaimed={handlePointsClaimed}
       />
     </div>
   )

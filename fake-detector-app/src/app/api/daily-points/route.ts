@@ -54,8 +54,8 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Add daily points to free points balance (5 points)
-    const newFreePoints = user.planFreePoints + 5
+    // Add daily points to free points balance (1 point)
+    const newFreePoints = user.planFreePoints + 1
 
     // Update user record with free points
     await prisma.user.update({
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     // Try to send email notification (non-blocking)
     try {
       if (user.email) {
-        await EmailService.sendDailyPointsNotification(user.email, userName, user.planFreePoints + 5)
+        await EmailService.sendDailyPointsNotification(user.email, userName, newFreePoints)
         Logger.info('Daily points email sent', { userId, email: user.email })
       }
     } catch (emailError) {
@@ -82,13 +82,13 @@ export async function POST(request: NextRequest) {
       userId,
       oldFreePoints: user.planFreePoints,
       newFreePoints: newFreePoints,
-      grantedPoints: 5
+      grantedPoints: 1
     })
 
     return NextResponse.json({
       success: true,
       message: 'Daily points granted successfully!',
-      pointsAdded: 5,
+      pointsAdded: 1,
       newBalance: newFreePoints,
       nextAvailable: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours from now
     })
