@@ -311,6 +311,67 @@ export async function POST(request: NextRequest) {
     // 🚨 INITIALIZE VARIABLES EARLY for decision logic
     let sourceUrl = 'https://nafdac.gov.ng/category/recalls-and-alerts/' // Default fallback
 
+    // 🎯 SIMPLE PLAN DETECTION FOR POINT CONSUMPTION
+    // Check for plan-specific fields to determine point consumption tier
+    let businessPoints = 0
+    let standardPoints = 0
+    let basicPoints = 0
+
+    try {
+      // Try to get business points
+      const businessData = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { planBusinessPoints: true } as { planBusinessPoints: true }
+      })
+      businessPoints = (businessData as { planBusinessPoints?: number })?.planBusinessPoints || 0
+    } catch (error) {
+      console.log('⚠️ Business points field not available')
+    }
+
+    try {
+      // Try to get standard points
+      const standardData = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { planStandardPoints: true } as { planStandardPoints: true }
+      })
+      standardPoints = (standardData as { planStandardPoints?: number })?.planStandardPoints || 0
+    } catch (error) {
+      console.log('⚠️ Standard points field not available')
+    }
+
+    try {
+      // Try to get basic points
+      const basicData = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { planBasicPoints: true } as { planBasicPoints: true }
+      })
+      basicPoints = (basicData as { planBasicPoints?: number })?.planBasicPoints || 0
+    } catch (error) {
+      console.log('⚠️ Basic points field not available')
+    }
+
+    console.log('📊 POINT BALANCE:', {
+      business: businessPoints,
+      standard: standardPoints,
+      basic: basicPoints
+    })
+
+    // 🏆 DETERMINE PLAN FOR CONSUMPTION (Highest tier first)
+    let userPlan = 'free'
+    if (businessPoints > 0) {
+      userPlan = 'business'
+      console.log('🎯 Detected Business Plan User')
+    } else if (standardPoints > 0) {
+      userPlan = 'standard'
+      console.log('🎯 Detected Standard Plan User')
+    } else if (basicPoints > 0) {
+      userPlan = 'basic'
+      console.log('🎯 Detected Basic Plan User')
+    } else {
+      userPlan = 'free'
+      console.log('🎯 Free Tier User')
+    }
+
     // 🚨 CRITICAL DEBUG: Check total active alerts
     const totalActiveAlerts = await nafdacDatabaseService.countActiveAlerts()
     console.log('🚨 CRITICAL DEBUG: Total active NAFDAC alerts in database:', totalActiveAlerts)
@@ -693,20 +754,20 @@ export async function POST(request: NextRequest) {
     console.log(`🎯 DECISION: ${result.isCounterfeit ? 'UNSAFE' : 'SAFE'} (${result.confidence}% confidence)`)
 
     // ✂️ AI Analysis removed - now handled by /api/analyze-image endpoint (database-only verification)
-    // Consume 1 point for database verification only
+    // Consume 1 point from detected plan tier
     const { pointConsumptionService } = await import('@/services/point-consumption-service')
 
-    const consumptionResult = await pointConsumptionService.tryConsumePoint(session.user.id)
+    const consumptionResult = await pointConsumptionService.consumeFromSpecificPlan(session.user.id, userPlan)
 
     if (!consumptionResult.success) {
       const response = NextResponse.json({
         error: 'Insufficient points',
-        message: 'You need at least 1 point for verification.'
+        message: consumptionResult.error || 'You need at least 1 point for verification.'
       }, { status: 400 })
       return addSecurityHeaders(response)
     }
 
-    console.log('✅ 1 point consumed from user balance')
+    console.log(`✅ 1 point consumed from ${userPlan} plan tier`)
 
     // Save scan result
     const savedResult = await prisma.productCheck.create({
