@@ -5,7 +5,8 @@ import { authOptions } from '@/lib/auth-minimal'
 import "@/types/nextauth"
 import prisma from '@/lib/prisma'
 import { z } from 'zod'
-// OCR processing removed - now handled by /api/analyze-image endpoint
+import { aiRouter } from '@/services/ai/ai-router'
+import { ocrFallbackManager } from '@/services/ocr-fallback-manager'
 import { nafdacDatabaseService } from '@/services/nafdac-database-service'
 
 // Force dynamic rendering since this route uses request.headers
@@ -309,68 +310,8 @@ export async function POST(request: NextRequest) {
     })
 
     // 🚨 INITIALIZE VARIABLES EARLY for decision logic
+    let aiBatchNumbers: string[] = []
     let sourceUrl = 'https://nafdac.gov.ng/category/recalls-and-alerts/' // Default fallback
-
-    // 🎯 SIMPLE PLAN DETECTION FOR POINT CONSUMPTION
-    // Check for plan-specific fields to determine point consumption tier
-    let businessPoints = 0
-    let standardPoints = 0
-    let basicPoints = 0
-
-    try {
-      // Try to get business points
-      const businessData = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { planBusinessPoints: true } as { planBusinessPoints: true }
-      })
-      businessPoints = (businessData as { planBusinessPoints?: number })?.planBusinessPoints || 0
-    } catch (error) {
-      console.log('⚠️ Business points field not available')
-    }
-
-    try {
-      // Try to get standard points
-      const standardData = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { planStandardPoints: true } as { planStandardPoints: true }
-      })
-      standardPoints = (standardData as { planStandardPoints?: number })?.planStandardPoints || 0
-    } catch (error) {
-      console.log('⚠️ Standard points field not available')
-    }
-
-    try {
-      // Try to get basic points
-      const basicData = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { planBasicPoints: true } as { planBasicPoints: true }
-      })
-      basicPoints = (basicData as { planBasicPoints?: number })?.planBasicPoints || 0
-    } catch (error) {
-      console.log('⚠️ Basic points field not available')
-    }
-
-    console.log('📊 POINT BALANCE:', {
-      business: businessPoints,
-      standard: standardPoints,
-      basic: basicPoints
-    })
-
-    // 🏆 DETERMINE PLAN FOR CONSUMPTION (Highest tier first)
-    let userPlan = 'free'
-    if (businessPoints > 0) {
-      userPlan = 'business'
-      console.log('🎯 Detected Business Plan User')
-    } else if (standardPoints > 0) {
-      userPlan = 'standard'
-      console.log('🎯 Detected Standard Plan User')
-    } else if (basicPoints > 0) {
-      userPlan = 'basic'
-      console.log('🎯 Detected Basic Plan User')
-    } else {
-      userPlan = 'free'
-      console.log('🎯 Free Tier User')
-    }
 
     // 🚨 CRITICAL DEBUG: Check total active alerts
     const totalActiveAlerts = await nafdacDatabaseService.countActiveAlerts()
@@ -381,7 +322,192 @@ export async function POST(request: NextRequest) {
       console.log('🚨 This explains why all products are marked as safe!')
     }
 
-    // ✂️ OCR processing removed - now handled by /api/analyze-image endpoint
+    // 🚀 AI-Enhanced Verification
+    console.log('🔍 Starting AI-Enhanced Verification...')
+    const nafdacService = new EnhancedNafdacService()
+    await aiRouter.initializeProviders()
+
+    // 🎯 HIERARCHICAL AI PLAN DETECTION
+    let userPlan = 'free'
+    let aiProvider = 'none'
+    let aiEnabled = false
+
+    try {
+      // Check for plan-specific fields by trying different approaches
+      let businessPoints = 0
+      let standardPoints = 0
+      let basicPoints = 0
+
+      try {
+        // Try to get business points
+        const businessData = await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { planBusinessPoints: true } as { planBusinessPoints: true }
+        })
+        businessPoints = (businessData as { planBusinessPoints?: number })?.planBusinessPoints || 0
+      } catch (error) {
+        console.log('⚠️ Business points field not available')
+      }
+
+      try {
+        // Try to get standard points
+        const standardData = await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { planStandardPoints: true } as { planStandardPoints: true }
+        })
+        standardPoints = (standardData as { planStandardPoints?: number })?.planStandardPoints || 0
+      } catch (error) {
+        console.log('⚠️ Standard points field not available')
+      }
+
+      try {
+        // Try to get basic points
+        const basicData = await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { planBasicPoints: true } as { planBasicPoints: true }
+        })
+        basicPoints = (basicData as { planBasicPoints?: number })?.planBasicPoints || 0
+      } catch (error) {
+        console.log('⚠️ Basic points field not available')
+      }
+
+      console.log('📊 POINT BALANCE:', {
+        business: businessPoints,
+        standard: standardPoints,
+        basic: basicPoints
+      })
+
+      // 🏆 HIERARCHICAL DETECTION (Highest tier first)
+      if (businessPoints > 0) {
+        userPlan = 'business'
+        aiProvider = 'openai'
+        aiEnabled = true
+        console.log('🎯 Business Plan Detected → OpenAI Enabled')
+      } else if (standardPoints > 0) {
+        userPlan = 'standard'
+        aiProvider = 'anthropic'
+        aiEnabled = true
+        console.log('🎯 Standard Plan Detected → Claude AI Enabled')
+      } else if (basicPoints > 0) {
+        userPlan = 'basic'
+        aiProvider = 'google'
+        aiEnabled = true
+        console.log('🎯 Basic Plan Detected → Gemini AI Enabled')
+      } else {
+        userPlan = 'free'
+        aiProvider = 'none'
+        aiEnabled = false
+        console.log('🎯 Free Tier Detected → AI Disabled')
+      }
+
+      if (aiEnabled && process.env.ENABLE_AI_ENHANCEMENT !== 'true') {
+        aiEnabled = false
+        aiProvider = 'none'
+        console.log('⚠️ AI Enhancement disabled in environment')
+      }
+    } catch (error) {
+      console.log('⚠️ Could not check point balances')
+      userPlan = 'free'
+      aiProvider = 'none'
+      aiEnabled = false
+    }
+
+    console.log(`🤖 AI Status: ${aiEnabled ? `ENABLED (${userPlan} → ${aiProvider})` : 'DISABLED'}`)
+
+    // OCR Processing with Fallback Manager (includes metrics collection)
+    let ocrText = ''
+    let aiExtractedData: { productName?: string; batchNumbers?: string[]; manufacturers?: string[]; confidence?: number } | null = null
+
+    if (images && images.length > 0) {
+      try {
+        console.log(`🤖 Starting OCR processing with fallback manager for ${images.length} images...`)
+
+        // Get correct OCR strategy order based on plan assignments
+        let ocrStrategies: string[] = []
+        if (userPlan !== 'free') {
+          try {
+            // Get plan assignments from AI router to determine correct OCR order
+            // Pass null to get fallback plan-specific defaults for the given planId
+            const planAssignments = await aiRouter.getAIAssignments(null, 'ocr')
+
+            // Extract provider names in priority order for OCR strategies
+            ocrStrategies = planAssignments
+              .filter(assignment => assignment.aiType === 'ocr')
+              .sort((a, b) => a.priority - b.priority)
+              .map(assignment => assignment.provider)
+
+            console.log(`🎯 Plan ${userPlan} OCR strategy order: ${ocrStrategies.join(' → ')}`)
+          } catch (assignmentError) {
+            console.warn('⚠️ Failed to get plan assignments, using fallback strategy order')
+          }
+        }
+
+        // Fallback strategy order if plan assignments fail
+        if (ocrStrategies.length === 0) {
+          // Priority 1: Gemini for all OCR
+          // Priority 2: Claude for all plans (fallback)
+          if (userPlan === 'free' || userPlan === 'basic') {
+            ocrStrategies = ['gemini', 'claude', 'tesseract']
+          } else if (userPlan === 'standard') {
+            ocrStrategies = ['gemini', 'claude', 'tesseract']
+          } else if (userPlan === 'business') {
+            ocrStrategies = ['gemini', 'claude', 'tesseract']
+          } else {
+            ocrStrategies = ['gemini', 'claude', 'tesseract'] // All plans
+          }
+        }
+
+        // Use OCR Fallback Manager for comprehensive OCR processing with metrics
+        const ocrFallbackOptions = {
+          maxAttempts: userPlan === 'business' ? 5 : userPlan === 'standard' ? 4 : 3,
+          maxTime: userPlan === 'business' ? 30000 : 25000,
+          strategies: ocrStrategies,
+          userPlan,
+          enablePreprocessingRetry: userPlan !== 'free',
+          minConfidence: userPlan === 'free' ? 0.4 : 0.6,
+          enableManualFallback: false // We're handling fallbacks in the main logic
+        }
+
+        console.log(`🔄 Final OCR strategies for ${userPlan}: ${ocrStrategies.join(' → ')}`)
+
+        const ocrResult = await ocrFallbackManager.processWithFallback(images, ocrFallbackOptions)
+        console.log(`🤖 OCR Fallback result: ${ocrResult.success ? 'SUCCESS' : 'FAILED'}`)
+
+        if (ocrResult.success && ocrResult.result) {
+          // Extract structured data from OCR result
+          aiExtractedData = {
+            productName: ocrResult.result.productName,
+            batchNumbers: [], // Will be populated from raw text parsing
+            manufacturers: ocrResult.result.manufacturer ? [ocrResult.result.manufacturer] : [],
+            confidence: ocrResult.result.confidence
+          }
+
+          // Use raw OCR text for database searching
+          ocrText = ocrResult.result.rawText || ''
+
+          // Add structured data to OCR text for search
+          if (aiExtractedData.productName) {
+            ocrText += ` ${aiExtractedData.productName}`
+          }
+          if (aiExtractedData.manufacturers && aiExtractedData.manufacturers.length > 0) {
+            ocrText += ` ${aiExtractedData.manufacturers.join(' ')}`
+          }
+
+          console.log(`🎯 OCR extracted: ${aiExtractedData.productName || 'Unknown product'}`)
+          console.log(`📊 OCR confidence: ${aiExtractedData.confidence}%`)
+        } else {
+          console.log('⚠️ OCR failed, using fallback text extraction')
+          // Fallback to basic text extraction if OCR fails
+          ocrText = `Product images provided but OCR extraction failed. User input: ${productName}`
+        }
+      } catch (ocrError) {
+        console.error('🚨 OCR processing error:', ocrError)
+        console.log('⚠️ OCR failed completely, continuing without OCR data')
+        ocrText = `Product images provided but OCR processing failed. User input: ${productName}`
+      }
+    } else {
+      console.log('📝 No images provided, using text-only processing')
+    }
 
     // 🚀 CORRECTED LOGIC: Get all active NAFDAC alerts first, THEN compare user input
     console.log('🔍 CORRECTED LOGIC: Retrieving all active NAFDAC alerts for comparison...')
@@ -753,21 +879,382 @@ export async function POST(request: NextRequest) {
 
     console.log(`🎯 DECISION: ${result.isCounterfeit ? 'UNSAFE' : 'SAFE'} (${result.confidence}% confidence)`)
 
-    // ✂️ AI Analysis removed - now handled by /api/analyze-image endpoint (database-only verification)
-    // Consume 1 point from detected plan tier
+    // 🤖 ENHANCED AI ANALYSIS WITH NAFDAC DATABASE COMPARISON
+    let aiEnhanced = false
+    let aiConfidence = null
+    let enhancedProductName = productName
+    let aiProductNames: string[] = []
+    // aiBatchNumbers is already declared earlier, don't redeclare it
+    let aiReason = ''
+    let aiAlertType = '' // Store AI-determined alert type for context-aware naming
+
+    if (aiEnabled && sortedAlerts.length > 0) {
+      console.log(`🤖 Starting enhanced ${aiProvider} AI analysis for ${sortedAlerts.length} found alerts...`)
+
+      try {
+        // VERIFICATION PROVIDER PRIORITY (Priority 1: Primary, Priority 2: Fallback)
+        let providerPriority: string[] = []
+        if (userPlan === 'business') {
+          providerPriority = ['openai', 'gemini'] // OpenAI → Gemini
+        } else if (userPlan === 'standard') {
+          providerPriority = ['anthropic', 'gemini'] // Claude → Gemini
+        } else {
+          providerPriority = ['google', 'anthropic'] // Basic/Free: Gemini → Claude
+        }
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let aiService: any = null
+        let finalAiProvider = aiProvider
+
+        // Try providers in priority order
+        for (const provider of providerPriority) {
+          if (provider === 'google') {
+            aiService = aiRouter['aiInstances']?.gemini
+            finalAiProvider = 'google'
+          } else if (provider === 'anthropic') {
+            aiService = aiRouter['aiInstances']?.claude
+            finalAiProvider = 'anthropic'
+          } else if (provider === 'openai') {
+            aiService = aiRouter['aiInstances']?.openai
+            finalAiProvider = 'openai'
+          }
+
+          if (aiService) {
+            console.log(`✅ AI Provider ${provider} available - using for verification`)
+            break
+          }
+          console.warn(`⚠️ AI Provider ${provider} unavailable - trying fallback`)
+        }
+
+        if (!aiService) {
+          console.warn(`🚨 No AI providers available for plan ${userPlan}`)
+        } else {
+          console.log('🔍 AI Service initialized successfully')
+
+          // Step 1: Use the same alerts found in database search
+          const relevantAlerts = sortedAlerts
+
+          console.log(`📊 Using ${relevantAlerts.length} previously found alerts for AI analysis`)
+
+          // Step 2: Fetch full content for these alerts
+          const alertIds = relevantAlerts.map(alert => alert.id)
+          const alertsWithContent = await nafdacDatabaseService.getAlertsForAIAnalysis(alertIds)
+
+          console.log(`🎯 Retrieved full content for ${alertsWithContent.length} alerts`)
+
+          // Step 3: Enhanced AI analysis comparing user input with NAFDAC content
+          let nafdacContent = ''
+          if (alertsWithContent.length > 0) {
+            nafdacContent = alertsWithContent.map(alert =>
+              `ALERT: ${alert.title}\nFULL CONTENT: ${alert.fullContent ? alert.fullContent.substring(0, 1500) : 'No full content available'}`
+            ).join('\n\n--- ALERT SEPARATOR ---\n\n')
+
+            console.log(`📋 AI processing ${nafdacContent.length} characters of NAFDAC content...`)
+          }
+
+          // Include OCR-extracted data if available
+          let ocrDataSummary = 'No OCR data available'
+          if (aiExtractedData) {
+            ocrDataSummary = `OCR PRODUCT: ${aiExtractedData.productName || 'Unknown'}
+OCR BATCHES: ${aiExtractedData.batchNumbers?.join(', ') || 'None found'}
+OCR MANUFACTURERS: ${aiExtractedData.manufacturers?.join(', ') || 'Unknown'}
+OCR CONFIDENCE: ${aiExtractedData.confidence || 'Unknown'}`
+          }
+
+          const userInputSummary = `
+USER PRODUCT: ${productName}
+USER DESCRIPTION: ${productDescription}
+USER BATCH: ${userBatchNumber || 'Not Provided'}
+OCR TEXT: ${ocrText || 'None available'}
+${ocrDataSummary}
+NAFDAC ALERTS FOUND: ${alertsWithContent.length}
+ALERTS TITLES: ${relevantAlerts.map(a => a.title).join('; ')}`
+
+          console.log('🔍 Starting AI analysis with user input and NAFDAC content...')
+
+          // Step 4: HYBRID AI ANALYSIS WITH ENHANCED BATCH EXTRACTION
+          const analysisPrompt = `ANALYSIS TASK: Analyze this product's NAFDAC alert information and extract batch numbers for Nigerian products.
+
+USER INPUT SUMMARY:
+${userInputSummary}
+
+RELEVANT NAFDAC ALERTS:
+${nafdacContent}
+
+INSTRUCTIONS - IMPORTANT BATCH NUMBER PATTERNS:
+1. Look for numeric batch numbers like: 39090439, 12345678, 98765432
+2. Look for alphanumeric batches like: UI4004, ABC123, XYZ789, BatchA123
+3. Look for patterns like "batch XXXXXXXXXX", "lot number XXXXXXXX", "Batch: XX9999", "UIXXXXXX", "BATCH-NO-XXXXXX"
+4. Extract ALL batch numbers found in the alert content (even falsified/expired ones mentioned for reference)
+5. Compare user input with NAFDAC alert content to find matching or similar batches
+6. Extract clean product name (remove manufacturer details if possible)
+7. Summarize why this product has alerts and potential safety concerns
+8. Rate confidence in analysis (1-100%) and classify alert type
+
+RESPONSE FORMAT (ONLY RETURN JSON, NO OTHER TEXT):
+{
+  "productName": "clean product name",
+  "batchNumbers": ["39090439", "UI4004", "any_found_batches"],
+  "reason": "detailed reason for alerts and safety concerns",
+  "alertType": "FAKE|EXPIRED|RECALL|CONTAMINATED|OTHER",
+  "confidence": 85,
+  "extractionSuccess": true
+}`
+
+          console.log('🤖 Sending analysis request to AI service...')
+
+          const aiAnalysisResponse = await aiService.processText({
+            text: analysisPrompt,
+            task: 'analysis'
+          })
+
+          console.log('📡 AI service response received')
+
+          if (aiAnalysisResponse?.extractedData) {
+            console.log('🧠 AI Analysis Response:', aiAnalysisResponse.extractedData)
+
+            const analysisData = aiAnalysisResponse.extractedData
+
+            // Save AI analysis results
+            aiEnhanced = true
+            aiBatchNumbers = analysisData.batchNumbers || []
+            aiReason = analysisData.reason || 'Product has active NAFDAC alerts requiring attention'
+            aiConfidence = analysisData.confidence ?? 80  // Use 80% as meaningful AI default
+            aiAlertType = analysisData.alertType || ''  // Store AI-determined alert type
+
+            // 🎯 SMART PRODUCT NAME PRESERVATION
+            // Only replace user's product name if it doesn't match any alerts
+            // This prevents AI from overwriting user input with title-extracted names
+            const userProductMatchesAlert = sortedAlerts.some((alert) =>
+              alert.productNames?.some((alertProduct: string) =>
+                alertProduct.toLowerCase().includes(productName.toLowerCase())
+              )
+            )
+
+            if (userProductMatchesAlert && productName) {
+              // KEEP user's original product name - it's valid
+              aiProductNames = [productName]
+              enhancedProductName = productName
+              console.log(`🔒 PRESERVED user product name: "${productName}" (found in alert data)`)
+            } else {
+              // Use AI-extracted product name or fallback
+              aiProductNames = analysisData.productName ? [analysisData.productName] : [enhancedProductName]
+              enhancedProductName = aiProductNames[0] || productName
+              console.log(`🤖 Used AI extracted product name: "${enhancedProductName}"`)
+            }
+
+            // 🛟 FIX FOR USER BATCH COMPARISON BUG
+            // This was the PRIMARY CAUSE: aiBatchNumbers was empty, so batch comparison failed
+            if (aiBatchNumbers.length === 0 && alertsWithContent.length > 0) {
+              console.log('🛟 FALLBACK: Extracting batches from database alerts...')
+
+              // Extract from the top alert's batchNumbers
+              const alertBatches = alertsWithContent[0].batchNumbers || []
+              if (alertBatches.length > 0) {
+                aiBatchNumbers = alertBatches
+                console.log(`🛟 Used fallback batches from alert: ${aiBatchNumbers.join(', ')}`)
+              }
+            }
+
+          console.log(`🔍 AI Extracted Product: ${enhancedProductName}`)
+          console.log(`🧾 Final AI Batches: ${aiBatchNumbers.join(', ')} (${aiBatchNumbers.length > 0 ? '✅ FOUND' : '❌ EMPTY'})`)
+          console.log(`📋 AI Reason: ${aiReason.substring(0, 100)}...`)
+
+          // Step 5: Save AI analysis to database alerts (for future reference)
+          try {
+            for (const alert of alertsWithContent.slice(0, 3)) { // Update up to 3 alerts
+              await nafdacDatabaseService.updateAlertWithAIAnalysis(alert.id, {
+                aiExtracted: true,
+                aiProductNames: aiProductNames,
+                aiBatchNumbers: aiBatchNumbers,
+                aiReason: aiReason,
+                aiConfidence: aiConfidence
+              })
+            }
+            console.log(`💾 Updated ${alertsWithContent.length} NAFDAC alerts with AI analysis`)
+          } catch (dbError) {
+            console.warn('⚠️ Failed to save AI analysis to database:', dbError)
+          }
+
+          // Step 6: Boost confidence if AI finds strong evidence
+          if (result.confidence < 90 && aiConfidence > 75) {
+            result.confidence = Math.min(95, result.confidence + 5)
+            console.log(`🎯 AI confidence boost: ${result.confidence}%`)
+          }
+
+          } else {
+            console.log('⚠️ AI analysis returned no structured data, using fallback')
+            console.log('🔍 FALLBACK DEBUG: About to trigger batch fallback...')
+
+            // Fallback: Extract batches from alertsWithContent if available
+            if (alertsWithContent && alertsWithContent.length > 0) {
+              console.log(`🔍 FALLBACK DEBUG: alertsWithContent has ${alertsWithContent.length} alerts`)
+              for (const alert of alertsWithContent.slice(0, 2)) {
+                console.log(`🔍 FALLBACK DEBUG: Alert ${alert.id} has batches: ${JSON.stringify(alert.batchNumbers)}`)
+              }
+            } else {
+              console.log('🔍 FALLBACK DEBUG: alertsWithContent is empty or undefined')
+            }
+
+            console.log(`🔍 FALLBACK DEBUG: aiBatchNumbers before fallback: ${JSON.stringify(aiBatchNumbers)}`)
+
+            // Try to extract batches from the first alert
+            if (alertsWithContent && alertsWithContent.length > 0 && alertsWithContent[0].batchNumbers) {
+              aiBatchNumbers = alertsWithContent[0].batchNumbers
+              console.log(`🛟 SUCCESS: Fallback extracted batches: ${aiBatchNumbers.join(', ')}`)
+            } else {
+              console.log('🛟 FAILED: No batches found in fallback')
+            }
+
+            console.log(`🔍 FALLBACK DEBUG: aiBatchNumbers after fallback: ${JSON.stringify(aiBatchNumbers)}`)
+
+            // Fallback: Create basic AI analysis from available data
+            aiEnhanced = true
+            aiProductNames = [enhancedProductName]
+            aiReason = `Product has ${alertsWithContent.length} active NAFDAC alerts. Most recent: "${alertsWithContent[0]?.title}". Consult official sources for detailed information.`
+            aiConfidence = 75
+
+            console.log('✅ Using fallback AI analysis')
+          }
+
+          console.log(`✅ AI Enhancement Complete: ${aiEnhanced ? `Enhanced (${aiProductNames.length} products, ${aiBatchNumbers.length} batches)` : 'No enhancement'}`)
+
+        }
+
+      } catch (aiError) {
+        console.error('🚨 AI Enhancement Error:', aiError instanceof Error ? aiError.message : String(aiError))
+        console.warn('⚠️ AI enhancement failed, proceeding without analysis')
+        aiEnhanced = false
+      }
+    } else {
+      console.log(`🤖 AI skipped: ${!aiEnabled ? 'AI not enabled' : 'No alerts found for analysis'}`)
+    }
+
+    console.log('✅ AI Analysis Phase Complete')
+
+    // 🛟 COMPREHENSIVE FALLBACK: If AI failed OR didn't find batches, use structured data
+    if (!aiEnhanced && sortedAlerts.length > 0) {
+      console.log('🛟 AI failed, but we have alerts - creating fallback analysis')
+      aiEnhanced = false  // Don't mark as enhanced since no AI was used
+      aiProductNames = [enhancedProductName]
+      aiReason = `Product has ${sortedAlerts.length} active NAFDAC alerts. Most recent: "${sortedAlerts[0].title}". No AI analysis available for your plan tier.`
+      aiConfidence = 75
+
+      // ALWAYS try to extract batch numbers from database
+      if (sortedAlerts[0].batchNumbers && sortedAlerts[0].batchNumbers.length > 0) {
+        aiBatchNumbers = sortedAlerts[0].batchNumbers
+        console.log(`🛟 Fallback extracted batches from alert: ${aiBatchNumbers.join(', ')}`)
+      }
+    }
+
+    console.log(`✅ Final Analysis State: AI=${aiEnhanced ? 'Enabled' : 'Disabled'}, Batches=${aiBatchNumbers.length}`)
+
+    // 🛟 ENHANCED POST-AI DIFFERENTIAL MATCHING: Compare user input vs AI extractions for proper categorization
+    if (aiEnhanced && sortedAlerts.length > 0 && userProvidedBatch && aiBatchNumbers.length > 0) {
+      console.log(`🔄 ENHANCED POST-AI DIFERENTIAL MATCHING: ${aiBatchNumbers.length} batches, AI product: "${enhancedProductName}"`)
+
+      // STEP 1: COMPARE AI EXTRACTIONS VS USER INPUT
+      const aiProductMatch = fuzzyProductMatch(productName, enhancedProductName || '')
+      const aiBatchMatch = aiBatchNumbers.some(aiBatch =>
+        aiBatch.toUpperCase().trim() === userBatchNumber.toUpperCase().trim()
+      )
+
+      console.log(`🔍 MATCH ANALYSIS: Product ${aiProductMatch ? '✅' : '❌'} | Batch ${aiBatchMatch ? '✅' : '❌'}`)
+
+      // STEP 2: DECIDE RESULT BASED ON AI INPUT COMPARISON
+      const wasOriginallySafe = (alertType === "No Alert") || (alertType === "GENERAL_PRODUCT_ALERTS")
+      const wasOriginallyPartial = (alertType === "PRODUCT_ALERT_DIFFERENT_BATCH") || (alertType === "BATCH NUMBER ALERT BUT DIFFERENT PRODUCT")
+      const wasOriginallyCounterfeit = result.isCounterfeit
+
+      if (aiProductMatch && aiBatchMatch) {
+        // 🔴 CONFIRMED COUNTERFEIT: BOTH AI product AND batch match user input
+        isCounterfeit = true
+        confidence = Math.min(95, 85 + (aiConfidence || 10))
+        alertType = "CONFIRMED COUNTERFEIT"
+        batchNumber = userBatchNumber
+        detectedAlerts = sortedAlerts.map(a => a.title)
+
+        summary = `🔴 CONFIRMED FAKE/COUNTERFEIT DETECTED VIA AI ENHANCED ANALYSIS: "${productName}" with batch "${userBatchNumber}" matches NAFDAC alerts for "${enhancedProductName}".`
+
+        if (aiReason) {
+          summary += `\n\n${aiReason}`
+        }
+
+        console.log(`🎯 CONFIRMED COUNTERFEIT: Both AI product and batch match user input`)
+
+        // CONTEXT-AWARE TYPE BASED ON AI ALERT TYPE
+        if (aiAlertType) {
+          const aiType = aiAlertType.toUpperCase()
+          if (aiType.includes("EXPIRED")) {
+            alertType = "CONFIRMED EXPIRED"
+          } else if (aiType.includes("RECALL")) {
+            alertType = "CONFIRMED RECALL"
+          } else if (aiType.includes("CONTAMINATED")) {
+            alertType = "CONFIRMED CONTAMINATED"
+          }
+        }
+
+      } else if (aiProductMatch && !aiBatchMatch) {
+        // 🟡 PRODUCT ALERT - DIFFERENT BATCH: AI product matches, batch doesn't
+        isCounterfeit = false
+        confidence = Math.min(75, Math.max(confidence, 60))
+        alertType = "PRODUCT_ALERT_DIFFERENT_BATCH"
+        batchNumber = userBatchNumber
+
+        summary = `🟡 PRODUCT ALERTS FOUND - YOUR BATCH MAY NOT BE AFFECTED: ${productName} matches NAFDAC alerts for ${enhancedProductName}, but batch ${userBatchNumber} is not affected.`
+
+        if (aiReason) {
+          summary += `\n\nAI Analysis: ${aiReason}`
+        }
+
+        console.log(`🎯 PRODUCT ALERT - DIFFERENT BATCH: AI product matches, batch doesn't`)
+
+      } else if (!aiProductMatch && aiBatchMatch) {
+        // 🚨 BATCH ALERT - DIFFERENT PRODUCT: AI batch matches, product doesn't
+        isCounterfeit = false
+        confidence = Math.min(70, Math.max(confidence, 55))
+        alertType = "BATCH NUMBER ALERT BUT DIFFERENT PRODUCT"
+        batchNumber = userBatchNumber
+
+        const aiProductNamesDisplay = enhancedProductName && enhancedProductName !== 'Unknown' ?
+          `product "${enhancedProductName}"` : 'unknown products'
+
+        summary = `🚨 BATCH ALERT DETECTED - PRODUCT MISMATCH: Your batch "${userBatchNumber}" appears in NAFDAC alerts for ${aiProductNamesDisplay}, but this may not affect your "${productName}".`
+
+        if (aiReason) {
+          summary += `\n\n⚠️ Important: This batch number is associated with alerts for different products. Exercise caution but note that your specific product "${productName}" wasn't directly mentioned in these alerts.`
+        }
+
+        console.log(`🚨 BATCH ALERT - DIFFERENT PRODUCT: AI batch matches but product doesn't`)
+
+      } else {
+        // 🔄 NO NEW MATCHES: Keep original decision but enhance with AI info
+        console.log(`🔍 AI extractions don't match user input, keeping original decision: ${alertType}`)
+      }
+
+      // UPDATE RESULT OBJECT
+      result.isCounterfeit = isCounterfeit
+      result.alertType = alertType
+      result.confidence = confidence
+      result.summary = summary
+      result.batchNumber = batchNumber
+    }
+
+    // Point consumption - deduct from the specific plan tier that was used for AI analysis
     const { pointConsumptionService } = await import('@/services/point-consumption-service')
 
+    // Use the AI tier that was actually used (userPlan), not user's assigned plan hierarchy
     const consumptionResult = await pointConsumptionService.consumeFromSpecificPlan(session.user.id, userPlan)
 
     if (!consumptionResult.success) {
       const response = NextResponse.json({
         error: 'Insufficient points',
-        message: consumptionResult.error || 'You need at least 1 point for verification.'
+        message: consumptionResult.error || `${userPlan} plan points required`
       }, { status: 400 })
       return addSecurityHeaders(response)
     }
 
-    console.log(`✅ 1 point consumed from ${userPlan} plan tier`)
+    console.log(`✅ Points consumed from ${userPlan} plan tier, balances:`, consumptionResult.pointsRemaining)
 
     // Save scan result
     const savedResult = await prisma.productCheck.create({
@@ -818,7 +1305,7 @@ export async function POST(request: NextRequest) {
       return addSecurityHeaders(safeResponse)
     }
 
-    // Save result as database-only verification
+    // Save result for unsafe products WITH AI Data
     await prisma.checkResult.create({
       data: {
         userId: session.user.id,
@@ -826,30 +1313,66 @@ export async function POST(request: NextRequest) {
         isCounterfeit: result.isCounterfeit,
         summary: result.summary,
         source: result.source,
-        sourceUrl: result.sourceUrl || 'https://nafdac.gov.ng/category/recalls-and-alerts/',
+        sourceUrl: result.sourceUrl || 'https://nafdac.gov.ng/category/recalls-and-alerts/', // ✅ Now properly saved
         alertType: result.alertType,
         confidence: result.confidence,
-        batchNumber: result.batchNumber,
+        batchNumber: result.batchNumber, // ✅ Add missing batchNumber field
 
-        // No AI analysis data saved - OCR handled separately in /api/analyze-image
-        aiEnhanced: false,
-        aiProductName: null,
-        aiBatchNumbers: [],
-        aiReason: null,
-        aiConfidence: null,
-        aiAlertType: null
+        // 🎯 SAVE AI ANALYSIS DATA (just like free tier data)
+        aiEnhanced: aiEnhanced,
+        aiProductName: aiProductNames[0] || null,
+        aiBatchNumbers: aiBatchNumbers || [],
+        aiReason: aiReason,
+        aiConfidence: aiConfidence,
+        aiAlertType: alertType
+      } as {
+        userId: string
+        productCheckId: string
+        isCounterfeit: boolean
+        summary: string
+        source: string
+        sourceUrl: string
+        alertType: string
+        confidence: number
+        batchNumber: string | null
+        aiEnhanced: boolean
+        aiProductName: string | null
+        aiBatchNumbers: string[]
+        aiReason: string
+        aiConfidence: number | null
+        aiAlertType: string
       }
     })
 
-    // Final response for database-only verification
+    // Final response with AI analysis results
     const responseData = {
       resultId: savedResult.id,
       isCounterfeit: result.isCounterfeit,
       confidence: result.confidence,
       summary: result.summary,
       alertsFound: result.alertsFound,
-      verificationMethod: "NAFDAC Database Only",
+      verificationMethod: aiEnhanced
+        ? `AI-Enhanced (${userPlan} Plan)`
+        : "NAFDAC Database Only",
+
+      // 🔗 USE REAL ALERT URL FROM RESULT
       sourceUrl: result.sourceUrl,
+
+      // Include AI analysis results at top level
+      ...(aiEnhanced && {
+        aiAnalysis: {
+          productName: enhancedProductName,
+          batchNumbers: aiBatchNumbers,
+          reason: aiReason,
+          confidence: aiConfidence,
+          alertType: alertType,
+          isEnhanced: true
+        }
+      }),
+
+      // Original structure for backward compatibility
+      ...(aiEnhanced && { aiEnhanced: true, aiConfidence }),
+      enhancedProductName: aiEnhanced ? enhancedProductName : productName,
       newBalance: consumptionResult.pointsRemaining.total
     }
 
