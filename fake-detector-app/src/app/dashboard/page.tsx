@@ -138,6 +138,22 @@ export default function DashboardPage() {
       }
     }
 
+    // Also sync with session data if available
+    if (session?.user) {
+      const sessionUser = session.user as any
+      const sessionBalance = (sessionUser.planBasicPoints || 0) +
+                           (sessionUser.planStandardPoints || 0) +
+                           (sessionUser.planBusinessPoints || 0) +
+                           (sessionUser.planFreePoints || 0)
+
+      if (sessionBalance > 0) {
+        setStats(prev => ({
+          ...prev,
+          pointsBalance: sessionBalance
+        }))
+      }
+    }
+
     const fetchRecentScans = async () => {
       setScansLoading(true)
       try {
@@ -228,6 +244,8 @@ export default function DashboardPage() {
       return 'Standard'
     } else if (sessionUser?.planBasicPoints && sessionUser.planBasicPoints > 0) {
       return 'Basic'
+    } else if (sessionUser?.planFreePoints && sessionUser.planFreePoints > 0) {
+      return 'Free'
     } else {
       return 'Free'
     }

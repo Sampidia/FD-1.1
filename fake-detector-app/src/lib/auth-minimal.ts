@@ -11,6 +11,7 @@ declare module "next-auth" {
       planBasicPoints?: number;
       planStandardPoints?: number;
       planBusinessPoints?: number;
+      planFreePoints?: number;
       pointsBalance?: number;
       createdAt?: Date;
     }
@@ -119,12 +120,12 @@ const authOptions = {
         return false; // Reject sign-in on database error
       }
     },
-    async jwt({ token, user }: { token: JWT & { id?: string; planBasicPoints?: number; planStandardPoints?: number; planBusinessPoints?: number; pointsBalance?: number; createdAt?: Date }; user: User | null }) {
+    async jwt({ token, user }: { token: JWT & { id?: string; planBasicPoints?: number; planStandardPoints?: number; planBusinessPoints?: number; planFreePoints?: number; pointsBalance?: number; createdAt?: Date }; user: User | null }) {
       // Add ID to token for Google OAuth - Google provides sub as unique identifier
       if (user) {
         token.id = user.id;
 
-        // Fetch complete user data from database including plan points
+        // Fetch complete user data from database including all plan points
         const dbUser = await prisma.user.findUnique({
           where: { id: user.id },
           select: {
@@ -135,30 +136,37 @@ const authOptions = {
             planBasicPoints: true,
             planStandardPoints: true,
             planBusinessPoints: true,
+            planFreePoints: true,
             createdAt: true,
           },
         });
 
         if (dbUser) {
-          // Add plan points to JWT token
+          // Add all plan points to JWT token
           token.planBasicPoints = dbUser.planBasicPoints;
           token.planStandardPoints = dbUser.planStandardPoints;
           token.planBusinessPoints = dbUser.planBusinessPoints;
-          token.pointsBalance = (dbUser.planBasicPoints || 0) + (dbUser.planStandardPoints || 0) + (dbUser.planBusinessPoints || 0);
+          token.planFreePoints = dbUser.planFreePoints;
+          // Calculate total balance including all plan types
+          token.pointsBalance = (dbUser.planBasicPoints || 0) +
+                               (dbUser.planStandardPoints || 0) +
+                               (dbUser.planBusinessPoints || 0) +
+                               (dbUser.planFreePoints || 0);
           token.createdAt = dbUser.createdAt;
         }
       }
       return token;
     },
-    async session({ session, token }: { session: Session; token: JWT & { id?: string; planBasicPoints?: number; planStandardPoints?: number; planBusinessPoints?: number; pointsBalance?: number; createdAt?: Date } }) {
+    async session({ session, token }: { session: Session; token: JWT & { id?: string; planBasicPoints?: number; planStandardPoints?: number; planBusinessPoints?: number; planFreePoints?: number; pointsBalance?: number; createdAt?: Date } }) {
       // Add ID to session from token
       if (token.id && session.user) {
         session.user.id = token.id as string;
 
-        // Add plan points, pointsBalance and createdAt to session (extended user properties)
+        // Add all plan points, pointsBalance and createdAt to session (extended user properties)
         session.user.planBasicPoints = token.planBasicPoints;
         session.user.planStandardPoints = token.planStandardPoints;
         session.user.planBusinessPoints = token.planBusinessPoints;
+        session.user.planFreePoints = token.planFreePoints;
         session.user.pointsBalance = token.pointsBalance;
         session.user.createdAt = token.createdAt;
       }

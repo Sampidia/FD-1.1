@@ -11,10 +11,10 @@ declare global {
         image?: string | null
         pointsBalance: number
         createdAt?: string
-        planBasicPoints?: number
-        planStandardPoints?: number
-        planBusinessPoints?: number
-        planFreePoints?: number
+      planBasicPoints?: number
+      planStandardPoints?: number
+      planBusinessPoints?: number
+      planFreePoints?: number
       }
     }
 
