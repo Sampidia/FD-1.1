@@ -110,6 +110,7 @@ function sanitizeInput(input: string): string {
 }
 
 // Fuzzy product name matching function - STRICTER VERSION
+// MOVED UP to avoid hoisting issues
 function fuzzyProductMatch(userInput: string, aiExtracted: string): boolean {
   if (!userInput || !aiExtracted) return false
 
@@ -508,248 +509,211 @@ export async function POST(request: NextRequest) {
       console.log('📝 No images provided, using text-only processing')
     }
 
-    // Enhanced Database Search - Multiple strategies for better matching
-    const searchText = `${productName} ${productDescription} ${userBatchNumber || ''} ${ocrText}`.toLowerCase().trim()
-    console.log('🔍 Searching NAFDAC database with enhanced matching...')
-    console.log('📋 Search terms:', { productName, searchText: searchText.substring(0, 100) + '...' })
+    // 🚀 CORRECTED LOGIC: Get all active NAFDAC alerts first, THEN compare user input
+    console.log('🔍 CORRECTED LOGIC: Retrieving all active NAFDAC alerts for comparison...')
 
-    // 🚨 CRITICAL DEBUG: Check if product is in our known seeded products
-    const knownSeededProducts = ['postinor', 'amoxicillin', 'paracetamol', 'coartem']
-    const knownBatches = ['TXXXXXB', 'A2023001', 'PCT2023002', 'MALARIA001']
+    const compareStart = Date.now()
 
-    const isKnownProduct = knownSeededProducts.some(p =>
-      productName.toLowerCase().includes(p) || productDescription.toLowerCase().includes(p)
-    )
-    const isKnownBatch = userBatchNumber && knownBatches.includes(userBatchNumber.trim().toUpperCase())
+    // 🎯 STEP 1: Retrieve ALL active NAFDAC alerts (legitimate problem products)
+    // Use high limit to get all active alerts, then filter client-side
+    const allActiveAlerts = await nafdacDatabaseService.searchAlerts({ limit: 1000 })
+    console.log(`📊 Retrieved ${allActiveAlerts.length} active NAFDAC alerts`)
 
-    console.log('🧪 KNOWN SEED PRODUCT CHECK:')
-    console.log(`  - Is known seeded product: ${isKnownProduct}`)
-    console.log(`  - Is known batch: ${isKnownBatch}`)
-    console.log(`  - Product name search: "${productName}"`)
-    console.log(`  - Batch number search: "${userBatchNumber || 'none'}"`)
-
-    if (isKnownProduct || isKnownBatch) {
-      console.log('🚨 ALERT: This is a KNOWN seeded product/batch that should be detected!')
-      console.log('🚨 If it shows as safe, the search logic is broken!')
+    if (allActiveAlerts.length === 0) {
+      console.log('⚠️ No active alerts found - database may be empty')
     }
 
-    const searchStart = Date.now()
+    // 🎯 STEP 2: Compare user input against each alert's structured data
+    const matchingAlerts: AlertSearchResult[] = []
+    const debugComparisons: { alertId: string; alertTitle: string; productMatch: boolean; batchMatch: boolean; matchType: string | null; confidence: number }[] = []
 
-    // Strategy 1: Batch-based search (highest priority)
-    let batchMatches: AlertSearchResult[] = []
-    if (userBatchNumber && userBatchNumber.trim()) {
-      console.log(`🔍 Batch search initiated for: "${userBatchNumber.trim()}"`)
-
-      try {
-        const batchSearchResults = await nafdacDatabaseService.searchAlerts({
-          batchNumber: userBatchNumber.trim(),
-          limit: 10
-        })
-        batchMatches = batchSearchResults
-        console.log(`🎯 Batch search result: ${batchMatches.length} matches found`)
-
-        if (batchMatches.length === 0) {
-          console.log('⚠️ No batch matches - checking if alerts have batch numbers...')
-
-          // Debug: Check if any active alerts actually have batch numbers
-          const alertsWithBatches = await nafdacDatabaseService.searchAlerts({
-            limit: 10
-          })
-
-          console.log('📊 Active alerts with batch numbers:')
-          alertsWithBatches.forEach(alert => {
-            console.log(`  - ${alert.title}: ${JSON.stringify(alert.batchNumbers)}`)
-          })
-        } else {
-          console.log('🎯 Batch matches found:', batchMatches.map(b => ({ title: b.title, batches: b.batchNumbers })))
-        }
-      } catch (batchSearchError) {
-        console.error('🚨 Batch search failed with retry logic:', batchSearchError)
-        // Continue with other search strategies
-        batchMatches = []
+    for (const alert of allActiveAlerts) {
+      const comparison = {
+        alertId: alert.id,
+        alertTitle: alert.title,
+        productMatch: false,
+        batchMatch: false,
+        matchType: null as string | null,
+        confidence: 0
       }
-    } else {
-      console.log(`⚠️ No batch number provided for batch search: "${userBatchNumber}"`)
-    }
 
-    // Strategy 2: Multiple product name search strategies (RESTRICTED VERSION)
-    let nameMatches1: AlertSearchResult[] = []
-    let nameMatches2: AlertSearchResult[] = []
-    let nameMatches3: AlertSearchResult[] = []
+      // Primary comparison: Check against structured productNames array
+      const structuredProducts = alert.productNames || []
+      const structuredBatches = alert.batchNumbers || []
 
-    const searchTerms = productName.split(/\s+/).filter((term: string) =>
-      term.length > 3 && !['mg', 'ml', 'mcg', 'g', 'kg', 'mls', 'iu'].includes(term.toLowerCase())
-    ).slice(0, 2) // Only first 2 longest keywords
+      // Fallback to AI-extracted data if structured data is empty
+      const aiProducts = alert.aiProductNames || []
+      const aiBatches = alert.aiBatchNumbers || []
 
-    console.log('🔍 Extracted search terms (restricted):', searchTerms)
+      // Combine both structured and AI data
+      const allProductNames = [...structuredProducts, ...aiProducts].filter(Boolean)
+      const allBatchNumbers = [...structuredBatches, ...aiBatches].filter(Boolean)
 
-    if (searchTerms.length > 0) {
-      try {
-        // Strategy 2A: Exact title matches (most restrictive)
-        const exactTitleMatches = await nafdacDatabaseService.searchAlerts({
-          keywords: [productName.trim()],
-          limit: 3
-        })
-        nameMatches1 = exactTitleMatches
+      console.log(`🔍 Checking alert "${alert.title}" against user "${productName}"`)
 
-        // Strategy 2B: REMOVED - Too broad keyword matching causing false matches
-        // This was causing amoxicillin to show for unrelated products!
-        nameMatches2 = []
+      // 🎯 PRODUCT MATCHING LOGIC (3-STAGE PRIORITY)
+      let productMatchScore = 0
 
-        // Strategy 2C: Strict product name matching (FIXED VERSION)
-        // Only find alerts where the specific product name appears in the productNames array
+      // STAGE 1: Check structured product names arrays (highest confidence - 100/80)
+      if (allProductNames.length > 0) {
+        // Try exact match first
+        const exactProductMatch = allProductNames.some(alertProduct =>
+          alertProduct.toLowerCase().trim() === productName.toLowerCase().trim()
+        )
 
-        // First, try to find exact product name matches
-        const exactProductMatches = await nafdacDatabaseService.searchAlerts({
-          productNames: [productName.trim().toLowerCase()],
-          limit: 5
-        })
-
-        // Fallback: Look for individual keywords if no exact matches
-        const keywordProductMatches: AlertSearchResult[] = []
-        if (exactProductMatches.length === 0) {
-          // Search for each keyword separately
-          for (const term of searchTerms.slice(0, 2)) {
-            const keywordMatches = await nafdacDatabaseService.searchAlerts({
-              productNames: [term.toLowerCase()],
-              keywords: [productName.split(' ')[0]], // First word of product name
-              limit: 3
-            })
-            keywordProductMatches.push(...keywordMatches)
+        if (exactProductMatch) {
+          productMatchScore = 100
+          comparison.productMatch = true
+          console.log(`  ✅ Exact product match in arrays: "${productName}"`)
+        } else {
+          // Try fuzzy matching on product name arrays
+          const isFuzzyMatch = fuzzyProductMatch(productName, allProductNames.join(' '))
+          if (isFuzzyMatch) {
+            productMatchScore = 80
+            comparison.productMatch = true
+            console.log(`  🤏 Fuzzy product match in arrays: "${productName}" ~ "${allProductNames.join(', ')}"`)
           }
         }
-
-        // Combine exact and keyword matches
-        nameMatches3 = [...exactProductMatches, ...keywordProductMatches].filter(
-          // Remove duplicates by ID
-          (alert, index, self) => self.findIndex((a: typeof alert) => a.id === alert.id) === index
-        )
-      } catch (productSearchError) {
-        console.error('🚨 Product search failed with retry logic:', productSearchError)
-        // Continue with description search
-        nameMatches1 = []
-        nameMatches2 = []
-        nameMatches3 = []
       }
-    }
 
-    // Strategy 3: Description/excerpt search as fallback
-    let descMatches: AlertSearchResult[] = []
-    if (productDescription && productDescription.length > 10) {
-      const descKeywords = productDescription.split(/\s+/)
-        .filter((word: string) => word.length > 4 && !/^\d+$/.test(word))
-        .slice(0, 3)
-
-      if (descKeywords.length > 0) {
+      // STAGE 2: Check full content if no match in arrays (medium confidence - 70)
+      if (productMatchScore === 0) {
+        // Fetch full content only when needed for matching
         try {
-          const descSearch = await nafdacDatabaseService.searchAlerts({
-            keywords: descKeywords,
-            limit: 3
-          })
-          descMatches = descSearch
-        } catch (descSearchError) {
-          console.error('🚨 Description search failed with retry logic:', descSearchError)
-          descMatches = []
+          const alertsWithContent = await nafdacDatabaseService.getAlertsForAIAnalysis([alert.id])
+          if (alertsWithContent.length > 0 && alertsWithContent[0].fullContent) {
+            const fullContentMatch = fuzzyProductMatch(productName, alertsWithContent[0].fullContent)
+            if (fullContentMatch) {
+              productMatchScore = 70
+              comparison.productMatch = true
+              console.log(`  🟡 Product match in full content: "${productName}" found in alert content`)
+            }
+          }
+        } catch (contentError) {
+          console.log(`⚠️ Could not fetch full content for alert ${alert.id}`)
         }
       }
-    }
 
-    // Combine all matches and deduplicate by ID
-    const allMatches: AlertSearchResult[] = [...batchMatches, ...nameMatches1, ...nameMatches2, ...nameMatches3, ...descMatches]
-
-    console.log(`📊 Search breakdown:`, {
-      batches: batchMatches.length,
-      exactTitle: nameMatches1.length,
-      keywords: nameMatches2.length,
-      productsArray: nameMatches3.length,
-      descriptions: descMatches.length
-    })
-
-    // 🔍 DEBUGGING: Log sample search results
-    if (batchMatches.length > 0) {
-      console.log('🔍 Batch matches found:', batchMatches.slice(0, 2).map(b => ({ title: b.title, batchNumbers: b.batchNumbers })))
-    }
-    if (nameMatches1.length > 0) {
-      console.log('🔍 Exact title matches found:', nameMatches1.slice(0, 2).map(n => ({ title: n.title, productNames: n.productNames })))
-    }
-    if (nameMatches3.length > 0) {
-      console.log('🔍 Product array matches found:', nameMatches3.slice(0, 2).map(n => ({ title: n.title, productNames: n.productNames })))
-    }
-
-    // Remove duplicates based on ID - PREFER ALERTS WITH productNames
-    const uniqueMatches: AlertSearchResult[] = allMatches.reduce((acc, current) => {
-      const existing = acc.find(item => item.id === current.id)
-
-      // If we haven't seen this alert, add it
-      if (!existing) {
-        acc.push(current)
+      // STAGE 3: Check title/excerpt as final fallback (lowest confidence - 60)
+      if (productMatchScore === 0) {
+        const titleExcerpt = `${alert.title} ${alert.excerpt || ''}`.toLowerCase()
+        if (titleExcerpt.includes(productName.toLowerCase())) {
+          productMatchScore = 60
+          comparison.productMatch = true
+          console.log(`  🤏 Title match: "${productName}" in alert title/excerpt (fallback)`)
+        } else {
+          console.log(`  ❌ No product match found in any source`)
+        }
       }
-      // If we have seen it, prefer the one with productNames
-      else if ((current.productNames?.length ?? 0) > 0 && (existing.productNames?.length ?? 0) === 0) {
-        // Replace the existing alert with this one (which has productNames)
-        const index = acc.findIndex(item => item.id === current.id)
-        acc[index] = current
+
+      // 🎯 BATCH MATCHING LOGIC (3-STAGE PRIORITY)
+      let batchMatchScore = 0
+
+      // STAGE 1: Check structured batch arrays (highest confidence - 100)
+      if (userBatchNumber && userBatchNumber.trim() && allBatchNumbers.length > 0) {
+        // Normalize batch comparison (trim, uppercase)
+        const userBatchNormalized = userBatchNumber.trim().toUpperCase()
+
+        const exactBatchMatch = allBatchNumbers.some(alertBatch =>
+          alertBatch.toUpperCase().trim() === userBatchNormalized
+        )
+
+        if (exactBatchMatch) {
+          batchMatchScore = 100
+          comparison.batchMatch = true
+          console.log(`  ✅ Exact batch match in arrays: "${userBatchNormalized}"`)
+        } else {
+          console.log(`  ❌ No batch match in arrays: "${userBatchNormalized}"`)
+        }
       }
-      // Keep the existing one if it already has productNames or current doesn't have them
 
-      return acc
-    }, [] as AlertSearchResult[])
+      // STAGE 2: Check full content if no match in arrays (medium confidence - 85)
+      if (batchMatchScore === 0 && userBatchNumber && userBatchNumber.trim()) {
+        const userBatchNormalized = userBatchNumber.trim().toUpperCase()
 
-    console.log(`🧹 Deduplication: ${allMatches.length} → ${uniqueMatches.length} unique matches`)
+        try {
+          const alertsWithContent = await nafdacDatabaseService.getAlertsForAIAnalysis([alert.id])
+          if (alertsWithContent.length > 0 && alertsWithContent[0].fullContent) {
+            // Check if batch number appears in full content (exact match)
+            const contentMatch = alertsWithContent[0].fullContent.toUpperCase().includes(userBatchNormalized)
+            if (contentMatch) {
+              batchMatchScore = 85
+              comparison.batchMatch = true
+              console.log(`  🟡 Batch match in full content: "${userBatchNormalized}" found in alert content`)
+            }
+          }
+        } catch (contentError) {
+          console.log(`⚠️ Could not fetch full content for batch checking: ${alert.id}`)
+        }
+      }
 
-    // 🔍 FINAL VERIFICATION: Log final unique matches
-    if (uniqueMatches.length > 0) {
-      console.log('✅ FINAL MATCHES FOUND:')
-      uniqueMatches.forEach((match, index) => {
-        console.log(`  ${index + 1}. ${match.title} (${match.alertType})`)
-        console.log(`     Product names: ${JSON.stringify(match.productNames)}`)
-        console.log(`     Batch numbers: ${JSON.stringify(match.batchNumbers)}`)
-      })
-    } else {
-      console.log('❌ NO MATCHES FOUND - THIS IS THE PROBLEM!')
-      console.log('❌ Search terms:', searchTerms)
-      console.log('❌ Product name:', productName)
-      console.log('❌ Batch number:', userBatchNumber)
+      // STAGE 3: No match found in any source (0 confidence)
+      if (batchMatchScore === 0 && userBatchNumber && userBatchNumber.trim()) {
+        console.log(`  ❌ No batch match found in any source`)
+      }
+
+      // 🎯 DETERMINE MATCH TYPE
+      if (productMatchScore >= 80 && batchMatchScore >= 100) {
+        // 🔴 EXACT MATCH - DEFINITE COUNTERFEIT
+        comparison.matchType = 'EXACT_MATCH'
+        comparison.confidence = Math.max(productMatchScore, batchMatchScore)
+        matchingAlerts.push(alert)
+        console.log(`  🎯 RESULT: EXACT MATCH COUNTERFEIT`)
+      } else if (productMatchScore >= 60 && batchMatchScore < 100) {
+        // 🟡 PRODUCT WARNING - DIFFERENT BATCH
+        comparison.matchType = 'PRODUCT_WARNING_DIFFERENT_BATCH'
+        comparison.confidence = productMatchScore
+        matchingAlerts.push(alert)
+        console.log(`  🎯 RESULT: PRODUCT WARNING (same product, different batch)`)
+      } else if (productMatchScore < 60 && batchMatchScore >= 100) {
+        // 🚨 BATCH WARNING - DIFFERENT PRODUCT
+        comparison.matchType = 'BATCH_WARNING_DIFFERENT_PRODUCT'
+        comparison.confidence = batchMatchScore
+        matchingAlerts.push(alert)
+        console.log(`  🎯 RESULT: BATCH WARNING (same batch, different product)`)
+      } else if (productMatchScore > 0 || batchMatchScore > 0) {
+        // 🤏 WEAK MATCH - May be relevant
+        comparison.matchType = 'WEAK_MATCH'
+        comparison.confidence = Math.max(productMatchScore, batchMatchScore)
+        matchingAlerts.push(alert)  // ✅ CRITICAL FIX: Add weak matches to results!
+        console.log(`  🤏 WEAK MATCH (${comparison.confidence}% confidence)`)
+      } else {
+        // ✅ NO MATCH
+        comparison.matchType = 'NO_MATCH'
+        console.log(`  ✅ No match`)
+      }
+
+      debugComparisons.push(comparison)
     }
 
-    // Sort by most relevant (recent alerts and exact matches first)
-    const orderedMatches = uniqueMatches.sort((a, b) => {
-      // Prioritize exact matches or recent alerts
-      const aTitleMatch = searchTerms.some((term: string) =>
-        a.title.toLowerCase().includes(term.toLowerCase())
-      ) ? 1 : 0
-      const bTitleMatch = searchTerms.some((term: string) =>
-        b.title.toLowerCase().includes(term.toLowerCase())
-      ) ? 1 : 0
+    // 🎯 STEP 3: Deduplicate and prioritize matches
+    const uniqueMatchingAlerts = matchingAlerts.filter((alert, index, self) =>
+      index === self.findIndex(a => a.id === alert.id)
+    )
 
-      if (aTitleMatch !== bTitleMatch) return bTitleMatch - aTitleMatch
+    // Sort by confidence and recency
+    const sortedAlerts = uniqueMatchingAlerts.sort((a, b) => {
+      // Higher confidence first, then newer alerts
+      const aConfidence = debugComparisons.find(c => c.alertId === a.id)?.confidence || 0
+      const bConfidence = debugComparisons.find(c => c.alertId === b.id)?.confidence || 0
+
+      if (aConfidence !== bConfidence) return bConfidence - aConfidence
       return new Date(b.scrapedAt).getTime() - new Date(a.scrapedAt).getTime()
-    }).slice(0, 8) // Take top 8 most relevant
+    }).slice(0, 10) // Top 10 most relevant
 
-    // Use sorted matches as final alerts - simplified typing to match actual data structure
-    const uniqueAlerts = orderedMatches.map(alert => ({
-      id: alert.id,
-      title: alert.title,
-      excerpt: alert.excerpt,
-      url: alert.url,
-      batchNumbers: alert.batchNumbers,
-      manufacturer: alert.manufacturer,
-      alertType: alert.alertType,
-      severity: alert.severity,
-      scrapedAt: alert.scrapedAt,
-      productNames: alert.productNames || []  // ✅ Ensure productNames is preserved
-    }))
+    console.log(`📊 Found ${sortedAlerts.length} matching alerts from ${allActiveAlerts.length} total alerts`)
 
-    // Set sourceUrl from the first alert if any alerts were found
-    if (uniqueAlerts.length > 0) {
-      sourceUrl = uniqueAlerts[0].url
-      console.log(`🔗 Using alert URL for source: ${sourceUrl}`)
+    // Set source URL from best match
+    if (sortedAlerts.length > 0) {
+      sourceUrl = sortedAlerts[0].url
+      console.log(`🔗 Using best match URL: ${sourceUrl}`)
     }
 
-    const searchTime = Date.now() - searchStart
-    console.log(`⚡ Search complete: ${uniqueAlerts.length} matches in ${searchTime}ms`)
+    const compareTime = Date.now() - compareStart
+    console.log(`⚡ Comparison complete: ${sortedAlerts.length} matches in ${compareTime}ms`)
 
-    // 🟡 ENHANCED BATCH-AWARE DECISION LOGIC
+    // 🎯 CORRECTED DECISION LOGIC: Three-tier warning system based on direct alert comparison
+    const searchTime = compareTime // Define searchTime for the result object
     let isCounterfeit = false
     let confidence = 0
     let summary = ''
@@ -757,210 +721,148 @@ export async function POST(request: NextRequest) {
     let batchNumber = null
     let detectedAlerts: string[] = []
 
-    // Determine if user provided their own batch number
+    // Determine if user provided batch number
     const userProvidedBatch = userBatchNumber && userBatchNumber.trim().length > 0
-
     console.log(`🎯 USER BATCH STATUS: ${userProvidedBatch ? `Provided: "${userBatchNumber}"` : 'Not provided by user'}`)
 
-    // 🎯 SMART BATCH COMPARISON LOGIC
-    if (uniqueAlerts.length > 0) {
-      let userBatchMatch = false
-      const productNameMatch = false
-
-      // Check if AI extracted any batches from database content
-      const aiExtractedBatches = aiBatchNumbers || []
-      console.log(`🤖 AI EXTRACTED BATCHES: ${aiExtractedBatches.length > 0 ? JSON.stringify(aiExtractedBatches) : 'None extracted'}`)
-
-      // STEP 1: Batch Comparison Logic
-      if (userProvidedBatch) {
-        // User provided a batch number - compare against AI-extracted batches
-        const exactBatchMatch = aiExtractedBatches.some(aiBatch =>
-          aiBatch.toUpperCase().trim() === userBatchNumber.toUpperCase().trim()
-        )
-
-        // Also check database batch numbers as fallback
-        const dbBatchMatch = uniqueAlerts.some(alert =>
-          alert.batchNumbers?.some((dbBatch: string) =>
-            dbBatch.toUpperCase().trim() === userBatchNumber.toUpperCase().trim()
-          )
-        )
-
-        userBatchMatch = exactBatchMatch || dbBatchMatch
-        console.log(`� BATCH COMPARISON: User "${userBatchNumber}" vs AI-extracted ${JSON.stringify(aiExtractedBatches)}`)
-        console.log(`🔍 BATCH MATCH RESULT: ${userBatchMatch ? '✅ EXACT MATCH' : '❌ NO MATCH'}`)
-      } else {
-        // User didn't provide batch - no comparison possible
-        console.log(`🔍 NO BATCH COMPARISON POSSIBLE: User didn't provide batch number`)
-      }
-
-      // 🔧 STRICT CORRELATED VALIDATION: REQUIRE BOTH PRODUCT & BATCH IN SAME ALERT
-      let correlatedAlerts: AlertSearchResult[] = []
-      let batchOnlyMatches: AlertSearchResult[] = []
-      let productOnlyMatches: AlertSearchResult[] = []
-
-      if (userProvidedBatch && productName) {
-        // Find alerts with CORRELATED matching (both product AND batch)
-        correlatedAlerts = uniqueAlerts.filter(alert => {
-          // Check if product name appears in alert
-          const productMatch = alert.productNames?.some((alertProduct: string) =>
-            searchTerms.some((searchTerm: string) =>
-              alertProduct.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              alert.title.toLowerCase().includes(searchTerm.toLowerCase())
-            )
-          ) || searchTerms.some((searchTerm: string) =>
-            alert.title.toLowerCase().includes(searchTerm.toLowerCase())
-          )
-
-          // Check if batch appears in alert
-          const batchMatch = alert.batchNumbers?.some((alertBatch: string) =>
-            alertBatch.toLowerCase().trim() === userBatchNumber.toLowerCase().trim()
-          )
-
-          return productMatch && batchMatch // BOTH must match in SAME alert!
-        })
-
-        // Separate checks for partial matches (for warnings)
-        batchOnlyMatches = uniqueAlerts.filter(alert =>
-          !correlatedAlerts.some(ca => ca.id === alert.id) && // Exclude correlated matches
-          alert.batchNumbers?.some((batch: string) =>
-            batch.trim().toLowerCase() === userBatchNumber.toLowerCase().trim()
-          )
-        )
-
-        productOnlyMatches = uniqueAlerts.filter(alert =>
-          !correlatedAlerts.some(ca => ca.id === alert.id) && // Exclude correlated matches
-          (
-            alert.productNames?.some((product: string) =>
-              searchTerms.some((term: string) => product.toLowerCase().includes(term.toLowerCase()))
-            ) ||
-            searchTerms.some((term: string) => alert.title.toLowerCase().includes(term.toLowerCase()))
-          )
-        )
-
-      // 🐛 DETAILED DEBUGGING FOR CORRELATION ANALYSIS
-      console.log(`🔗 DETAILED CORRELATION ANALYSIS:`)
-      console.log(`📝 User Search Terms: ${JSON.stringify(searchTerms)}`)
-      console.log(`🧢 User Batch: "${userBatchNumber}"`)
-
-      uniqueAlerts.forEach((alert, index) => {
-        console.log(`🔍 Alert ${index + 1}:`)
-        console.log(`   🏷️  Title: "${alert.title}"`)
-        console.log(`   📦 Product Names: ${JSON.stringify(alert.productNames)}`)
-        console.log(`   🔢 Batch Numbers: ${JSON.stringify(alert.batchNumbers)}`)
-
-        // Test product match manually
-        const productMatch = alert.productNames?.some((alertProduct: string) =>
-          searchTerms.some((searchTerm: string) =>
-            alertProduct.toLowerCase().includes(searchTerm.toLowerCase())
-          )
-        )
-
-        // Test batch match manually
-        const batchMatch = alert.batchNumbers?.some((alertBatch: string) =>
-          alertBatch.toLowerCase().trim() === userBatchNumber.toLowerCase().trim()
-        )
-
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        console.log(`   ✅ Product Match: ${productMatch} (search terms: ${searchTerms.join(', ')})`)
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        console.log(`   ✅ Batch Match: ${batchMatch} (user batch: ${userBatchNumber})`)
-        console.log(`   🎯 Overall Match: ${productMatch && batchMatch}`)
-      })
-
-      console.log(`📊 FINAL RESULTS:`)
-        console.log(`  - Correlated matches (both product + batch): ${correlatedAlerts.length}`)
-        console.log(`  - Batch-only matches: ${batchOnlyMatches.length}`)
-        console.log(`  - Product-only matches: ${productOnlyMatches.length}`)
-      }
-
-      // 🎯 STRICT CORRELATED DECISION LOGIC
-      if (correlatedAlerts.length > 0) {
-        // 🔴 HIGH CONFIDENCE: BOTH product and batch match in SAME alert
-        isCounterfeit = true
-        confidence = Math.min(95, 85 + (correlatedAlerts.length * 5))
-        alertType = correlatedAlerts[0].alertType
-        batchNumber = userBatchNumber
-        detectedAlerts = correlatedAlerts.map(a => a.title)
-
-        summary = `🔴 FAKE/RECALL/EXPIRED PRODUCT DETECTED: "${productName}" with batch "${userBatchNumber}" matches ${correlatedAlerts.length} NAFDAC alert(s) exactly.`
-
-        if (correlatedAlerts.length <= 4) {
-          summary += correlatedAlerts.map((a, idx) => `\n${idx + 1}. ${a.title}`).join('')
-        } else {
-          summary += `\n• ${correlatedAlerts[0].title}`
-          summary += `\n• Plus ${correlatedAlerts.length - 1} additional matching alerts`
-        }
-
-        console.log(`🎯 DECISION: CONFIRMED COUNTERFEIT (correlated match)`)
-        console.log(`   Products: ${correlatedAlerts.map(a => `${a.title} (${a.productNames?.join(', ') || 'unknown'})`).join('; ')}`)
-      } else if (batchOnlyMatches.length > 0 && batchOnlyMatches.length <= 2) {
-        // 🟡 MEDIUM CONFIDENCE: Batch matches but product doesn't in SAME alert
-        isCounterfeit = false
-        confidence = Math.min(60, 35 + (batchOnlyMatches.length * 8))
-        alertType = "BATCH NUMBER ALERT BUT DIFFERENT PRODUCT"
-        batchNumber = userBatchNumber
-        detectedAlerts = batchOnlyMatches.map(a => a.title)
-
-        summary = `🟡 BATCH NUMBER ALERTS FOUND - YOUR PRODUCT MAY NOT BE AFFECTED: Your batch "${userBatchNumber}" appears in ${batchOnlyMatches.length} alert(s), but for different product(s). This could indicate batch contamination or rebranding.`
-
-        if (batchOnlyMatches.length <= 3) {
-          summary += batchOnlyMatches.map((a, idx) => `\n${idx + 1}. ${a.title} (${a.productNames?.join(', ') || 'unknown product'})`).join('')
-        }
-
-        summary += `\n\n⚠️ Important: Verify if your product "${productName}" might be a repackaged version of these alerted products.`
-
-        console.log(`🎯 DECISION: BATCH ALERT - DIFFERENT PRODUCT`)
-      } else if (productOnlyMatches.length > 0 && productOnlyMatches.length <= 3) {
-        // 🟡 LOW-MEDIUM CONFIDENCE: Product matches but batch doesn't
-        isCounterfeit = false
-        confidence = Math.min(50, 25 + (productOnlyMatches.length * 6))
-        alertType = "PRODUCT_ALERT_DIFFERENT_BATCH"
-        batchNumber = userBatchNumber || null
-        detectedAlerts = productOnlyMatches.map(a => a.title)
-
-        summary = `🟡 PRODUCT ALERTS FOUND - YOUR BATCH MAY NOT BE AFFECTED: Similar product "${productName}" appears in ${productOnlyMatches.length} alert(s), but your batch "${userBatchNumber || 'unknown'}" doesn't match.`
-
-        if (productOnlyMatches.length <= 3) {
-          productOnlyMatches.forEach((alert, idx) => {
-            const alertBatches = alert.batchNumbers?.join(', ') || 'unknown';
-            summary += `\n${idx + 1}. ${alert.title} (batches: ${alertBatches})`;
-          });
-        }
-
-        summary += `\n\n✅ Your batch may be safe, but exercise caution with this product type.`;
-
-        console.log(`🎯 DECISION: PRODUCT ALERT - DIFFERENT BATCH`)
-      } else if (!userProvidedBatch && uniqueAlerts.length > 0) {
-        // 🟡 GENERAL ALERTS FOUND - No specific batch provided
-        isCounterfeit = false
-        confidence = Math.min(45, 20 + (uniqueAlerts.length * 3))
-        alertType = "GENERAL_PRODUCT_ALERTS"
-        batchNumber = null
-        detectedAlerts = uniqueAlerts.map(a => a.title)
-
-        summary = `🟡 PRODUCT ALERTS FOUND - PROVIDE BATCH FOR ACCURATE CHECK: Detected ${uniqueAlerts.length} alert(s) for products similar to "${productName}".`
-
-        if (uniqueAlerts.length <= 4) {
-          summary += uniqueAlerts.map((a, idx) => `\n${idx + 1}. ${a.title}`).join('')
-        } else {
-          summary += `\n• ${uniqueAlerts[0].title}`
-          summary += `\n• Plus ${uniqueAlerts.length - 1} additional alerts`
-        }
-
-        summary += `\n\n💡 Tip: Include the batch number for more accurate verification.`;
-
-        console.log(`🎯 DECISION: GENERAL ALERTS (no user batch)`)
-      }
-    } else {
-      // ✅ NO ALERTS FOUND: Safe product
+    if (sortedAlerts.length === 0) {
+      // ✅ NO MATCHES FOUND: Safe product
       isCounterfeit = false
-      confidence = 95  // High confidence when no alerts found
+      confidence = 95  // High confidence when no alerts match
       alertType = "No Alert"
       batchNumber = null
       detectedAlerts = []
 
-      summary = '✅ SAFE PRODUCT: No fake/recall/expired alerts found in NAFDAC database.'
+      summary = '✅ SAFE PRODUCT: No matching alerts found for this product/batch combination in NAFDAC database.'
       console.log(`🎯 DECISION: SAFE PRODUCT (no matches found)`)
+    } else {
+      // 🎯 ANALYZE MATCH TYPES FROM COMPARISON
+      const exactMatches = debugComparisons.filter(c => c.matchType === 'EXACT_MATCH')
+      const productWarnings = debugComparisons.filter(c => c.matchType === 'PRODUCT_WARNING_DIFFERENT_BATCH')
+      const batchWarnings = debugComparisons.filter(c => c.matchType === 'BATCH_WARNING_DIFFERENT_PRODUCT')
+
+      console.log(`📊 MATCH ANALYSIS: ${exactMatches.length} exact | ${productWarnings.length} product warnings | ${batchWarnings.length} batch warnings`)
+
+      // 🎯 DECISION BRANCHING BASED ON MATCH TYPES
+      if (exactMatches.length > 0) {
+        // 🔴 EXACT MATCH - DEFINITE COUNTERFEIT
+        const bestMatch = sortedAlerts[0]
+        isCounterfeit = true
+        confidence = Math.min(95, 85 + (exactMatches.length * 5))
+        alertType = bestMatch.alertType || "CONFIRMED COUNTERFEIT"
+        batchNumber = userBatchNumber || bestMatch.batchNumbers[0]
+        detectedAlerts = sortedAlerts.slice(0, 3).map(a => a.title)
+
+        summary = `🔴 FAKE/RECALL/EXPIRED PRODUCT DETECTED: "${productName}" matches ${exactMatches.length} NAFDAC alert(s).`
+        if (sortedAlerts.length <= 3) {
+          summary += '\n\nMatching Alerts:' + sortedAlerts.map((a, idx) => `\n${idx + 1}. ${a.title}`).join('')
+        } else {
+          summary += `\n\n${sortedAlerts[0].title} (and ${sortedAlerts.length - 1} other alerts)`
+        }
+        summary += `\n\n⚠️ This product batch has been officially recalled/reported as counterfeit by NAFDAC.`
+
+        console.log(`🎯 DECISION: CONFIRMED COUNTERFEIT (${confidence}% confidence)`)
+        console.log(`   Based on ${exactMatches.length} exact matches`)
+
+      } else if (productWarnings.length > 0) {
+        // 🟡 PRODUCT WARNING - SAME PRODUCT, DIFFERENT BATCH
+        isCounterfeit = false
+        confidence = Math.min(80, 60 + (productWarnings.length * 5))
+        alertType = "PRODUCT_ALERT_DIFFERENT_BATCH"
+        batchNumber = null
+        detectedAlerts = sortedAlerts.slice(0, 3).map(a => a.title)
+
+        const affectedBatches = sortedAlerts.flatMap(a => a.batchNumbers).join(', ')
+
+        summary = `🟡 PRODUCT ALERT - YOUR BATCH MAY BE SAFE: "${productName}" appears in NAFDAC alerts, but your batch ${userProvidedBatch ? `"${userBatchNumber}" ` : ''}is not listed.`
+
+        if (sortedAlerts.length <= 3) {
+          sortedAlerts.forEach((alert, idx) => {
+            const alertBatches = alert.batchNumbers?.join(', ') || 'unspecified batches'
+            summary += `\n${idx + 1}. ${alert.title} (affected batches: ${alertBatches})`
+          })
+        } else {
+          summary += `\n\nAffected alerts include: ${sortedAlerts[0].title} and ${sortedAlerts.length - 1} others`
+        }
+
+        summary += `\n\n✅ Your specific batch may be safe, but exercise caution with this product type and consult official sources.`
+
+        console.log(`🎯 DECISION: PRODUCT WARNING - DIFFERENT BATCH (${confidence}% confidence)`)
+
+      } else if (batchWarnings.length > 0) {
+        // 🚨 BATCH WARNING - SAME BATCH, DIFFERENT PRODUCT
+        isCounterfeit = false
+        confidence = Math.min(75, 55 + (batchWarnings.length * 5))
+        alertType = "BATCH_ALERT_DIFFERENT_PRODUCT"
+        batchNumber = userBatchNumber
+        detectedAlerts = sortedAlerts.slice(0, 3).map(a => a.title)
+
+        summary = `🚨 BATCH ALERT DETECTED - POTENTIAL ISSUE: Your batch "${userBatchNumber}" appears in NAFDAC alerts for different products.`
+
+        if (sortedAlerts.length <= 3) {
+          sortedAlerts.forEach((alert, idx) => {
+            const alertProducts = alert.productNames?.join(', ') || 'other products'
+            summary += `\n${idx + 1}. ${alert.title} (affected products: ${alertProducts})`
+          })
+        }
+
+        summary += `\n\n⚠️ This could indicate:`
+        summary += `\n• Manufacturing contamination across batch`
+        summary += `\n• Repackaging or distribution issues`
+        summary += `\n• Counterfeit network using same batch numbering`
+
+        summary += `\n\n⚠️ Exercise caution - while your specific product "${productName}" wasn't directly named, the batch number suggests potential issues.`
+
+        console.log(`🎯 DECISION: BATCH WARNING - DIFFERENT PRODUCT (${confidence}% confidence)`)
+
+      } else {
+        // 🤏 WEAK MATCHES: Found matches but don't fit EXACT/PRODUCT/BATCH categories
+        const weakMatches = debugComparisons.filter(c => c.matchType === 'WEAK_MATCH')
+        if (weakMatches.length > 0) {
+          // 🎯 HANDLE WEAK MATCHES PROPERLY - return alerts with low confidence
+          isCounterfeit = false
+          confidence = Math.min(70, 50 + (weakMatches.length * 5))
+          alertType = "WEAK_MATCH_FOUND"
+          batchNumber = null
+          detectedAlerts = sortedAlerts.slice(0, 3).map(a => a.title)
+
+          summary = `🟡 WEAK MATCH DETECTED: Found ${weakMatches.length} NAFDAC alert(s) with partial matches for "${productName}".`
+
+          if (userProvidedBatch) {
+            summary += ` Your batch "${userBatchNumber}" shows some similarities with alert data but not an exact match.`
+          }
+
+          if (sortedAlerts.length <= 3) {
+            summary += '\n\nRelated Alerts:' + sortedAlerts.map((a, idx) => `\n${idx + 1}. ${a.title}`).join('')
+          } else {
+            summary += `\n\nTop alerts include: ${sortedAlerts[0].title} (and ${sortedAlerts.length - 1} more)`
+          }
+
+          summary += `\n\n⚠️ This is a WEAK match - exercise caution but this may not directly affect your specific product.`
+
+          console.log(`🎯 DECISION: WEAK MATCH (${confidence}% confidence)`)
+          console.log(`   Based on ${weakMatches.length} weak matches`)
+        } else {
+          // 🤏 GENERAL ALERTS: No exact criteria match, but alerts found (fallback)
+          isCounterfeit = false
+          confidence = Math.min(60, 40 + (sortedAlerts.length * 3))
+          alertType = "GENERAL_SIMILAR_ALERTS"
+          batchNumber = null
+          detectedAlerts = sortedAlerts.slice(0, 3).map(a => a.title)
+
+          summary = `🟡 SIMILAR PRODUCTS HAVE ALERTS: Found ${sortedAlerts.length} NAFDAC alert(s) for similar products to "${productName}".`
+
+          if (!userProvidedBatch) {
+            summary += `\n\n💡 Tip: Provide your batch number for more accurate verification of whether your specific product is affected.`
+          }
+
+          if (sortedAlerts.length <= 3) {
+            summary += '\n\nRelated Alerts:' + sortedAlerts.map((a, idx) => `\n${idx + 1}. ${a.title}`).join('')
+          }
+
+          console.log(`🎯 DECISION: GENERAL ALERTS (${confidence}% confidence)`)
+        }
+      }
     }
 
     const result = {
@@ -971,7 +873,7 @@ export async function POST(request: NextRequest) {
       alertType,
       batchNumber,
       confidence,
-      alertsFound: uniqueAlerts.length,
+      alertsFound: sortedAlerts.length,
       searchTime
     }
 
@@ -986,8 +888,8 @@ export async function POST(request: NextRequest) {
     let aiReason = ''
     let aiAlertType = '' // Store AI-determined alert type for context-aware naming
 
-    if (aiEnabled && uniqueAlerts.length > 0) {
-      console.log(`🤖 Starting enhanced ${aiProvider} AI analysis for ${uniqueAlerts.length} found alerts...`)
+    if (aiEnabled && sortedAlerts.length > 0) {
+      console.log(`🤖 Starting enhanced ${aiProvider} AI analysis for ${sortedAlerts.length} found alerts...`)
 
       try {
         // VERIFICATION PROVIDER PRIORITY (Priority 1: Primary, Priority 2: Fallback)
@@ -1030,7 +932,7 @@ export async function POST(request: NextRequest) {
           console.log('🔍 AI Service initialized successfully')
 
           // Step 1: Use the same alerts found in database search
-          const relevantAlerts = uniqueAlerts
+          const relevantAlerts = sortedAlerts
 
           console.log(`📊 Using ${relevantAlerts.length} previously found alerts for AI analysis`)
 
@@ -1123,7 +1025,7 @@ RESPONSE FORMAT (ONLY RETURN JSON, NO OTHER TEXT):
             // 🎯 SMART PRODUCT NAME PRESERVATION
             // Only replace user's product name if it doesn't match any alerts
             // This prevents AI from overwriting user input with title-extracted names
-            const userProductMatchesAlert = uniqueAlerts.some((alert) =>
+            const userProductMatchesAlert = sortedAlerts.some((alert) =>
               alert.productNames?.some((alertProduct: string) =>
                 alertProduct.toLowerCase().includes(productName.toLowerCase())
               )
@@ -1231,16 +1133,16 @@ RESPONSE FORMAT (ONLY RETURN JSON, NO OTHER TEXT):
     console.log('✅ AI Analysis Phase Complete')
 
     // 🛟 COMPREHENSIVE FALLBACK: If AI failed OR didn't find batches, use structured data
-    if (!aiEnhanced && uniqueAlerts.length > 0) {
+    if (!aiEnhanced && sortedAlerts.length > 0) {
       console.log('🛟 AI failed, but we have alerts - creating fallback analysis')
       aiEnhanced = false  // Don't mark as enhanced since no AI was used
       aiProductNames = [enhancedProductName]
-      aiReason = `Product has ${uniqueAlerts.length} active NAFDAC alerts. Most recent: "${uniqueAlerts[0].title}". No AI analysis available for your plan tier.`
+      aiReason = `Product has ${sortedAlerts.length} active NAFDAC alerts. Most recent: "${sortedAlerts[0].title}". No AI analysis available for your plan tier.`
       aiConfidence = 75
 
       // ALWAYS try to extract batch numbers from database
-      if (uniqueAlerts[0].batchNumbers && uniqueAlerts[0].batchNumbers.length > 0) {
-        aiBatchNumbers = uniqueAlerts[0].batchNumbers
+      if (sortedAlerts[0].batchNumbers && sortedAlerts[0].batchNumbers.length > 0) {
+        aiBatchNumbers = sortedAlerts[0].batchNumbers
         console.log(`🛟 Fallback extracted batches from alert: ${aiBatchNumbers.join(', ')}`)
       }
     }
@@ -1248,7 +1150,7 @@ RESPONSE FORMAT (ONLY RETURN JSON, NO OTHER TEXT):
     console.log(`✅ Final Analysis State: AI=${aiEnhanced ? 'Enabled' : 'Disabled'}, Batches=${aiBatchNumbers.length}`)
 
     // 🛟 ENHANCED POST-AI DIFFERENTIAL MATCHING: Compare user input vs AI extractions for proper categorization
-    if (aiEnhanced && uniqueAlerts.length > 0 && userProvidedBatch && aiBatchNumbers.length > 0) {
+    if (aiEnhanced && sortedAlerts.length > 0 && userProvidedBatch && aiBatchNumbers.length > 0) {
       console.log(`🔄 ENHANCED POST-AI DIFERENTIAL MATCHING: ${aiBatchNumbers.length} batches, AI product: "${enhancedProductName}"`)
 
       // STEP 1: COMPARE AI EXTRACTIONS VS USER INPUT
@@ -1270,7 +1172,7 @@ RESPONSE FORMAT (ONLY RETURN JSON, NO OTHER TEXT):
         confidence = Math.min(95, 85 + (aiConfidence || 10))
         alertType = "CONFIRMED COUNTERFEIT"
         batchNumber = userBatchNumber
-        detectedAlerts = uniqueAlerts.map(a => a.title)
+        detectedAlerts = sortedAlerts.map(a => a.title)
 
         summary = `🔴 CONFIRMED FAKE/COUNTERFEIT DETECTED VIA AI ENHANCED ANALYSIS: "${productName}" with batch "${userBatchNumber}" matches NAFDAC alerts for "${enhancedProductName}".`
 

@@ -38,8 +38,8 @@ export default function HomePage() {
               <span className="text-blue-600">Protect Your Health</span>
             </h1>
             <p className="max-w-2xl text-lg text-gray-600 leading-relaxed">
-              Scan and verify pharmaceutical products using NAFDAC's comprehensive database.
-              Get instant results, earn rewards, and stay protected from counterfeit medications.
+              Scan and verify products that has NAFDAC Reg Number utilizing NAFDAC's comprehensive database.
+              Get instant results, earn rewards, and stay protected from counterfeit products.
             </p>
           </div>
 
@@ -71,11 +71,11 @@ export default function HomePage() {
           <div className="flex flex-col sm:flex-row items-center gap-8 text-sm text-gray-600">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-yellow-500" />
-              <span>Get <strong>5 free points</strong> when you sign up</span>
+              <span>Get <strong>free points</strong> when you sign up</span>
             </div>
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-green-500" />
-              <span>Powered by <strong>NAFDAC</strong> database</span>
+              <span>Utilize <strong>NAFDAC</strong> database</span>
             </div>
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-blue-500" />
@@ -102,7 +102,7 @@ export default function HomePage() {
               </div>
               <CardTitle className="text-xl">1. Sign Up</CardTitle>
               <CardDescription>
-                Create your account with Google or email and get 5 free points
+                Create your account with email and get free points
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -155,7 +155,7 @@ export default function HomePage() {
             <h2 className="text-3xl font-bold mb-4">Ready to Verify Your First Product?</h2>
             <p className="text-blue-100 mb-8 max-w-2xl mx-auto">
               Join thousands of users who are already protecting themselves from counterfeit products.
-              Start with 5 free points and upgrade anytime.
+              Start with free points and upgrade anytime.
             </p>
             {status === "authenticated" ? (
               <Link href="/dashboard">
@@ -190,7 +190,7 @@ export default function HomePage() {
           <h2 className="text-3xl font-bold mb-4">Recent Product Alerts</h2>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Stay informed about counterfeit and recalled products detected by our community.
-            These alerts help protect consumers from harmful or fake medications.
+            These alerts help protect consumers from harmful or fake products.
           </p>
         </div>
 

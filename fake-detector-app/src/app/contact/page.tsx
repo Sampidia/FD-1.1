@@ -8,13 +8,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Logo from "@/components/ui/logo"
 import { BetaModal } from "@/components/ui/beta-modal"
 import { Mail, Phone, MapPin, Send, MessageCircle, HelpCircle, Shield, CreditCard, Clock, CheckCircle, XCircle, Loader2, Facebook, Twitter, Instagram } from "lucide-react"
+import { Turnstile } from "@marsidev/react-turnstile"
 import { useRecaptcha } from "@/hooks/use-recaptcha"
 
 // FAQ data
 const faqQuestions = [
   {
     question: "How does the fake product detection work?",
-    answer: "Our system uses advanced AI to compare your product images with NAFDAC's official counterfeit database. We analyze every angle and detail to verify authenticity with over 95% accuracy."
+    answer: "Our system uses advanced AI to compare your product images with NAFDAC's official counterfeit database. We analyze every angle and detail to verify authenticity with over 95% accuracy. Disclaimer: We are not Official NAFDAC platform, we are just a community of consumer that can make it easier for everyone to compare their products with NAFDAc alerts to make it easier for users to make informed decision, kindly do you research before consuming any product, this is not a certified platfrom"
   },
   {
     question: "How many scans can I do per day?",
@@ -53,23 +54,10 @@ export default function ContactPage() {
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null)
   const [isBetaModalOpen, setIsBetaModalOpen] = useState(false)
+  // Use the working reCAPTCHA hook from signin page
+  const { executeRecaptcha, resetRecaptcha, handleSuccess, handleError, getSiteKey } = useRecaptcha()
 
-  // Load reCAPTCHA script dynamically
-  useEffect(() => {
-    const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || process.env.RECAPTCHA_SITE_KEY_PLACEHOLDER
 
-    // Load reCAPTCHA script dynamically
-    if (siteKey && typeof document !== 'undefined') {
-      const script = document.createElement('script')
-      script.src = `https://www.google.com/recaptcha/api.js?render=${siteKey}`
-      script.async = true
-      script.defer = true
-      document.head.appendChild(script)
-    }
-  }, [])
-
-  // reCAPTCHA hook
-  const { executeRecaptcha } = useRecaptcha()
 
   const handleDownloadClick = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -90,11 +78,12 @@ export default function ContactPage() {
     setSubmitStatus('idle')
 
     try {
-      // Execute invisible reCAPTCHA
+      // Execute reCAPTCHA verification using the hook
       const recaptchaToken = await executeRecaptcha()
 
       if (!recaptchaToken) {
         setSubmitStatus('error')
+        resetRecaptcha() // Reset reCAPTCHA on error
         return
       }
 
@@ -112,12 +101,15 @@ export default function ContactPage() {
       if (response.ok) {
         setSubmitStatus('success')
         setFormData({ name: '', email: '', phone: '', message: '' })
+        resetRecaptcha() // Reset reCAPTCHA after successful submission
       } else {
         setSubmitStatus('error')
+        resetRecaptcha() // Reset reCAPTCHA on error
       }
     } catch (error) {
       console.error('Contact form submission error:', error)
       setSubmitStatus('error')
+      resetRecaptcha() // Reset reCAPTCHA on error
     } finally {
       setIsSubmitting(false)
     }
@@ -236,6 +228,14 @@ export default function ContactPage() {
                       <span className="text-red-800 text-sm">Failed to send message. Please try again.</span>
                     </div>
                   )}
+
+                  {/* Cloudflare Turnstile Widget - Using React Component */}
+                  <Turnstile
+                    siteKey={getSiteKey()}
+                    onSuccess={handleSuccess}
+                    onError={handleError}
+                    className="flex justify-center"
+                  />
 
                   <Button
                     type="submit"

@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    console.log('🔒 Valid session found:', session.user.email)
+    console.log('🔒 Valid session found:', session?.user?.email)
 
     // Get user's current balance and daily points info
     const user = await prisma.user.findUnique({

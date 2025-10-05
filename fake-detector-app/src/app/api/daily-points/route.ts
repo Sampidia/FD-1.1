@@ -20,8 +20,8 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       )
     }
-    const userEmail = session.user.email || ''
-    const userName = session.user.name || userEmail.split('@')[0]
+    const userEmail = session?.user?.email || ''
+    const userName = session?.user?.name || userEmail.split('@')[0]
 
   // Check if user already received daily points today
   const user = await prisma.user.findUnique({

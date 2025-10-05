@@ -141,6 +141,7 @@ async function sendPaymentFailureNotification(
     }
 
     console.log(`🚨 Sending payment failure notification for ${gateway} transaction ${transactionId}: ${failureReason}`)
+    console.log(`User lookup result for failed payment: userId=${userId}, gateway=${gateway}`)
 
     // Send email notification
     await EmailService.sendPaymentFailure(
@@ -221,26 +222,70 @@ export async function GET(request: NextRequest) {
     if (!verificationResult.success || !verificationResult.verified) {
       console.error('Flutterwave callback: Payment verification failed', verificationResult.error)
 
-      // Find user by transaction reference (same method as successful payments)
-      // Extract user email from transaction reference format: "user.email-timestamp"
+      // Enhanced user lookup for failed payments
       let userId = 'unknown'
-      if (idToUse && idToUse.includes('-')) {
+
+      // Method 1: Try to extract email from transaction reference (improved parsing)
+      if (idToUse) {
         try {
-          const refParts = idToUse.split('-')
-          if (refParts.length >= 2) {
-            const emailPart = refParts[refParts.length - 2] // email is second-last part
-            if (emailPart.includes('@')) {
-              const user = await prisma.user.findUnique({
-                where: { email: emailPart },
-                select: { id: true }
-              })
-              if (user) {
-                userId = user.id
-              }
+          // Handle different Flutterwave transaction reference formats
+          let customerEmail = null
+
+          // Format 1: TXN_timestamp_random (try to find associated payment record)
+          const existingPayment = await prisma.payment.findUnique({
+            where: { transactionId: idToUse },
+            select: { userId: true }
+          })
+          if (existingPayment?.userId) {
+            userId = existingPayment.userId
+            console.log(`Found userId from existing payment record: ${userId}`)
+          } else {
+            // Format 2: Try to extract email from reference if it contains email-like pattern
+            const emailMatch = idToUse.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/)
+            if (emailMatch) {
+              customerEmail = emailMatch[1]
+            }
+          }
+
+          // If we found email pattern, try to lookup user
+          if (customerEmail) {
+            const user = await prisma.user.findUnique({
+              where: { email: customerEmail },
+              select: { id: true }
+            })
+            if (user) {
+              userId = user.id
+              console.log(`Found userId from transaction reference email: ${userId}`)
             }
           }
         } catch (userLookupError) {
           console.error('Failed to lookup user from transaction reference:', userLookupError)
+        }
+      }
+
+      // Method 2: If still no userId, try to find by searching recent payments with similar transaction patterns
+      if (userId === 'unknown' && idToUse) {
+        try {
+          const recentPayments = await prisma.payment.findMany({
+            where: {
+              transactionId: {
+                contains: idToUse.substring(0, 10) // Use first part of transaction ID for matching
+              },
+              createdAt: {
+                gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
+              }
+            },
+            select: { userId: true },
+            orderBy: { createdAt: 'desc' },
+            take: 1
+          })
+
+          if (recentPayments.length > 0) {
+            userId = recentPayments[0].userId
+            console.log(`Found userId from recent payment pattern match: ${userId}`)
+          }
+        } catch (patternMatchError) {
+          console.error('Failed to lookup user from payment pattern matching:', patternMatchError)
         }
       }
 
@@ -314,7 +359,7 @@ export async function POST(request: NextRequest) {
           error: verificationResult.error
         })
 
-        // Find user by email (same method as successful payments)
+        // Enhanced user lookup for failed card payments
         let userId = 'unknown'
         if (data.customer?.email) {
           try {
@@ -324,9 +369,38 @@ export async function POST(request: NextRequest) {
             })
             if (user) {
               userId = user.id
+              console.log(`Found userId from customer email for failed card payment: ${userId}`)
+            } else {
+              console.log(`No user found for email: ${data.customer.email}`)
             }
           } catch (userLookupError) {
-            console.error('Failed to lookup user from customer email:', userLookupError)
+            console.error('Failed to lookup user from customer email for failed card payment:', userLookupError)
+          }
+        }
+
+        // Fallback: Try to find user by transaction reference pattern matching
+        if (userId === 'unknown' && verificationId) {
+          try {
+            const recentPayments = await prisma.payment.findMany({
+              where: {
+                transactionId: {
+                  contains: verificationId.substring(0, 10)
+                },
+                createdAt: {
+                  gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
+                }
+              },
+              select: { userId: true },
+              orderBy: { createdAt: 'desc' },
+              take: 1
+            })
+
+            if (recentPayments.length > 0) {
+              userId = recentPayments[0].userId
+              console.log(`Found userId from pattern matching for failed card payment: ${userId}`)
+            }
+          } catch (patternMatchError) {
+            console.error('Failed to lookup user from pattern matching for failed card payment:', patternMatchError)
           }
         }
 
@@ -441,7 +515,7 @@ export async function POST(request: NextRequest) {
           error: verificationResult.error
         })
 
-        // Find user by email (same method as successful payments)
+        // Enhanced user lookup for failed bank payments
         let userId = 'unknown'
         if (customer?.email) {
           try {
@@ -451,9 +525,38 @@ export async function POST(request: NextRequest) {
             })
             if (user) {
               userId = user.id
+              console.log(`Found userId from customer email for failed bank payment: ${userId}`)
+            } else {
+              console.log(`No user found for email: ${customer.email}`)
             }
           } catch (userLookupError) {
-            console.error('Failed to lookup user from customer email:', userLookupError)
+            console.error('Failed to lookup user from customer email for failed bank payment:', userLookupError)
+          }
+        }
+
+        // Fallback: Try to find user by transaction reference pattern matching
+        if (userId === 'unknown' && verificationId) {
+          try {
+            const recentPayments = await prisma.payment.findMany({
+              where: {
+                transactionId: {
+                  contains: verificationId.substring(0, 10)
+                },
+                createdAt: {
+                  gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
+                }
+              },
+              select: { userId: true },
+              orderBy: { createdAt: 'desc' },
+              take: 1
+            })
+
+            if (recentPayments.length > 0) {
+              userId = recentPayments[0].userId
+              console.log(`Found userId from pattern matching for failed bank payment: ${userId}`)
+            }
+          } catch (patternMatchError) {
+            console.error('Failed to lookup user from pattern matching for failed bank payment:', patternMatchError)
           }
         }
 

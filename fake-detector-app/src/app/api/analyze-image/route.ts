@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
         userPlan = 'basic'
       }
 
-      console.log(`🔍 [ANALYZE-IMAGE] USER PLAN DETECTION: Found user ${session.user.id}`)
+      console.log(`🔍 [ANALYZE-IMAGE] USER PLAN DETECTION: Found user ${session?.user?.id || 'unknown'}`)
       console.log(`🔍 [ANALYZE-IMAGE] Points: Basic=${user?.planBasicPoints || 0}, Standard=${user?.planStandardPoints || 0}, Business=${user?.planBusinessPoints || 0}`)
       console.log(`🔍 [ANALYZE-IMAGE] DETECTED PLAN: ${userPlan}`)
     } catch (error) {
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
         include: { aiProvider: true, plan: true }
       })
       console.log(`🔍 DEBUG: Found ${planAssignments.length} plan assignments for plan "${userPlan}":`,
-        planAssignments.map((pa: any) => `${pa.aiProvider.name} (${pa.aiProvider.provider})`))
+        planAssignments.map((pa: { aiProvider: { name: string; provider: string } }) => `${pa.aiProvider.name} (${pa.aiProvider.provider})`))
 
       if (planAssignments.length === 0) {
         console.log('⚠️ No plan assignments found - OCR will use free tier defaults')

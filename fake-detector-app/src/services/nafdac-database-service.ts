@@ -11,6 +11,10 @@ export interface NafdacSearchResult {
   severity: string
   scrapedAt: Date
   productNames: string[]
+  // AI-enhanced fields
+  aiProductNames?: string[]
+  aiBatchNumbers?: string[]
+  aiReason?: string
 }
 
 export class NafdacDatabaseService {
