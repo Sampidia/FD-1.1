@@ -109,51 +109,30 @@ function sanitizeInput(input: string): string {
     .substring(0, 1000)
 }
 
-// Fuzzy product name matching function - IMPROVED VERSION
+// Fuzzy product name matching function - STRICTER VERSION
 // MOVED UP to avoid hoisting issues
 function fuzzyProductMatch(userInput: string, aiExtracted: string): boolean {
   if (!userInput || !aiExtracted) return false
 
-  // Normalize strings for comparison (remove extra spaces, punctuation, case differences)
+  // Normalize strings for comparison
   const normalize = (str: string) => str.toLowerCase().trim()
     .replace(/[^\w\s]/g, ' ') // Remove punctuation
     .replace(/\s+/g, ' ') // Normalize spaces
 
-  // Additional normalization for pharmaceutical names
-  const pharmaNormalize = (str: string) => str
-    .replace(/\b\d+(mg|g|ml|l|iu|mcg|tablet|capsule|syrup|suspension|injection|powder|vial|ampoule)s?\b/g, '') // Remove dosages and forms
-    .replace(/\s+/g, ' ')
-    .trim()
-
   const userNormalized = normalize(userInput)
   const aiNormalized = normalize(aiExtracted)
 
-  // Create core product names (without dosages/forms) for base comparison
-  const userCore = pharmaNormalize(userInput)
-  const aiCore = pharmaNormalize(aiExtracted)
-
-  // Exact match (case-insensitive) - highest priority
+  // Exact match (case-insensitive)
   if (userNormalized === aiNormalized) {
     return true
   }
 
-  // Bidirectional substring check - user can be more detailed than database
-  // e.g., "EMBACEF-125 Suspension 125mg" contains "Embracef-125 Suspension"
-  if (userNormalized.includes(aiNormalized) || aiNormalized.includes(userNormalized)) {
+  // Substring check (whole user input must be contained in AI result)
+  if (aiNormalized.includes(userNormalized)) {
     return true
   }
 
-  // Core product matching without dosages
-  // e.g., "EMBACEF 125 Suspension" vs "Embracef 125 Suspension"
-  if (userCore && aiCore && (userCore.includes(aiCore) || aiCore.includes(userCore))) {
-    // Ensure at least partial word overlap
-    const userCoreWords = userCore.split(/\s+/)
-    const aiCoreWords = aiCore.split(/\s+/)
-    const commonWords = userCoreWords.filter(word => aiCoreWords.includes(word) && word.length > 2)
-    return commonWords.length >= Math.min(userCoreWords.length, aiCoreWords.length, 2)
-  }
-
-  // Split into words for smarter matching (fallback)
+  // Split into words for more precise matching
   const userWords = userNormalized.split(/\s+/)
   const aiWords = aiNormalized.split(/\s+/)
 
@@ -162,31 +141,15 @@ function fuzzyProductMatch(userInput: string, aiExtracted: string): boolean {
     return aiWords.includes(userNormalized)
   }
 
-  // Multiple words: smart matching for pharmaceutical names
+  // Multiple words: require at least 80% of key words (>2 chars) to match exactly
   const keyWords = userWords.filter(word => word.length > 2)
   if (keyWords.length === 0) return false
 
-  // Find exact matches and partial matches
   const exactMatches = keyWords.filter(word => aiWords.includes(word))
-  const partialMatches = keyWords.filter(word =>
-    aiWords.some(aiWord => aiWord.includes(word) || word.includes(aiWord)) &&
-    word.length > 3 // Only for longer words
-  )
+  const exactMatchRatio = exactMatches.length / keyWords.length
 
-  const totalMatches = exactMatches.length + partialMatches.length
-  const matchRatio = totalMatches / keyWords.length
-
-  // Flexible thresholds based on keyword count
-  if (keyWords.length <= 2) {
-    // For 1-2 keywords, require exact match or very high partial match
-    return exactMatches.length >= keyWords.length || matchRatio >= 0.9
-  } else if (keyWords.length <= 4) {
-    // For 3-4 keywords, require 75% match including partials
-    return matchRatio >= 0.75
-  } else {
-    // For 5+ keywords, require more flexibility (60% + at least 3 matches)
-    return matchRatio >= 0.6 && totalMatches >= 3
-  }
+  // Require 80% exact matches, OR all words if <= 3 keywords
+  return exactMatchRatio >= 0.8 || (keyWords.length <= 3 && exactMatches.length === keyWords.length)
 }
 
 export async function POST(request: NextRequest) {
