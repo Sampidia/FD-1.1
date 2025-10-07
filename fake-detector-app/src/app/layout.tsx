@@ -11,6 +11,7 @@ import { HideSentryWidget } from "@/components/hide-sentry-widget";
 import { SplashScreenManager } from "@/components/splash-screen-manager";
 import { EdgeToEdgeSupport } from "@/components/edge-to-edge-support";
 import { AdMobProvider } from "@/components/admob-provider";
+import { FirebaseCrashlyticsProvider } from "@/components/firebase-crashlytics-provider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -85,22 +86,24 @@ export default async function RootLayout({
                 <SplashScreenManager />
                 <EdgeToEdgeSupport />
                 <AdMobProvider />
-                <div className="min-h-screen flex flex-col">
-                  <div className="flex-1">
-                    {children}
-                  </div>
+                <FirebaseCrashlyticsProvider>
+                  <div className="min-h-screen flex flex-col">
+                    <div className="flex-1">
+                      {children}
+                    </div>
 
                   {/* Hide Sentry Widget on Mobile */}
                   <HideSentryWidget />
 
-                  {/* Mobile Bottom Section - PWA Prompt above Navigation */}
-                  <div className="md:hidden">
-                    <div className="fixed bottom-36 right-4 z-30 pb-safe">
-                      <PWAInstallPrompt />
+                    {/* Mobile Bottom Section - PWA Prompt above Navigation */}
+                    <div className="md:hidden">
+                      <div className="fixed bottom-36 right-4 z-30 pb-safe">
+                        <PWAInstallPrompt />
+                      </div>
+                      <MobileBottomNav />
                     </div>
-                    <MobileBottomNav />
                   </div>
-                </div>
+                </FirebaseCrashlyticsProvider>
               </MaintenanceModeProvider>
             </AuthProvider>
           </SentryProvider>

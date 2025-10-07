@@ -811,77 +811,74 @@ export function UploadForm() {
           </div>
         </div>
 
-        {/* Image Upload Zones */}
+        {/* Image Upload Zones - Platform Specific */}
         <div className="bg-white rounded-xl shadow-sm border p-6">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             📸 Product Images
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            {/* Front View Section */}
-            <div className="space-y-3">
-              <h3 className="font-medium text-gray-800 text-center">📷 Front View</h3>
-              <p className="text-xs text-gray-500 text-center">Product name should be visible</p>
-
-              {/* Camera Options */}
-              <div className="grid grid-cols-2 gap-2">
-                <CameraButton
-                  variant="camera"
-                  onPhotoCapture={(file, dataUrl) => handleImageSelect('front', file)}
-                  className="text-xs py-2"
-                />
-                <CameraButton
-                  variant="gallery"
-                  onPhotoCapture={(file, dataUrl) => handleImageSelect('front', file)}
-                  className="text-xs py-2"
-                />
+          {/* Platform Detection */}
+          {typeof window !== 'undefined' && 'Capacitor' in window ? (
+            /* MOBILE/CAPACITOR APP - Show Camera Buttons */
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              {/* Front View - Mobile */}
+              <div className="space-y-3">
+                <h3 className="font-medium text-gray-800 text-center">📷 Front View</h3>
+                <p className="text-xs text-gray-500 text-center">Product name should be visible</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <CameraButton
+                    variant="camera"
+                    onPhotoCapture={(file, dataUrl) => handleImageSelect('front', file)}
+                  />
+                  <CameraButton
+                    variant="gallery"
+                    onPhotoCapture={(file, dataUrl) => handleImageSelect('front', file)}
+                  />
+                </div>
               </div>
 
-              {/* Fallback Upload Zone */}
-              <div className="relative">
+              {/* Back View - Mobile */}
+              <div className="space-y-3">
+                <h3 className="font-medium text-gray-800 text-center">📷 Back View</h3>
+                <p className="text-xs text-gray-500 text-center">Batch number should be visible</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <CameraButton
+                    variant="camera"
+                    onPhotoCapture={(file, dataUrl) => handleImageSelect('back', file)}
+                  />
+                  <CameraButton
+                    variant="gallery"
+                    onPhotoCapture={(file, dataUrl) => handleImageSelect('back', file)}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* WEB BROWSER - Show Original Upload Interface */
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              {/* Front View - Web */}
+              <div className="space-y-3">
+                <h3 className="font-medium text-gray-800 text-center">📷 Front View</h3>
+                <p className="text-xs text-gray-500 text-center">Product name should be visible</p>
                 <UploadZone
                   zone="front"
-                  label=""
+                  label="Tap to upload or drag & drop"
                   onImageSelect={(file) => handleImageSelect('front', file)}
                 />
-                <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90 pointer-events-none">
-                  <p className="text-xs text-gray-500">Or drag & drop files here</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Back View Section */}
-            <div className="space-y-3">
-              <h3 className="font-medium text-gray-800 text-center">📷 Back View</h3>
-              <p className="text-xs text-gray-500 text-center">Batch number should be visible</p>
-
-              {/* Camera Options */}
-              <div className="grid grid-cols-2 gap-2">
-                <CameraButton
-                  variant="camera"
-                  onPhotoCapture={(file, dataUrl) => handleImageSelect('back', file)}
-                  className="text-xs py-2"
-                />
-                <CameraButton
-                  variant="gallery"
-                  onPhotoCapture={(file, dataUrl) => handleImageSelect('back', file)}
-                  className="text-xs py-2"
-                />
               </div>
 
-              {/* Fallback Upload Zone */}
-              <div className="relative">
+              {/* Back View - Web */}
+              <div className="space-y-3">
+                <h3 className="font-medium text-gray-800 text-center">📷 Back View</h3>
+                <p className="text-xs text-gray-500 text-center">Batch number should be visible</p>
                 <UploadZone
                   zone="back"
-                  label=""
+                  label="Tap to upload or drag & drop"
                   onImageSelect={(file) => handleImageSelect('back', file)}
                 />
-                <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90 pointer-events-none">
-                  <p className="text-xs text-gray-500">Or drag & drop files here</p>
-                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Manual Analysis Button - BLOCKED FOR INSUFFICIENT POINTS */}
           {Object.values(images).some(img => img !== null) && !imageAnalysis.hasAnalyzed && !imageAnalysis.isAnalyzing && pointsValidated && (
