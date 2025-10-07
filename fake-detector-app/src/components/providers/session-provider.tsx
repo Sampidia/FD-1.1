@@ -11,8 +11,8 @@ export default function AuthProvider({ children, session }: Props) {
   return (
     <SessionProvider
       session={session}
-      refetchInterval={30}
-      refetchOnWindowFocus={true}
+      refetchInterval={300}        // Increased from 30s to 5 minutes to prevent form clearing
+      refetchOnWindowFocus={false} // Disabled to prevent unwanted re-renders
     >
       {children}
     </SessionProvider>
