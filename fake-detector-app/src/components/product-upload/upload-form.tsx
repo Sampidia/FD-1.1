@@ -103,11 +103,13 @@ export function UploadForm() {
     result: ImageAnalysisResponse | null
     progress: number
     hasAnalyzed: boolean
+    lastAttemptTime: number // Track when we last attempted analysis
   }>({
     isAnalyzing: false,
     result: null,
     progress: 0,
-    hasAnalyzed: false
+    hasAnalyzed: false,
+    lastAttemptTime: 0
   })
 
   // New state for insufficient points mode
@@ -232,7 +234,7 @@ export function UploadForm() {
       console.log('🛡️ OCR BLOCKED: Insufficient points - showing manual button only')
       // No auto-OCR - user must click manual button for insufficient points
     }
-  }, [images, pointsValidated, hasSufficientPoints, lastAnalyzedImageCount, imageAnalysis.isAnalyzing])
+  }, [images, pointsValidated, hasSufficientPoints, lastAnalyzedImageCount, imageAnalysis.isAnalyzing, imageAnalysis.lastAttemptTime])
 
   // Function to fetch daily points availability status
   const fetchDailyPointsStatus = async () => {
@@ -346,6 +348,10 @@ export function UploadForm() {
         progress: 0,
         result: null
       }))
+
+      // Update lastAnalyzedImageCount to prevent useEffect recalculation loops
+      const currentImageCount = Object.values(images).filter(img => img !== null).length
+      setLastAnalyzedImageCount(currentImageCount)
     }
   }
 
@@ -469,17 +475,38 @@ export function UploadForm() {
 
     } catch (error) {
       console.error('New Image Analysis failed:', error)
+
+      const currentTime = Date.now()
+      const timeSinceLastAttempt = currentTime - imageAnalysis.lastAttemptTime
+      const shouldAllowFallback = timeSinceLastAttempt > 5000 // 5 second cooldown
+
+      if (!shouldAllowFallback) {
+        console.log('⏳ Recent OCR failure - skipping fallback to prevent infinite loop')
+        setImageAnalysis(prev => ({
+          ...prev,
+          isAnalyzing: false,
+          progress: 0,
+          result: null,
+          hasAnalyzed: true, // Mark as analyzed to prevent auto-retrigger
+          lastAttemptTime: currentTime
+        }))
+        return
+      }
+
       setImageAnalysis(prev => ({
         ...prev,
         isAnalyzing: false,
         progress: 0,
         result: null,
-        hasAnalyzed: false
+        hasAnalyzed: false, // Allow fallback attempt
+        lastAttemptTime: currentTime
       }))
 
-      // Fallback to old analysis method
-      console.log('🔄 Falling back to legacy analysis method')
-      analyzeImagesAutomatically()
+      // Fallback to old analysis method with a delay to prevent chain reactions
+      setTimeout(() => {
+        console.log('🔄 Falling back to legacy analysis method after cooldown')
+        analyzeImagesAutomatically()
+      }, 2000) // 2 second delay to let state settle
     }
   }
 
