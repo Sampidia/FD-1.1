@@ -34,7 +34,14 @@ self.addEventListener('install', event => {
     Promise.all([
       caches.open(STATIC_CACHE).then(cache => {
         console.log('📦 Caching static assets...');
-        return cache.addAll(STATIC_ASSETS);
+        // Wrap in try-catch to prevent service worker crash
+        return cache.addAll(STATIC_ASSETS).catch(error => {
+          console.warn('⚠️ Failed to cache static assets, continuing:', error);
+          // Try to cache critical assets individually
+          return Promise.allSettled(
+            STATIC_ASSETS.slice(0, 3).map(url => cache.add(url).catch(e => console.warn(`Failed to cache ${url}:`, e)))
+          );
+        });
       }),
       // Skip waiting to activate immediately
       self.skipWaiting()
@@ -132,8 +139,12 @@ async function cacheFirst(request) {
 
     // Cache successful GET responses
     if (request.method === 'GET' && networkResponse.ok) {
-      const cache = await caches.open(API_CACHE);
-      cache.put(request, networkResponse.clone());
+      try {
+        const cache = await caches.open(API_CACHE);
+        await cache.put(request, networkResponse.clone());
+      } catch (cacheError) {
+        console.warn('Failed to cache GET response:', cacheError);
+      }
     }
 
     return networkResponse;
@@ -159,8 +170,12 @@ async function networkFirst(request) {
 
     // Cache successful responses
     if (networkResponse.ok) {
-      const cache = await caches.open(API_CACHE);
-      cache.put(request, networkResponse.clone());
+      try {
+        const cache = await caches.open(API_CACHE);
+        await cache.put(request, networkResponse.clone());
+      } catch (cacheError) {
+        console.warn('Failed to cache POST response:', cacheError);
+      }
     }
 
     return networkResponse;
@@ -233,16 +248,22 @@ async function queueScanForSync(request) {
     }
 
     // Show notification
-    await self.registration.showNotification('Scan Queued', {
-      body: 'Your product scan will be uploaded when connection is restored.',
-      icon: '/logo.png',
-      badge: '/logo.png',
-      tag: 'scan-queued',
-      requireInteraction: false,
-      actions: [
-        { action: 'view-dashboard', title: 'View Dashboard' }
-      ]
-    });
+    if ('showNotification' in self.registration) {
+      try {
+        await self.registration.showNotification('Scan Queued', {
+          body: 'Your product scan will be uploaded when connection is restored.',
+          icon: '/logo.png',
+          badge: '/logo.png',
+          tag: 'scan-queued',
+          requireInteraction: false,
+          actions: [
+            { action: 'view-dashboard', title: 'View Dashboard' }
+          ]
+        });
+      } catch (notificationError) {
+        console.warn('Failed to show notification:', notificationError);
+      }
+    }
 
   } catch (error) {
     console.error('Failed to queue scan:', error);
@@ -281,13 +302,19 @@ async function syncPendingScans() {
           await cache.delete(request);
 
           // Notify user of successful sync
-          await self.registration.showNotification('Scan Synced', {
-            body: 'Your offline scan has been uploaded successfully.',
-            icon: '/logo.png',
-            actions: [
-              { action: 'view-results', title: 'View Results' }
-            ]
-          });
+          if ('showNotification' in self.registration) {
+            try {
+              await self.registration.showNotification('Scan Synced', {
+                body: 'Your offline scan has been uploaded successfully.',
+                icon: '/logo.png',
+                actions: [
+                  { action: 'view-results', title: 'View Results' }
+                ]
+              });
+            } catch (notificationError) {
+              console.warn('Failed to show sync notification:', notificationError);
+            }
+          }
         } else {
           console.warn('❌ Queued scan sync failed, will retry later');
         }
