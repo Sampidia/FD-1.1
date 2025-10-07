@@ -27,26 +27,12 @@ const API_ENDPOINTS = [
 // Background sync tag for failed requests
 const BG_SYNC_TAG = 'scan-sync';
 
-// Install event - cache static assets
+// Install event - skip problematic caching to prevent crashes
 self.addEventListener('install', event => {
   console.log('🛠️ Service Worker installing...');
-  event.waitUntil(
-    Promise.all([
-      caches.open(STATIC_CACHE).then(cache => {
-        console.log('📦 Caching static assets...');
-        // Wrap in try-catch to prevent service worker crash
-        return cache.addAll(STATIC_ASSETS).catch(error => {
-          console.warn('⚠️ Failed to cache static assets, continuing:', error);
-          // Try to cache critical assets individually
-          return Promise.allSettled(
-            STATIC_ASSETS.slice(0, 3).map(url => cache.add(url).catch(e => console.warn(`Failed to cache ${url}:`, e)))
-          );
-        });
-      }),
-      // Skip waiting to activate immediately
-      self.skipWaiting()
-    ])
-  );
+  // Skip problematic cache operations that cause page reloads
+  event.waitUntil(Promise.resolve()); // No-cache install for stability
+  self.skipWaiting();
 });
 
 // Activate event - clean old caches and claim clients
@@ -71,32 +57,15 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch event - handle requests
+// Fetch event - simplified to prevent crashes
 self.addEventListener('fetch', event => {
-  const { request } = event;
-  const url = new URL(request.url);
+  console.log('📡 Service Worker intercepting fetch:', event.request.url);
 
-  // Handle API requests
-  if (url.pathname.startsWith('/api/')) {
-    // Cache GET requests (balance, alerts)
-    if (request.method === 'GET' && API_ENDPOINTS.some(endpoint => url.pathname.startsWith(endpoint))) {
-      event.respondWith(cacheFirst(request));
-    }
-    // Queue POST requests (scans) for offline
-    else if (request.method === 'POST' && url.pathname.includes('/verify-product') || url.pathname.includes('/analyze-image')) {
-      event.respondWith(networkFirst(request));
-    }
-    return;
-  }
+  // Skip all caching for now to prevent issues - just let requests pass through
+  // event.respondWith(fetch(event.request)); // Uncomment if needed
 
-  // Handle static assets
-  if (STATIC_ASSETS.includes(url.pathname) || url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|ico|svg)$/)) {
-    event.respondWith(cacheFirst(request));
-    return;
-  }
-
-  // Network first for dynamic content
-  event.respondWith(networkFirst(request));
+  // For now, let requests pass through normally without service worker intervention
+  // This prevents any potential cache operations that could crash the worker
 });
 
 // Background sync for failed scan requests
