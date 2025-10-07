@@ -168,13 +168,13 @@ async function networkFirst(request) {
     // Try network first
     const networkResponse = await fetch(request);
 
-    // Cache successful responses
-    if (networkResponse.ok) {
+    // Cache successful GET responses only (not POST)
+    if (networkResponse.ok && request.method === 'GET') {
       try {
         const cache = await caches.open(API_CACHE);
         await cache.put(request, networkResponse.clone());
       } catch (cacheError) {
-        console.warn('Failed to cache POST response:', cacheError);
+        console.warn('Failed to cache GET response:', cacheError);
       }
     }
 
