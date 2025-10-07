@@ -817,8 +817,20 @@ export function UploadForm() {
             📸 Product Images
           </h2>
 
-          {/* Platform Detection */}
-          {typeof window !== 'undefined' && 'Capacitor' in window ? (
+          {/* Platform Detection - Improved */}
+          {(() => {
+            // More reliable platform detection
+            const isCapacitorAvailable = typeof window !== 'undefined' && typeof (window as { Capacitor?: unknown }).Capacitor !== 'undefined'
+            const isMobileDevice = typeof window !== 'undefined' &&
+              /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+            const hasCameraAPI = typeof window !== 'undefined' &&
+              'mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices
+
+            // Show camera buttons only on verified mobile devices with Capacitor (stricter check)
+            const showMobileInterface = isCapacitorAvailable && isMobileDevice
+
+            return showMobileInterface
+          })() ? (
             /* MOBILE/CAPACITOR APP - Show Camera Buttons */
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               {/* Front View - Mobile */}
@@ -862,7 +874,7 @@ export function UploadForm() {
                 <p className="text-xs text-gray-500 text-center">Product name should be visible</p>
                 <UploadZone
                   zone="front"
-                  label="Tap to upload or drag & drop"
+                  label=""
                   onImageSelect={(file) => handleImageSelect('front', file)}
                 />
               </div>
@@ -873,7 +885,7 @@ export function UploadForm() {
                 <p className="text-xs text-gray-500 text-center">Batch number should be visible</p>
                 <UploadZone
                   zone="back"
-                  label="Tap to upload or drag & drop"
+                  label=""
                   onImageSelect={(file) => handleImageSelect('back', file)}
                 />
               </div>
