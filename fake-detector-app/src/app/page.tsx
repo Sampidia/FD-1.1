@@ -39,7 +39,7 @@ export default function HomePage() {
             </h1>
             <p className="max-w-2xl text-lg text-gray-600 leading-relaxed">
               Scan and verify products that has NAFDAC Reg Number utilizing NAFDAC's comprehensive database.
-              Get instant results, earn rewards, and stay protected from counterfeit products.
+              Get instant results, and stay protected from counterfeit products.
             </p>
           </div>
 
@@ -56,7 +56,7 @@ export default function HomePage() {
                 <Link href="/auth/signup">
                   <Button size="lg" className="text-lg px-8 py-6">
                     <Shield className="w-5 h-5 mr-2" />
-                    Get Started Free
+                    Get Started
                   </Button>
                 </Link>
                 <Link href="/auth/signin">
@@ -71,7 +71,7 @@ export default function HomePage() {
           <div className="flex flex-col sm:flex-row items-center gap-8 text-sm text-gray-600">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-yellow-500" />
-              <span>Get <strong>free points</strong> when you sign up</span>
+              <span>Get <strong>access</strong> when you sign up</span>
             </div>
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-green-500" />
@@ -79,7 +79,7 @@ export default function HomePage() {
             </div>
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-blue-500" />
-              <span>Join <strong>10,000+</strong> users</span>
+              <span>Ai <strong>Analysis</strong></span>
             </div>
           </div>
         </div>
@@ -102,7 +102,7 @@ export default function HomePage() {
               </div>
               <CardTitle className="text-xl">1. Sign Up</CardTitle>
               <CardDescription>
-                Create your account with email and get free points
+                Create your account with email
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -141,7 +141,7 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-gray-600">
-                Know immediately if your product is genuine or counterfeit
+                Know immediately if your product is a recall or counterfeit product
               </p>
             </CardContent>
           </Card>
@@ -154,8 +154,7 @@ export default function HomePage() {
           <CardContent className="py-16">
             <h2 className="text-3xl font-bold mb-4">Ready to Verify Your First Product?</h2>
             <p className="text-blue-100 mb-8 max-w-2xl mx-auto">
-              Join thousands of users who are already protecting themselves from counterfeit products.
-              Start with free points and upgrade anytime.
+              Start scanning to check your products against NAFDAC Public Recalls and Alerts.
             </p>
             {status === "authenticated" ? (
               <Link href="/dashboard">
@@ -167,7 +166,7 @@ export default function HomePage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link href="/auth/signup">
                   <Button size="lg" className="text-lg px-8 bg-white text-blue-600 hover:bg-gray-100">
-                    Start Free Today
+                    Start Today
                   </Button>
                 </Link>
                 <Link href="/auth/signin">

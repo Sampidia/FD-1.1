@@ -472,7 +472,7 @@ export default function DashboardPage() {
                     className="w-full mt-4 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-amber-500/25 hover:bg-amber-600 hover:border-amber-600"
                   >
                     <Download className="w-4 h-4 mr-2 transition-transform duration-300 hover:translate-y-1" />
-                    Get Free Points
+                    Get Points
                   </Button>
                 )}
               </div>
