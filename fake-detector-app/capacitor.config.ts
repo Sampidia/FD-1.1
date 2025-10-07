@@ -33,6 +33,10 @@ const config: CapacitorConfig = {
     AndroidEdgeToEdgeSupport: {
       enabled: true
     },
+    // Camera Configuration
+    Camera: {
+      // No additional configuration needed for basic usage
+    },
     // Browser - for in-app web views (payment flows)
     Browser: {}
   }

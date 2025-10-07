@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { UploadZone } from "./upload-zone"
+import { CameraButton } from "@/components/camera/camera-button"
 import { Button } from "@/components/ui/button"
 import { imagePreprocessing, PreprocessingResult, ImagePreprocessingService } from "@/services/image-preprocessing"
 import { showBasicPointAd, canEarnAdRewardToday, getUserRewardStatus, isMobileAdMobAvailable } from "@/lib/mobile-admob"
@@ -687,7 +688,7 @@ export function UploadForm() {
     setIsWatchingAd(true)
 
     try {
-      const sessionUser = session?.user as any // Type assertion for custom properties
+      const sessionUser = session?.user as { id?: string } // Type assertion for custom properties
       if (!sessionUser?.id) {
         throw new Error('User not authenticated')
       }
@@ -816,23 +817,69 @@ export function UploadForm() {
             📸 Product Images
           </h2>
 
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <UploadZone
-                zone="front"
-                label="Front View"
-                onImageSelect={(file) => handleImageSelect('front', file)}
-              />
-              <p className="text-xs text-gray-500 mt-2 text-center">Product name should be visible</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            {/* Front View Section */}
+            <div className="space-y-3">
+              <h3 className="font-medium text-gray-800 text-center">📷 Front View</h3>
+              <p className="text-xs text-gray-500 text-center">Product name should be visible</p>
+
+              {/* Camera Options */}
+              <div className="grid grid-cols-2 gap-2">
+                <CameraButton
+                  variant="camera"
+                  onPhotoCapture={(file, dataUrl) => handleImageSelect('front', file)}
+                  className="text-xs py-2"
+                />
+                <CameraButton
+                  variant="gallery"
+                  onPhotoCapture={(file, dataUrl) => handleImageSelect('front', file)}
+                  className="text-xs py-2"
+                />
+              </div>
+
+              {/* Fallback Upload Zone */}
+              <div className="relative">
+                <UploadZone
+                  zone="front"
+                  label=""
+                  onImageSelect={(file) => handleImageSelect('front', file)}
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90 pointer-events-none">
+                  <p className="text-xs text-gray-500">Or drag & drop files here</p>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <UploadZone
-                zone="back"
-                label="Back View"
-                onImageSelect={(file) => handleImageSelect('back', file)}
-              />
-              <p className="text-xs text-gray-500 mt-2 text-center">Batch number should be visible</p>
+            {/* Back View Section */}
+            <div className="space-y-3">
+              <h3 className="font-medium text-gray-800 text-center">📷 Back View</h3>
+              <p className="text-xs text-gray-500 text-center">Batch number should be visible</p>
+
+              {/* Camera Options */}
+              <div className="grid grid-cols-2 gap-2">
+                <CameraButton
+                  variant="camera"
+                  onPhotoCapture={(file, dataUrl) => handleImageSelect('back', file)}
+                  className="text-xs py-2"
+                />
+                <CameraButton
+                  variant="gallery"
+                  onPhotoCapture={(file, dataUrl) => handleImageSelect('back', file)}
+                  className="text-xs py-2"
+                />
+              </div>
+
+              {/* Fallback Upload Zone */}
+              <div className="relative">
+                <UploadZone
+                  zone="back"
+                  label=""
+                  onImageSelect={(file) => handleImageSelect('back', file)}
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90 pointer-events-none">
+                  <p className="text-xs text-gray-500">Or drag & drop files here</p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1102,7 +1149,7 @@ export function UploadForm() {
                       </div>
                     <div className="text-xs text-gray-500 mt-1">
                         {aiAnalysis.result.processingTime < 1000 ? 'Excellent speed' :
-                         aiAnalysis.result.processingTime < 2000 ? 'Good performance' : 'Processing&hellip;'}
+                         aiAnalysis.result.processingTime < 2000 ? 'Good performance' : 'Processing…'}
                       </div>
                     </div>
 
