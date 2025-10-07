@@ -375,7 +375,7 @@ export function UploadForm() {
             maxHeight: 1200,
             quality: 0.9,
             enhanceContrast: true,
-            sharpenText: true,
+            sharpenText: false,
             format: 'jpeg'
           })
         : await Promise.all(imageFiles.map(async (file) => ({

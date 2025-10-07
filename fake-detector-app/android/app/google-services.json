@@ -7,20 +7,12 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:104134177023:android:6fddf54c097f9f45449cca",
+        "mobilesdk_app_id": "1:104134177023:android:f14f5857272d0711449cca",
         "android_client_info": {
           "package_name": "com.sampidia.fakeproductdetector"
         }
       },
       "oauth_client": [
-        {
-          "client_id": "104134177023-gh5l4pdb7fp8o3bfd60eshrtr0hod0t3.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.sampidia.fakeproductdetector",
-            "certificate_hash": "69839f6cdc6a60ccd8fadb4704071b5897061ea7"
-          }
-        },
         {
           "client_id": "104134177023-e46bef4f1t0b1loaco03sujt9g2nphjo.apps.googleusercontent.com",
           "client_type": 3

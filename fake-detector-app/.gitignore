@@ -70,6 +70,7 @@ test-db-connection.js
 test-gemini-ocr.js
 test-metrics.js
 test-schema.ts
+google-services.json
 
 # Development Utilities
 generate-secret.js
@@ -89,3 +90,7 @@ next-env.d.ts
 # Backup files
 *.backup
 next.config.ts.backup
+
+# Android/Firebase configuration (contains API keys)
+android/app/google-services.json
+ios/App/App/GoogleService-Info.plist
