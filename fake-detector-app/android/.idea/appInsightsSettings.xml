@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="AppInsightsSettings">
+    <option name="selectedTabId" value="Android Vitals" />
     <option name="tabSettings">
       <map>
         <entry key="Android Vitals">
@@ -23,7 +24,7 @@
               <option name="connection">
                 <ConnectionSetting>
                   <option name="appId" value="com.sampidia.fakeproductdetector" />
-                  <option name="mobileSdkAppId" value="1:104134177023:android:6fddf54c097f9f45449cca" />
+                  <option name="mobileSdkAppId" value="1:104134177023:android:f14f5857272d0711449cca" />
                   <option name="projectId" value="fake-detector-mobile" />
                   <option name="projectNumber" value="104134177023" />
                 </ConnectionSetting>

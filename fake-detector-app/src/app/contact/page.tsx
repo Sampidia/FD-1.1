@@ -40,6 +40,14 @@ const faqQuestions = [
   {
     question: "Can I use this for business purposes?",
     answer: "Yes! We offer business accounts with higher scan limits, priority processing, and dedicated support. Contact us for business partnership details."
+  },
+  {
+    question: "How to delete my account?",
+    answer: "You can request account deletion by filling the form above and include your account email and password or visit: https://sampidia.com/app-account-deletion/"
+  },
+  {
+    question: "How we protect your privacy?",
+    answer: "Generally, information collected are secured. We takes precautions to insure that User information is kept private. We use reasonable measures to protect other member information that is stored within our database. However, no system can be completely secure.\n\nTherefore, although we take steps to secure your information, we do not promise, and you should not expect, that your personal information, searches, or other communications will always remain secure.\n\nUsers should also take care with how they handle and disclose their personal information and should avoid sending personal information through insecure email. Read more at: https://sampidia.com/privacy-policy/"
   }
 ]
 
