@@ -909,6 +909,42 @@ export function UploadForm() {
                   <div className="grid md:grid-cols-2 gap-4">
                     {/* Extracted Information */}
                     <div className="space-y-3">
+                      {/* ⚠️ Warning when OCR returned empty results */}
+                      {imageAnalysis.result && imageAnalysis.hasAnalyzed && 
+                       !imageAnalysis.result.analysis.productName && 
+                       imageAnalysis.result.analysis.batchNumbers.length === 0 && (
+                        <div className="bg-amber-50 border border-amber-300 rounded-lg p-4">
+                          <div className="flex items-start gap-3">
+                            <span className="text-2xl mt-0.5">⚠️</span>
+                            <div className="flex-1">
+                              <h4 className="text-sm font-bold text-amber-800 mb-1">No Product Information Detected</h4>
+                              <p className="text-xs text-amber-700 mb-3">
+                                The AI successfully scanned your image but could not identify pharmaceutical or product details. 
+                                This may happen if the image is not a product package, or the text is not clearly visible.
+                              </p>
+                              <p className="text-xs text-amber-600 mb-3">
+                                💡 If this is a valid product, you can manually enter the product name and batch number below, 
+                                then click the button to proceed with verification.
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  // Scroll to product info fields and focus
+                                  const productInput = document.querySelector('input[placeholder*="Paracetamol"]') as HTMLInputElement
+                                  if (productInput) {
+                                    productInput.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                                    setTimeout(() => productInput.focus(), 300)
+                                  }
+                                }}
+                                className="w-full py-2 px-4 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+                              >
+                                ✏️ Enter Product Info Manually
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {imageAnalysis.result.analysis.productName && (
                         <div className="bg-green-50 border border-green-200 rounded p-3">
                           <div className="text-sm font-medium text-green-800 mb-1">📦 Product Name:</div>

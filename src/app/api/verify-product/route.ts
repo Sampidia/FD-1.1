@@ -79,7 +79,7 @@ const verifyProductSchema = z.object({
 
   userBatchNumber: z.string()
     .max(50, 'Batch number must not exceed 50 characters')
-    .regex(/^[A-Za-z0-9\-_\s]*$/, 'Batch number contains invalid characters')
+    .regex(/^[A-Za-z0-9\-_\s\/\.]*$/, 'Batch number contains invalid characters')
     .optional(),
 
   images: z.array(z.string())
