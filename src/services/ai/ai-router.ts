@@ -274,9 +274,47 @@ export class AIServiceRouter {
       // Handle preferred provider selection if provided
       if (request.preferredProvider) {
         console.log(`🎯 USER PREFERENCE DETECTED: Prioritizing ${request.preferredProvider}`)
+        const requested = request.preferredProvider === 'gemini' ? 'google' : request.preferredProvider
+        
+        // 🚀 CRITICAL: If the preferred provider is NOT in the assignments, inject it
+        // This ensures new providers like Nova work even if not yet in database assignments
+        if (!assignments.some(a => a.provider === requested)) {
+          console.log(`➕ Injecting missing preferred provider: ${requested}`)
+          
+          if (requested === 'amazon-nova' && this.aiInstances.amazonNova) {
+            assignments.unshift({
+              planId: userPlan?.id || 'free',
+              aiType: request.task as any,
+              provider: 'amazon-nova',
+              priority: 0, // Top priority
+              config: {
+                apiKey: '',
+                modelName: 'amazon.nova-lite-v1:0',
+                temperature: 0.1,
+                maxTokens: 2000,
+                costInput: 0.00000025,
+                costOutput: 0.000001
+              }
+            })
+          } else if (requested === 'google' && this.aiInstances.gemini) {
+            assignments.unshift({
+              planId: userPlan?.id || 'free',
+              aiType: request.task as any,
+              provider: 'google',
+              priority: 0, // Top priority
+              config: {
+                apiKey: '',
+                modelName: 'gemini-1.5-flash',
+                temperature: 0.7,
+                maxTokens: 2048,
+                costInput: 0.00000025,
+                costOutput: 0.000001
+              }
+            })
+          }
+        }
+
         assignments.sort((a, b) => {
-          // Note: map 'amazon-nova' to 'amazon-nova' and 'gemini' to 'google' to match assignment provider field
-          const requested = request.preferredProvider === 'gemini' ? 'google' : request.preferredProvider
           if (a.provider === requested) return -1
           if (b.provider === requested) return 1
           return a.priority - b.priority
@@ -1212,6 +1250,14 @@ export class AIServiceRouter {
         this.aiInstances.claude.checkHealth()
           .then(healthy => ({ provider: 'anthropic', healthy }))
           .catch(() => ({ provider: 'anthropic', healthy: false }))
+      )
+    }
+
+    if (this.aiInstances.amazonNova) {
+      checks.push(
+        this.aiInstances.amazonNova.checkHealth()
+          .then(healthy => ({ provider: 'amazon-nova', healthy }))
+          .catch(() => ({ provider: 'amazon-nova', healthy: false }))
       )
     }
 

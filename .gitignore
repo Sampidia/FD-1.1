@@ -88,4 +88,12 @@ next-env.d.ts
 
 # Backup files
 *.backup
-next.config.ts.backup
+# Android
+android/build/
+android/.gradle/
+android/.idea/
+android/local.properties
+android/app/build/
+*.pyc
+*.pyo
+**/__pycache__/

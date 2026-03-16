@@ -185,25 +185,26 @@ export function UploadForm() {
     }
   }, [isInsufficientPointsMode, dailyStatusLoaded])
 
-  // 🔄 SMART AUTO-OCR: Only trigger when images uploaded AND points validated as sufficient
+  // 🔄 SMART AUTO-OCR: Trigger when images uploaded AND points validated
   useEffect(() => {
     const hasAnyImage = Object.values(images).some(img => img !== null)
     const imageCount = Object.values(images).filter(img => img !== null).length
     const hasNewImages = imageCount > lastAnalyzedImageCount
 
     // 🚀 AUTO-TRIGGER CONDITIONS:
-    // ✅ Images uploaded AND ✅ Points validated AND ✅ Sufficient points AND ✅ New images detected AND ❌ Not already analyzing
-    if (hasAnyImage && pointsValidated && hasSufficientPoints && hasNewImages && !imageAnalysis.isAnalyzing) {
+    // ✅ Images uploaded AND ✅ Points validated AND (✅ Sufficient points OR ✅ Free AI provider selected) AND ✅ New images detected AND ❌ Not already analyzing
+    const canAutoAnalyze = hasAnyImage && pointsValidated && (hasSufficientPoints || selectedAI === 'gemini' || selectedAI === 'amazon-nova') && hasNewImages && !imageAnalysis.isAnalyzing
+
+    if (canAutoAnalyze) {
       console.log(`🤖 SMART AUTO-OCR: Processing ${imageCount} image(s) for validated user (new: ${imageCount - lastAnalyzedImageCount})...`)
       analyzeImagesWithNewAPI()
     }
 
-    // ⚠️ BLOCK AUTO-OCR for insufficient points (manual button only)
-    if (hasAnyImage && pointsValidated && !hasSufficientPoints && hasNewImages) {
-      console.log('🛡️ OCR BLOCKED: Insufficient points - showing manual button only')
-      // No auto-OCR - user must click manual button for insufficient points
+    // ⚠️ BLOCK AUTO-OCR for insufficient points only if NOT using free providers
+    if (hasAnyImage && pointsValidated && !hasSufficientPoints && selectedAI !== 'gemini' && selectedAI !== 'amazon-nova' && hasNewImages) {
+      console.log('🛡️ OCR BLOCKED: Insufficient points for premium provider - showing manual button only')
     }
-  }, [images, pointsValidated, hasSufficientPoints, lastAnalyzedImageCount, imageAnalysis.isAnalyzing])
+  }, [images, pointsValidated, hasSufficientPoints, lastAnalyzedImageCount, imageAnalysis.isAnalyzing, selectedAI])
 
   // Function to fetch daily points availability status
   const fetchDailyPointsStatus = async () => {
@@ -660,7 +661,51 @@ export function UploadForm() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Product Information */}
+          {/* ✨ AI PROVIDER TOGGLE CARD - FOR FREE USERS TO CHOOSE ✨ */}
+          <div className="mb-6 bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-4 shadow-sm ring-1 ring-indigo-200/50">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-sm shadow-sm ring-1 ring-white/20">
+                  {selectedAI === 'gemini' ? '✨' : '🚀'}
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-indigo-700 uppercase tracking-wider block">Intelligence Provider</span>
+                  <span className="text-[10px] text-indigo-500 font-medium">Choose your preferred verification engine</span>
+                </div>
+              </div>
+              <span className="text-[10px] bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded-full font-bold shadow-sm">FREE ACCESS</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setSelectedAI('gemini')}
+                className={`flex flex-col items-center justify-center gap-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300 ${
+                  selectedAI === 'gemini' 
+                    ? 'bg-white text-indigo-600 shadow-lg scale-[1.02] ring-2 ring-indigo-500 transform -translate-y-0.5' 
+                    : 'bg-indigo-100/40 text-indigo-400 hover:bg-indigo-100/80 grayscale'
+                }`}
+              >
+                <span className="text-xl mb-1">✨</span>
+                Gemini AI
+                <span className="text-[9px] font-normal opacity-70">Deep Analysis</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedAI('amazon-nova')}
+                className={`flex flex-col items-center justify-center gap-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300 ${
+                  selectedAI === 'amazon-nova' 
+                    ? 'bg-white text-purple-600 shadow-lg scale-[1.02] ring-2 ring-purple-500 transform -translate-y-0.5' 
+                    : 'bg-purple-100/40 text-purple-400 hover:bg-purple-100/80 grayscale'
+                }`}
+              >
+                <span className="text-xl mb-1">🚀</span>
+                Nova AI
+                <span className="text-[9px] font-normal opacity-70">Lightning Speed</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Product Information */}
         <div className="bg-white rounded-xl shadow-sm border p-6">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             📋 Product Information
@@ -762,37 +807,6 @@ export function UploadForm() {
             </div>
           </div>
 
-          {/* ✨ AI PROVIDER TOGGLE CARD - FOR FREE USERS TO CHOOSE ✨ */}
-          <div className="mb-4 bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-3 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-indigo-700 uppercase tracking-wider">Select AI Intelligence</span>
-              <span className="text-[10px] bg-indigo-200 text-indigo-800 px-1.5 py-0.5 rounded-full font-semibold">FREE OPTION</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setSelectedAI('gemini')}
-                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                  selectedAI === 'gemini' 
-                    ? 'bg-white text-indigo-600 shadow-md scale-[1.02] ring-2 ring-indigo-400' 
-                    : 'bg-indigo-100/50 text-indigo-400 hover:bg-indigo-100'
-                }`}
-              >
-                <span>✨</span> Gemini AI
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedAI('amazon-nova')}
-                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                  selectedAI === 'amazon-nova' 
-                    ? 'bg-white text-purple-600 shadow-md scale-[1.02] ring-2 ring-purple-400' 
-                    : 'bg-purple-100/50 text-purple-400 hover:bg-purple-100'
-                }`}
-              >
-                <span>🚀</span> Nova AI
-              </button>
-            </div>
-          </div>
 
           {/* Manual Analysis Button - BLOCKED FOR INSUFFICIENT POINTS */}
           {Object.values(images).some(img => img !== null) && !imageAnalysis.hasAnalyzed && !imageAnalysis.isAnalyzing && pointsValidated && (

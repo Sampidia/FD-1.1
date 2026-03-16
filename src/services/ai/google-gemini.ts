@@ -1,98 +1,38 @@
 import { AIProviderConfig, AIResponse, AIRequest } from './types-fixed'
-
-// Dynamic import for Google Cloud libraries (ESM compatibility)
-let VertexAI: any
-let GoogleAuth: any
-
-const initializeGoogleCloud = async () => {
-  if (!VertexAI) {
-    const vertexModule = await import('@google-cloud/vertexai')
-    const authModule = await import('google-auth-library')
-    VertexAI = vertexModule.VertexAI
-    GoogleAuth = authModule.GoogleAuth
-  }
-}
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
 export class GeminiService {
-  private vertexAI: any = null
+  private genAI: any = null
   private config: AIProviderConfig
-  private project: string
-  private location: string
 
   constructor(config: AIProviderConfig) {
     this.config = config
-    // Extract project and location from config or use defaults
-    this.project = process.env.GOOGLE_CLOUD_PROJECT || 'fake-detector-449119'
-    this.location = 'us-central1' // Default Google Cloud region
-
-    // Initialize Google Cloud auth (lazy)
     this.initializeAuth()
   }
 
-  private async initializeAuth() {
-    await initializeGoogleCloud()
-
+  private initializeAuth() {
     try {
-      console.log(`🔐 Initializing Google Cloud auth for project: ${this.project}`)
-
-      const auth = new GoogleAuth({
-        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-      })
-
-      // Handle Google Cloud authentication - check for different credential sources
-      const googleAppCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS
-      let client
-
-      if (googleAppCredentials) {
-        try {
-          // Check if it's a JSON string (service account credentials)
-          if (googleAppCredentials.trim().startsWith('{')) {
-            console.log(`🔑 Using inline service account credentials`)
-
-            const credentials = JSON.parse(googleAppCredentials)
-            const authWithCredentials = new GoogleAuth({
-              credentials: credentials,
-              scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-            })
-            client = await authWithCredentials.getClient()
-
-            // Clear the environment variable to prevent VertexAI from trying to use it as a file path again
-            process.env.GOOGLE_APPLICATION_CREDENTIALS = undefined
-            console.log(`🧹 Cleared GOOGLE_APPLICATION_CREDENTIALS from environment to prevent file path confusion`)
-          } else {
-            // Check if it's a file path
-            console.log(`📁 Using service account key file: ${googleAppCredentials}`)
-            const authWithFile = new GoogleAuth({
-              keyFile: googleAppCredentials,
-              scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-            })
-            client = await authWithFile.getClient()
-          }
-        } catch (credentialError) {
-          console.error('❌ Failed to parse Google credentials:', credentialError)
-          // Fallback to application default credentials
-          console.log(`🏠 Falling back to application default credentials`)
-          const authDefault = new GoogleAuth({
-            scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-          })
-          client = await authDefault.getClient()
-        }
-      } else {
-        console.log(`🏠 Using application default credentials`)
-        client = await auth.getClient()
+      const apiKey = this.config.apiKey || process.env.GOOGLE_AI_STUDIO_KEY || process.env.GEMINI_API_KEY
+      
+      if (!apiKey) {
+        console.warn('⚠️ No API key found for Gemini AI Studio. Initialization deferred.')
+        return
       }
 
-      this.vertexAI = new VertexAI({
-        project: this.project,
-        location: this.location,
-        auth: client,
-      })
-
-      console.log(`✅ Google Cloud VertexAI initialized successfully`)
+      console.log(`✨ Initializing Gemini AI Studio (Google AI SDK)`)
+      this.genAI = new GoogleGenerativeAI(apiKey)
+      console.log(`✅ Gemini AI Studio initialized successfully`)
     } catch (error) {
-      console.error('❌ Failed to initialize Google Cloud auth:', error)
-      throw error
+      console.error('❌ Failed to initialize Gemini AI Studio:', error)
     }
+  }
+
+  private getModelName(modelName?: string): string {
+    const name = modelName || this.config.modelName || 'gemini-1.5-flash'
+    // Ensure we use the correct format for AI Studio (not vertex format)
+    if (name.includes('gemini-1.5-flash') || name.includes('flash')) return 'gemini-1.5-flash'
+    if (name.includes('gemini-1.5-pro') || name.includes('pro')) return 'gemini-1.5-pro'
+    return name
   }
 
   async processVision(request: AIRequest): Promise<AIResponse> {
@@ -101,23 +41,24 @@ export class GeminiService {
     console.log(`🤖 [Gemini Vision] Processing OCR request with ${request.images?.length || 0} images`)
 
     try {
-      // Ensure VertexAI is initialized
-      if (!this.vertexAI) {
-        await this.initializeAuth()
-        if (!this.vertexAI) {
-          throw new Error('VertexAI failed to initialize')
+      // Ensure Gemini is initialized
+      if (!this.genAI) {
+        this.initializeAuth()
+        if (!this.genAI) {
+          throw new Error('Gemini AI Studio failed to initialize. Check your API key.')
         }
       }
 
+      const modelName = this.getModelName()
       // Generate prompt based on task type
       const prompt = this.generatePrompt(request.text, request.task)
       console.log(`💬 [Gemini Vision] Generated prompt: ${prompt.substring(0, 200)}...`)
 
-      // Get Gemini Pro Vision model
-      const model = this.vertexAI.getGenerativeModel({
-        model: this.config.modelName || 'gemini-1.5-pro',
+      // Get Gemini model
+      const model = this.genAI.getGenerativeModel({
+        model: modelName,
         generationConfig: {
-          temperature: this.config.temperature || 0.1, // Lower temperature for OCR accuracy
+          temperature: this.config.temperature || 0.1,
           maxOutputTokens: Math.min(request.maxTokens || 2048, this.config.maxTokens || 2048),
           topK: 32,
           topP: 1,
@@ -165,8 +106,7 @@ export class GeminiService {
 
       console.log(`🏗️ [Gemini Vision] Formatted ${request.images?.length || 0} image parts`)
 
-      // Make API call
-      console.log(`🌐 [Gemini Vision] Calling VertexAI API: ${this.config.modelName}`)
+      console.log(`🌐 [Gemini Vision] Calling Google AI SDK: ${modelName}`)
 
       const result = await model.generateContent({
         contents: [{
@@ -237,19 +177,19 @@ export class GeminiService {
 
     try {
       // Ensure VertexAI is initialized
-      if (!this.vertexAI) {
-        await this.initializeAuth()
-        if (!this.vertexAI) {
-          throw new Error('VertexAI failed to initialize')
+      if (!this.genAI) {
+        this.initializeAuth()
+        if (!this.genAI) {
+          throw new Error('Gemini AI Studio failed to initialize. Check your API key.')
         }
       }
 
       // Generate prompt based on task type
       const prompt = this.generatePrompt(request.text, request.task)
 
-      // Get Gemini Pro model for text-only processing
-      const model = this.vertexAI.getGenerativeModel({
-        model: 'gemini-1.5-flash', // Use flash model for text-only tasks
+      // Get Gemini model for text-only processing
+      const model = this.genAI.getGenerativeModel({
+        model: 'gemini-1.5-flash',
         generationConfig: {
           temperature: this.config.temperature || 0.7,
           maxOutputTokens: Math.min(request.maxTokens || 2048, this.config.maxTokens || 2048),
@@ -259,7 +199,7 @@ export class GeminiService {
       })
 
       // Make API call for text-only request
-      console.log(`🌐 [Gemini Text] Calling VertexAI API: gemini-1.5-flash`)
+      console.log(`🌐 [Gemini Text] Calling Google AI SDK: gemini-1.5-flash`)
 
       const result = await model.generateContent({
         contents: [{
@@ -787,13 +727,12 @@ MANDATORY: Both productName and batchNumbers must be populated with real extract
 
   async checkHealth(): Promise<boolean> {
     try {
-      // Health check using VertexAI
-      // Try to initialize auth and check if VertexAI is available
-      if (!this.vertexAI) {
-        await this.initializeAuth()
+      // Health check using genAI
+      if (!this.genAI) {
+        this.initializeAuth()
       }
 
-      return this.vertexAI !== null && this.vertexAI !== undefined
+      return this.genAI !== null && this.genAI !== undefined
     } catch {
       return false
     }
