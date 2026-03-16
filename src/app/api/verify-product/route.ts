@@ -1061,15 +1061,19 @@ RESPONSE FORMAT (ONLY RETURN JSON, NO OTHER TEXT):
             }
 
             // 🛟 FIX FOR USER BATCH COMPARISON BUG
-            // This was the PRIMARY CAUSE: aiBatchNumbers was empty, so batch comparison failed
+            // Aggregate batch numbers from ALL matching alerts, not just [0]
             if (aiBatchNumbers.length === 0 && alertsWithContent.length > 0) {
-              console.log('🛟 FALLBACK: Extracting batches from database alerts...')
+              console.log(`🛟 FALLBACK: Extracting batches from ALL ${alertsWithContent.length} database alerts...`)
 
-              // Extract from the top alert's batchNumbers
-              const alertBatches = alertsWithContent[0].batchNumbers || []
-              if (alertBatches.length > 0) {
-                aiBatchNumbers = alertBatches
-                console.log(`🛟 Used fallback batches from alert: ${aiBatchNumbers.join(', ')}`)
+              const allAlertBatches: string[] = []
+              for (const alert of alertsWithContent) {
+                if (alert.batchNumbers?.length > 0) {
+                  allAlertBatches.push(...alert.batchNumbers)
+                }
+              }
+              aiBatchNumbers = [...new Set(allAlertBatches)]
+              if (aiBatchNumbers.length > 0) {
+                console.log(`🛟 Collected ${aiBatchNumbers.length} unique batches from ${alertsWithContent.length} alerts: ${aiBatchNumbers.join(', ')}`)
               }
             }
 
@@ -1115,12 +1119,22 @@ RESPONSE FORMAT (ONLY RETURN JSON, NO OTHER TEXT):
 
             console.log(`🔍 FALLBACK DEBUG: aiBatchNumbers before fallback: ${JSON.stringify(aiBatchNumbers)}`)
 
-            // Try to extract batches from the first alert
-            if (alertsWithContent && alertsWithContent.length > 0 && alertsWithContent[0].batchNumbers) {
-              aiBatchNumbers = alertsWithContent[0].batchNumbers
-              console.log(`🛟 SUCCESS: Fallback extracted batches: ${aiBatchNumbers.join(', ')}`)
+            // Try to extract batches from ALL alerts, not just the first
+            if (alertsWithContent && alertsWithContent.length > 0) {
+              const allFallbackBatches: string[] = []
+              for (const alert of alertsWithContent) {
+                if (alert.batchNumbers?.length > 0) {
+                  allFallbackBatches.push(...alert.batchNumbers)
+                }
+              }
+              aiBatchNumbers = [...new Set(allFallbackBatches)]
+              if (aiBatchNumbers.length > 0) {
+                console.log(`🛟 SUCCESS: Collected ${aiBatchNumbers.length} unique batches from ${alertsWithContent.length} alerts: ${aiBatchNumbers.join(', ')}`)
+              } else {
+                console.log('🛟 FAILED: No batches found in any alert')
+              }
             } else {
-              console.log('🛟 FAILED: No batches found in fallback')
+              console.log('🛟 FAILED: No alerts with content available')
             }
 
             console.log(`🔍 FALLBACK DEBUG: aiBatchNumbers after fallback: ${JSON.stringify(aiBatchNumbers)}`)
@@ -1151,16 +1165,22 @@ RESPONSE FORMAT (ONLY RETURN JSON, NO OTHER TEXT):
 
     // 🛟 COMPREHENSIVE FALLBACK: If AI failed OR didn't find batches, use structured data
     if (!aiEnhanced && uniqueAlerts.length > 0) {
-      console.log('🛟 AI failed, but we have alerts - creating fallback analysis')
+      console.log(`🛟 AI failed, but we have ${uniqueAlerts.length} alerts - creating fallback analysis`)
       aiEnhanced = false  // Don't mark as enhanced since no AI was used
       aiProductNames = [enhancedProductName]
       aiReason = `Product has ${uniqueAlerts.length} active NAFDAC alerts. Most recent: "${uniqueAlerts[0].title}". No AI analysis available for your plan tier.`
       aiConfidence = 75
 
-      // ALWAYS try to extract batch numbers from database
-      if (uniqueAlerts[0].batchNumbers && uniqueAlerts[0].batchNumbers.length > 0) {
-        aiBatchNumbers = uniqueAlerts[0].batchNumbers
-        console.log(`🛟 Fallback extracted batches from alert: ${aiBatchNumbers.join(', ')}`)
+      // ALWAYS try to extract batch numbers from ALL alerts in database
+      const comprehensiveBatches: string[] = []
+      for (const alert of uniqueAlerts) {
+        if (alert.batchNumbers?.length > 0) {
+          comprehensiveBatches.push(...alert.batchNumbers)
+        }
+      }
+      aiBatchNumbers = [...new Set(comprehensiveBatches)]
+      if (aiBatchNumbers.length > 0) {
+        console.log(`🛟 Fallback collected ${aiBatchNumbers.length} unique batches from ${uniqueAlerts.length} alerts: ${aiBatchNumbers.join(', ')}`)
       }
     }
 

@@ -11,6 +11,7 @@ interface ScrapedAlertData {
   fullContent: string
   productNames: string[]
   batchNumbers: string[]
+  manufacturer: string | null
 }
 
 // Simple NAFDAC Web Scraper
@@ -206,20 +207,21 @@ export class NafdacSimpleScraper {
 
       console.log(`🔗 Found ${alertLinks.length} alert links`)
 
-      // LAST RESORT: Filter out alerts that already exist in database
+      // DO NOT aggressively filter out existing URLs.
+      // NAFDAC often updates recent alerts with new batch numbers.
+      // By keeping them, `storeAlertToDatabase` will re-scrape and MERGE the new data.
+      // But we will limit to only processing 'limit' alerts to save resources.
       const existingUrls = await prisma.nafdacAlert.findMany({
-        where: { active: true },
         select: { url: true }
       })
-
       const existingUrlSet = new Set(existingUrls.map(alert => alert.url))
-      const newAlertLinks = alertLinks.filter(link => !existingUrlSet.has(link.url))
+      
+      // Count how many are new vs updates
+      const newLinksCount = alertLinks.filter(link => !existingUrlSet.has(link.url)).length
+      console.log(`🔄 Found ${newLinksCount} completely new alerts, and ${alertLinks.length - newLinksCount} existing alerts that will be checked for updates`)
 
-      console.log(`🔄 LAST RESORT: Filtered out ${alertLinks.length - newAlertLinks.length} existing alerts`)
+      // We don't filter `alertLinks` so the top ones get checked for NAFDAC updates
 
-      // Update alertLinks to only new alerts
-      alertLinks.length = 0
-      alertLinks.push(...newAlertLinks)
 
       result.success = true
 
@@ -524,25 +526,24 @@ export class NafdacSimpleScraper {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
         },
-        timeout: 7000 // ⬅️ HOBBY: Even shorter timeout (7 seconds)
+        timeout: 7000
       })
 
-      // ✅ FULL CONTENT: No HTML truncation for complete content extraction
       const html = response.data
       const $ = cheerio.load(html)
 
-      // EXTRACT TITLE - try multiple simple selectors
+      // EXTRACT TITLE
       const title = $('.entry-title, h1').first().text().trim() ||
                    $('h1').first().text().trim() ||
                    $('title').text().trim() ||
                    fallbackTitle
 
-      // EXTRACT DATE - simple string search
+      // EXTRACT DATE
       const dateText = $('.entry-date, .published, time').first().text().trim() ||
                       $('time').first().text().trim() ||
                       new Date().toISOString().split('T')[0]
 
-      let date = new Date().toISOString().split('T')[0] // fallback
+      let date = new Date().toISOString().split('T')[0]
       try {
         const parsed = new Date(dateText)
         if (!isNaN(parsed.getTime())) {
@@ -552,33 +553,120 @@ export class NafdacSimpleScraper {
         console.log('⚠️  Could not parse date, using today')
       }
 
-      // EXTRACT CONTENT - simple selectors
-      const fullContent = $('.entry-content, .content, article').text().trim() ||
-                         $('p').text().trim() ||
-                         title
+      // EXTRACT CONTENT - get both plain text AND preserve table/structured data
+      const contentEl = $('.entry-content, .content, article').first()
+      const plainText = contentEl.text().trim() || $('p').text().trim() || title
+      
+      // Extract structured table data
+      const tableData = this.extractTablesAsText($, contentEl)
+      
+      // Combine plain text + table data for comprehensive fullContent
+      const fullContent = tableData 
+        ? (plainText + '\n\n--- STRUCTURED DATA ---\n' + tableData).trim()
+        : plainText
 
-      // SIMPLE PRODUCT EXTRACTION - basic string matching
+      // COMPREHENSIVE PRODUCT & BATCH EXTRACTION
       const productNames: string[] = []
       const batchNumbers: string[] = []
+      let manufacturer: string | null = null
 
       const lowerContent = fullContent.toLowerCase()
 
-      // Look for common drug names using simple contains
-      const commonDrugs = ['paracetamol', 'ibuprofen', 'metronidazole', 'ciprofloxacin']
-
+      // ═══ PRODUCT NAME EXTRACTION ═══
+      // Common drug names
+      const commonDrugs = [
+        'paracetamol', 'ibuprofen', 'metronidazole', 'ciprofloxacin', 'amoxicillin',
+        'ampicillin', 'chloroquine', 'artesunate', 'tramadol', 'codeine',
+        'diclofenac', 'omeprazole', 'penicillin', 'erythromycin', 'tetracycline',
+        'doxycycline', 'azithromycin', 'ceftriaxone', 'artemether', 'lumefantrine',
+        'quinine', 'sulfadoxine', 'pyrimethamine', 'amlodipine', 'atenolol',
+        'metformin', 'glibenclamide', 'captopril', 'enalapril', 'nifedipine',
+        'clavulanic acid', 'suspension', 'tablet', 'capsule', 'injection', 'syrup'
+      ]
       commonDrugs.forEach(drug => {
         if (lowerContent.includes(drug.toLowerCase())) {
           productNames.push(drug)
         }
       })
 
-      // Look for "Batch" or "Lot" followed by numbers/letters
-      const batchMatches = fullContent.match(/\bbatch\s+(\w+)/gi) ||
-                          fullContent.match(/\blot\s+(\w+)/gi) ||
-                          []
-      batchNumbers.push(...batchMatches.map(match => match.split(/\s+/)[1]))
+      // Extract product names from title patterns
+      const titleProductMatch = title.match(/(?:substandard|counterfeit|falsified|fake)\s+(.+?)(?:\s+batch|\s+with|\s*$)/i)
+      if (titleProductMatch && titleProductMatch[1]) {
+        const extracted = titleProductMatch[1].trim().replace(/[\(\)]/g, '').trim()
+        if (extracted.length > 2 && !productNames.includes(extracted.toLowerCase())) {
+          productNames.push(extracted)
+        }
+      }
 
-      // Create excerpt from first paragraph
+      // ═══ BATCH NUMBER EXTRACTION ═══
+      // Pattern 1: Labeled batch numbers (Batch No: XXX, B/N: XXX, Lot: XXX)
+      const labeledBatchPatterns = [
+        /(?:batch\s*(?:no\.?|number|#)?[:\s]+)([A-Z0-9\-\/\.]+)/gi,
+        /(?:lot\s*(?:no\.?|number)?[:\s]+)([A-Z0-9\-\/\.]+)/gi,
+        /(?:b\.?\/?n\.?[:\s]+)([A-Z0-9\-\/\.]+)/gi,
+        /(?:batch\s*nos?\.?[:\s]+)([A-Z0-9\-\/\.\s,and]+)/gi,
+      ]
+      for (const pattern of labeledBatchPatterns) {
+        let match
+        while ((match = pattern.exec(fullContent)) !== null) {
+          // Handle comma/and-separated batches: "0503024, 0501724"
+          const batchStr = match[1].trim()
+          const parts = batchStr.split(/[,;]|\band\b/i).map(s => s.trim()).filter(s => s.length > 0 && /[A-Z0-9]/i.test(s))
+          for (const part of parts) {
+            const clean = part.replace(/^[\s,]+|[\s,]+$/g, '').trim()
+            if (clean.length >= 2 && !batchNumbers.includes(clean)) {
+              batchNumbers.push(clean)
+            }
+          }
+        }
+      }
+
+      // Pattern 2: Standalone alphanumeric codes (360M, 4290M, UI4004)
+      const standalonePatterns = [
+        /\b(\d{2,5}[A-Z]{1,3})\b/g,     // 360M, 4290M, 826024M
+        /\b([A-Z]{1,4}\d{3,10})\b/g,     // UI4004, ABC12345
+        /\b(\d{5,10})\b/g,               // 826024, 39090439, 0503024
+      ]
+      for (const pattern of standalonePatterns) {
+        let match
+        while ((match = pattern.exec(fullContent)) !== null) {
+          const batch = match[1].trim()
+          // Filter out likely non-batch numbers (years, phone numbers, etc.)
+          if (batch.length >= 3 && batch.length <= 15 && 
+              !batch.match(/^(19|20)\d{2}$/) && // Not a year
+              !batch.match(/^\d{11,}$/) && // Not a phone number
+              !batchNumbers.includes(batch)) {
+            batchNumbers.push(batch)
+          }
+        }
+      }
+
+      // Pattern 3: NAFDAC registration numbers
+      const nafdacRegMatch = fullContent.match(/(?:NAFDAC\s*(?:Reg\.?)?\s*(?:No\.?)?[:\s]+)([A-Z0-9\-\/]+)/gi)
+      if (nafdacRegMatch) {
+        nafdacRegMatch.forEach(m => {
+          const num = m.replace(/NAFDAC\s*(?:Reg\.?)?\s*(?:No\.?)?[:\s]+/i, '').trim()
+          if (num.length >= 3 && !batchNumbers.includes(num)) {
+            batchNumbers.push(num)
+          }
+        })
+      }
+
+      // ═══ MANUFACTURER EXTRACTION ═══
+      const mfrPatterns = [
+        /(?:manufactur(?:er|ed\s*by)|distribut(?:or|ed\s*by))[:\s]+([^\n\r.]+)/i,
+        /(?:mfg\.?\s*(?:by)?)[:\s]+([^\n\r.]+)/i,
+        /(?:company|produced\s*by|marketed\s*by)[:\s]+([^\n\r.]+)/i,
+      ]
+      for (const pattern of mfrPatterns) {
+        const match = fullContent.match(pattern)
+        if (match && match[1]?.trim()) {
+          manufacturer = match[1].trim().substring(0, 200) // Cap length
+          break
+        }
+      }
+
+      // Create excerpt
       const excerpt = $('p').first().text().trim() || fullContent.substring(0, 200) + '...'
 
       const alertData: ScrapedAlertData = {
@@ -587,16 +675,18 @@ export class NafdacSimpleScraper {
         excerpt,
         date,
         fullContent,
-        productNames,
-        batchNumbers
+        productNames: [...new Set(productNames)],
+        batchNumbers: [...new Set(batchNumbers)],
+        manufacturer
       }
 
       console.log('📋 Extracted alert data:')
       console.log(`   Title: ${alertData.title}`)
       console.log(`   Date: ${alertData.date}`)
-      console.log(`   Products: ${alertData.productNames.join(', ')}`)
-      console.log(`   Batches: ${alertData.batchNumbers.join(', ')}`)
-      console.log(`   Content preview: ${alertData.excerpt.substring(0, 100)}...`)
+      console.log(`   Products: ${alertData.productNames.join(', ') || 'none'}`)
+      console.log(`   Batches: ${alertData.batchNumbers.join(', ') || 'none'}`)
+      console.log(`   Manufacturer: ${alertData.manufacturer || 'unknown'}`)
+      console.log(`   Content length: ${alertData.fullContent.length} chars`)
 
       return alertData
 
@@ -606,7 +696,42 @@ export class NafdacSimpleScraper {
     }
   }
 
-  // Store alert data in database using Prisma
+  // Extract table data as structured text (preserves Batch No, Mfg Date, Exp Date, etc.)
+  private extractTablesAsText($: cheerio.CheerioAPI, element: any): string {
+    const tables: string[] = []
+    
+    element.find('table').each((_idx: number, table: any) => {
+      const rows: string[] = []
+      $(table).find('tr').each((_rIdx: number, tr: any) => {
+        const cells: string[] = []
+        $(tr).find('th, td').each((_cIdx: number, cell: any) => {
+          cells.push($(cell).text().trim())
+        })
+        if (cells.length > 0) {
+          rows.push(cells.join(' | '))
+        }
+      })
+      if (rows.length > 0) {
+        tables.push(rows.join('\n'))
+      }
+    })
+
+    // Also extract definition lists / labeled content
+    element.find('dt, .label, strong, b').each((_idx: number, label: any) => {
+      const labelText = $(label).text().trim()
+      const valueEl = $(label).next('dd, span, .value')
+      if (valueEl.length > 0) {
+        const valueText = valueEl.text().trim()
+        if (labelText && valueText) {
+          tables.push(`${labelText}: ${valueText}`)
+        }
+      }
+    })
+
+    return tables.join('\n')
+  }
+
+  // Store alert data in database using Prisma — MERGES data for existing alerts
   async storeAlertToDatabase(alertData: ScrapedAlertData): Promise<boolean> {
     try {
       console.log(`💾 Storing alert in database: ${alertData.title}`)
@@ -619,8 +744,28 @@ export class NafdacSimpleScraper {
       })
 
       if (existingAlert) {
-        console.log('⚠️  Alert already exists in database, updating...')
-        // Update existing alert
+        console.log('⚠️  Alert already exists in database, MERGING new data...')
+
+        // Merge batch numbers (combine old + new, deduplicate)
+        const mergedBatches = [...new Set([
+          ...(existingAlert.batchNumbers || []),
+          ...alertData.batchNumbers
+        ])]
+
+        // Merge product names (combine old + new, deduplicate)
+        const mergedProducts = [...new Set([
+          ...(existingAlert.productNames || []),
+          ...alertData.productNames
+        ])]
+
+        // Use longer fullContent (re-scraped content might be more complete)
+        const bestContent = alertData.fullContent.length > (existingAlert.fullContent || '').length
+          ? alertData.fullContent
+          : existingAlert.fullContent
+
+        // Use manufacturer if we found one and existing doesn't have one
+        const bestManufacturer = alertData.manufacturer || existingAlert.manufacturer
+
         await prisma.nafdacAlert.update({
           where: {
             id: existingAlert.id
@@ -629,16 +774,19 @@ export class NafdacSimpleScraper {
             title: alertData.title,
             excerpt: alertData.excerpt,
             date: alertData.date,
-            fullContent: alertData.fullContent,
-            productNames: alertData.productNames,
-            batchNumbers: alertData.batchNumbers,
-            manufacturer: alertData.productNames.length > 0 ? alertData.productNames[0] : null,
+            fullContent: bestContent,
+            productNames: mergedProducts,
+            batchNumbers: mergedBatches,
+            manufacturer: bestManufacturer,
             alertType: "PUBLIC_ALERT",
             category: "recalls",
             scrapedAt: new Date()
           }
         })
-        console.log('✅ Updated existing alert in database')
+
+        const newBatchCount = mergedBatches.length - (existingAlert.batchNumbers || []).length
+        const newProductCount = mergedProducts.length - (existingAlert.productNames || []).length  
+        console.log(`✅ Merged: +${newBatchCount} batches, +${newProductCount} products (total: ${mergedBatches.length} batches, ${mergedProducts.length} products)`)
         return true
       } else {
         // Create new alert
@@ -651,16 +799,15 @@ export class NafdacSimpleScraper {
             fullContent: alertData.fullContent,
             aiConfidence: 0.8,
             productNames: alertData.productNames,
-
             batchNumbers: alertData.batchNumbers,
-            manufacturer: alertData.productNames.length > 0 ? alertData.productNames[0] : null,
+            manufacturer: alertData.manufacturer,
             alertType: "PUBLIC_ALERT",
             category: "recalls",
             severity: "MEDIUM",
             active: true
           }
         })
-        console.log('✅ Created new alert in database')
+        console.log(`✅ Created new alert (${alertData.batchNumbers.length} batches, ${alertData.productNames.length} products)`)
         return true
       }
 
@@ -720,6 +867,75 @@ export class NafdacSimpleScraper {
     } catch (error) {
       console.error('❌ Failed to get database statistics:', error)
       throw new Error('Failed to retrieve database statistics')
+    }
+  }
+
+  // ENRICH EXISTING ALERT: specifically built for the cron enrichment job
+  async enrichExistingAlert(alertId: string, url: string): Promise<{
+    success: boolean
+    updatedFields: string[]
+    error?: string
+  }> {
+    try {
+      console.log(`🔄 Enriching existing alert: ${url}`)
+      const alertData = await this.scrapeSingleAlert(url, 'Enriched Alert')
+      
+      if (!alertData) {
+        return { success: false, updatedFields: [], error: 'Failed to scrape alert' }
+      }
+
+      const existingAlert = await prisma.nafdacAlert.findUnique({
+        where: { id: alertId }
+      })
+
+      if (!existingAlert) {
+        return { success: false, updatedFields: [], error: 'Alert not found in database' }
+      }
+
+      // Merge data
+      const mergedBatches = [...new Set([
+        ...(existingAlert.batchNumbers || []),
+        ...alertData.batchNumbers
+      ])]
+
+      const mergedProducts = [...new Set([
+        ...(existingAlert.productNames || []),
+        ...alertData.productNames
+      ])]
+
+      const bestContent = alertData.fullContent.length > (existingAlert.fullContent || '').length
+        ? alertData.fullContent
+        : existingAlert.fullContent
+
+      const bestManufacturer = alertData.manufacturer || existingAlert.manufacturer
+
+      const updatedFields: string[] = []
+      if (mergedBatches.length > (existingAlert.batchNumbers || []).length) updatedFields.push('batchNumbers')
+      if (mergedProducts.length > (existingAlert.productNames || []).length) updatedFields.push('productNames')
+      if (bestContent !== existingAlert.fullContent) updatedFields.push('fullContent')
+      if (!existingAlert.manufacturer && bestManufacturer) updatedFields.push('manufacturer')
+
+      await prisma.nafdacAlert.update({
+        where: { id: alertId },
+        data: {
+          fullContent: bestContent,
+          productNames: mergedProducts,
+          batchNumbers: mergedBatches,
+          manufacturer: bestManufacturer,
+          aiExtracted: true, // Mark as enriched
+          scrapedAt: new Date()
+        }
+      })
+
+      return { success: true, updatedFields }
+
+    } catch (error) {
+      console.error(`❌ Enrichment failed for ${alertId}:`, error)
+      return { 
+        success: false, 
+        updatedFields: [], 
+        error: error instanceof Error ? error.message : String(error)
+      }
     }
   }
 }
