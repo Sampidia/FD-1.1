@@ -66,7 +66,7 @@ export class GeminiService {
           topK: 32,
           topP: 1,
         }
-      }, { apiVersion: 'v1' })
+      }, { apiVersion: 'v1beta' })
 
       // Prepare content parts
       const parts: any[] = [
@@ -199,7 +199,7 @@ export class GeminiService {
           topK: 40,
           topP: 0.95,
         }
-      }, { apiVersion: 'v1' })
+      }, { apiVersion: 'v1beta' })
 
       // Make API call for text-only request
       console.log(`🌐 [Gemini Text] Calling Google AI SDK: gemini-1.5-flash`)
@@ -737,7 +737,7 @@ MANDATORY: Both productName and batchNumbers must be populated with real extract
 
       // Real health check: try to generate a tiny bit of content
       // Using v1 for health check too
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }, { apiVersion: 'v1' })
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }, { apiVersion: 'v1beta' })
       const result = await model.generateContent('ping')
       return !!result.response.text()
     } catch (e) {

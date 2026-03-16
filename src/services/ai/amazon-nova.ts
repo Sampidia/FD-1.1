@@ -47,7 +47,7 @@ export class AmazonNovaService {
         {
           headers: {
             'Content-Type': 'application/json',
-            'X-Amz-Bedrock-Auth-Token': this.apiKey
+            'Authorization': this.apiKey
           }
         }
       )
@@ -192,7 +192,7 @@ export class AmazonNovaService {
         {
           headers: {
             'Content-Type': 'application/json',
-            'X-Amz-Bedrock-Auth-Token': this.apiKey
+            'Authorization': this.apiKey
           },
           timeout: 5000
         }
