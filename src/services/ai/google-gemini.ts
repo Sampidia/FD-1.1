@@ -12,7 +12,7 @@ export class GeminiService {
 
   private initializeAuth() {
     try {
-      const apiKey = this.config.apiKey || process.env.GOOGLE_AI_STUDIO_KEY || process.env.GEMINI_API_KEY
+      const apiKey = this.config.apiKey || process.env.GOOGLE_AI_API_KEY || process.env.GOOGLE_AI_STUDIO_KEY || process.env.GEMINI_API_KEY
       
       if (!apiKey) {
         console.warn('⚠️ No API key found for Gemini AI Studio. Initialization deferred.')
@@ -32,7 +32,7 @@ export class GeminiService {
     const name = modelName || this.config.modelName || 'gemini-1.5-flash'
     // Ensure we use the correct format for AI Studio (not vertex format)
     if (name.includes('gemini-2.0-flash') || name.includes('2.0')) return 'gemini-2.0-flash'
-    if (name.includes('gemini-2.5-flash') || name.includes('2.5')) return 'gemini-1.5-flash' // Map 2.5 to 1.5 as requested
+    if (name.includes('gemini-2.5-flash') || name.includes('2.5')) return 'gemini-2.5-flash' // Use 2.5-flash as tested
     if (name.includes('gemini-1.5-flash') || name.includes('flash')) return 'gemini-1.5-flash'
     if (name.includes('gemini-1.5-pro') || name.includes('pro')) return 'gemini-1.5-pro'
     return name
@@ -67,11 +67,11 @@ export class GeminiService {
           topK: 32,
           topP: 1,
         }
-      }, { apiVersion: 'v1beta' })
+      })
 
       // Prepare content parts
       const parts: any[] = [
-        { text: prompt }
+        prompt
       ]
 
       // Convert images to Gemini format - Gemini supports: png, jpeg, jpg, gif, webp
@@ -112,12 +112,7 @@ export class GeminiService {
 
       console.log(`🌐 [Gemini Vision] Calling Google AI SDK: ${modelName}`)
 
-      const result = await model.generateContent({
-        contents: [{
-          role: 'user',
-          parts: parts
-        }],
-      })
+      const result = await model.generateContent(parts)
 
       console.log(`✅ [Gemini Vision] API call successful`)
 
@@ -200,17 +195,12 @@ export class GeminiService {
           topK: 40,
           topP: 0.95,
         }
-      }, { apiVersion: 'v1beta' })
+      })
 
       // Make API call for text-only request
       console.log(`🌐 [Gemini Text] Calling Google AI SDK: gemini-1.5-flash`)
 
-      const result = await model.generateContent({
-        contents: [{
-          role: 'user',
-          parts: [{ text: prompt }]
-        }],
-      })
+      const result = await model.generateContent(prompt)
 
       console.log(`✅ [Gemini Text] API call successful`)
 
@@ -738,7 +728,7 @@ MANDATORY: Both productName and batchNumbers must be populated with real extract
 
       // Real health check: try to generate a tiny bit of content
       // Using v1 for health check too
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }, { apiVersion: 'v1beta' })
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
       const result = await model.generateContent('ping')
       return !!result.response.text()
     } catch (e) {

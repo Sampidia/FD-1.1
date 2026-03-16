@@ -699,10 +699,8 @@ export function UploadForm() {
                 }`}
               >
                 {/* Modern Corner Ribbon */}
-                <div className="absolute top-0 right-0 w-12 h-12 overflow-hidden pointer-events-none">
-                  <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[6px] font-black py-0.5 px-6 transform rotate-45 translate-x-[25%] translate-y-[15%] shadow-sm uppercase tracking-tighter text-center">
-                    Staff Pick
-                  </div>
+                <div className="absolute top-2.5 -right-6 w-24 bg-indigo-600 text-white text-center rotate-45 text-[8px] font-bold py-[2px] shadow-sm uppercase tracking-wider pointer-events-none whitespace-nowrap">
+                  Staff Pick
                 </div>
                 <span className="text-xl mb-1">🚀</span>
                 Nova AI
