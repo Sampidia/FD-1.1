@@ -16,6 +16,7 @@ export class AmazonNovaService {
         throw new Error('AWS_NOVA_AI API key not configured')
       }
 
+      const mimeType = this.getMimeType(imageBuffer)
       const base64Image = imageBuffer.toString('base64')
 
       const response = await axios.post(
@@ -29,7 +30,7 @@ export class AmazonNovaService {
                 {
                   type: 'image_url',
                   image_url: {
-                    url: `data:image/jpeg;base64,${base64Image}`
+                    url: `data:${mimeType};base64,${base64Image}`
                   }
                 },
                 {
@@ -199,5 +200,24 @@ export class AmazonNovaService {
     } catch {
       return false
     }
+  }
+
+  private getMimeType(buffer: Buffer): string {
+    if (buffer.length < 4) return 'image/jpeg'
+    
+    const hex = buffer.toString('hex', 0, 4)
+    if (hex.startsWith('89504e47')) return 'image/png'
+    if (hex.startsWith('ffd8ff')) return 'image/jpeg'
+    if (hex.startsWith('47494638')) return 'image/gif'
+    if (hex.startsWith('424d')) return 'image/bmp'
+    
+    // WebP magic number check (RIFF....WEBP)
+    if (buffer.length > 12) {
+      const riff = buffer.toString('ascii', 0, 4)
+      const webp = buffer.toString('ascii', 8, 12)
+      if (riff === 'RIFF' && webp === 'WEBP') return 'image/webp'
+    }
+
+    return 'image/jpeg'
   }
 }
