@@ -129,23 +129,23 @@ export default function RecentAlertsSlider({
       {/* Main Alert Display */}
       <Card className="bg-gradient-to-r from-red-50 to-orange-50 border-red-200 hover:shadow-lg transition-all duration-300">
         <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4 w-full sm:w-auto min-w-0">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-6 h-6 text-red-600" />
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-gray-900 truncate text-lg mb-1">
                   {currentAlert.productName}
                 </h3>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <Badge
                     variant={getAlertBadgeVariant(currentAlert.alertType)}
                     className="text-xs"
                   >
                     {currentAlert.alertType}
                   </Badge>
-                  <div className="flex items-center gap-1 text-sm text-gray-500">
+                  <div className="flex items-center gap-1 text-sm text-gray-500 whitespace-nowrap">
                     <Clock className="w-4 h-4" />
                     {formatTimeAgo(currentAlert.createdAt)}
                   </div>
@@ -154,7 +154,7 @@ export default function RecentAlertsSlider({
             </div>
 
             {/* Manual Navigation Dots */}
-            <div className="flex gap-2 ml-4">
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto sm:ml-4 justify-start sm:justify-end">
               {alerts.map((_, index) => (
                 <button
                   key={index}

@@ -1,11 +1,14 @@
 {
 	"appId": "com.sampidia.fakeproductdetector",
 	"appName": "Fake Detector",
+	"webDir": "public",
 	"server": {
-		"url": "https://scan.sampidia.com"
+		"url": "https://scan.sampidia.com",
+		"allowNavigation": [
+			"scan.sampidia.com"
+		]
 	},
 	"plugins": {
-		"AdMob": {},
 		"StatusBar": {
 			"style": "DARK",
 			"backgroundColor": "#2563eb",
@@ -23,8 +26,6 @@
 		},
 		"AndroidEdgeToEdgeSupport": {
 			"enabled": true
-		},
-		"Camera": {},
-		"Browser": {}
+		}
 	}
 }

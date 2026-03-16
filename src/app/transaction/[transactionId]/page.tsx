@@ -213,9 +213,9 @@ export default function TransactionDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Transaction ID:</span>
-                  <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+                <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-1 sm:gap-4">
+                  <span className="text-gray-600 whitespace-nowrap">Transaction ID:</span>
+                  <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded break-all">
                     {transaction.transactionId}
                   </span>
                 </div>
@@ -303,20 +303,20 @@ export default function TransactionDetailPage() {
           )}
 
           {/* Actions */}
-          <div className="mt-8 flex gap-4">
-            <Link href="/transactions">
-              <Button variant="outline">
+          <div className="mt-8 flex flex-col sm:flex-row flex-wrap gap-4">
+            <Link href="/transactions" className="w-full sm:w-auto">
+              <Button variant="outline" className="w-full sm:w-auto">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Transactions
               </Button>
             </Link>
-            <Link href="/dashboard">
-              <Button variant="outline">
+            <Link href="/dashboard" className="w-full sm:w-auto">
+              <Button variant="outline" className="w-full sm:w-auto">
                 Go to Dashboard
               </Button>
             </Link>
-            <Link href="/pricing">
-              <Button>
+            <Link href="/pricing" className="w-full sm:w-auto">
+              <Button className="w-full sm:w-auto text-wrap h-auto py-2">
                 Purchase More Points
               </Button>
             </Link>

@@ -390,16 +390,18 @@ export default function BusinessCheckoutPage() {
 
             {/* Center Section: Download Badges */}
             <div className="flex items-center gap-4 sm:gap-6">
-              <button
-                onClick={handleDownloadClick}
-                className="transition-transform duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+              <a
+                href="https://play.google.com/store/apps/details?id=com.sampidia.fakeproductdetector"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="transition-transform duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded inline-block"
               >
                 <img
                   src="/Google%20play.png"
-                  alt="Join Beta Program - Android"
+                  alt="Get it on Google Play"
                   className="h-16 sm:h-20 w-auto hover:opacity-90"
                 />
-              </button>
+              </a>
 
               <button
                 onClick={handleDownloadClick}

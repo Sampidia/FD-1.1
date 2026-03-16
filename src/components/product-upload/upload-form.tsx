@@ -692,12 +692,18 @@ export function UploadForm() {
               <button
                 type="button"
                 onClick={() => setSelectedAI('amazon-nova')}
-                className={`flex flex-col items-center justify-center gap-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300 ${
+                className={`relative overflow-hidden flex flex-col items-center justify-center gap-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300 ${
                   selectedAI === 'amazon-nova' 
                     ? 'bg-white text-purple-600 shadow-lg scale-[1.02] ring-2 ring-purple-500 transform -translate-y-0.5' 
                     : 'bg-purple-100/40 text-purple-400 hover:bg-purple-100/80 grayscale'
                 }`}
               >
+                {/* Modern Corner Ribbon */}
+                <div className="absolute top-0 right-0 w-12 h-12 overflow-hidden pointer-events-none">
+                  <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[6px] font-black py-0.5 px-6 transform rotate-45 translate-x-[25%] translate-y-[15%] shadow-sm uppercase tracking-tighter text-center">
+                    Staff Pick
+                  </div>
+                </div>
                 <span className="text-xl mb-1">🚀</span>
                 Nova AI
                 <span className="text-[9px] font-normal opacity-70">Lightning Speed</span>

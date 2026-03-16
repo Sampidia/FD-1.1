@@ -37,9 +37,39 @@ export async function POST(request: NextRequest) {
       console.log('🔑 External scraper token authenticated for enrichment')
     }
 
+    // 🧠 AUTOMATIC PAGINATION TRACKING
+    // We store the current "skip" index in the ScraperStatus table so the cron job knows exactly where to resume
+    const STATE_ID = 'enrichment_state'
+    let currentState = await prisma.scraperStatus.findUnique({
+      where: { id: STATE_ID }
+    })
+
+    // Parse manual override if provided (e.g. for testing) or use database state
+    const url = new URL(request.url)
+    const manualSkip = url.searchParams.get('skip')
+    let skip = manualSkip ? parseInt(manualSkip, 10) : 0
+
+    if (!manualSkip) {
+      // Use state from database if no manual override
+      if (currentState && currentState.lastError) {
+        skip = parseInt(currentState.lastError, 10) || 0 // Re-using lastError field to store simple string state to avoid schema changes
+      } else if (!currentState) {
+        // Create initial state record
+        currentState = await prisma.scraperStatus.create({
+          data: {
+            id: STATE_ID,
+            lastScrapedAt: new Date(),
+            lastError: '0', // Storing skip as string here
+            isScraping: false
+          }
+        })
+      }
+    }
+
+    console.log(`⏱️  Enrichment batch starting at offset: ${skip}`)
+
     // Get alerts that need enrichment
     // We target ALL active alerts, processing oldest first.
-    // Even if aiExtracted is true, we want to re-run the advanced regex to catch missing batches (like '360M').
     const alertsToEnrich = await prisma.nafdacAlert.findMany({
       where: {
         active: true
@@ -47,14 +77,25 @@ export async function POST(request: NextRequest) {
       orderBy: {
         scrapedAt: 'asc'
       },
+      skip: skip,
       take: 3 // Small batch to prevent Vercel timeout (10s limit on hobby plan)
     })
 
     if (alertsToEnrich.length === 0) {
+      // 🔄 RESET LOOP: If we reached the end, reset the skip counter to 0 so it cycles back
+      await prisma.scraperStatus.update({
+        where: { id: STATE_ID },
+        data: {
+          lastError: '0',
+          lastUpdated: new Date()
+        }
+      })
+
       return NextResponse.json({
         success: true,
-        message: 'No alerts need enrichment right now',
-        processedCount: 0
+        message: 'Reached end of alerts database. Resetting counter to 0 for next cycle.',
+        processedCount: 0,
+        nextSkip: 0
       })
     }
 
@@ -83,11 +124,32 @@ export async function POST(request: NextRequest) {
       await new Promise(resolve => setTimeout(resolve, 1000))
     }
 
+    const nextSkip = skip + alertsToEnrich.length;
+
+    // 💾 SAVE NEW STATE
+    await prisma.scraperStatus.upsert({
+      where: { id: STATE_ID },
+      update: {
+        lastError: nextSkip.toString(),
+        lastScrapedAt: new Date(),
+        lastUpdated: new Date()
+      },
+      create: {
+        id: STATE_ID,
+        lastError: nextSkip.toString(),
+        lastScrapedAt: new Date(),
+        lastUpdated: new Date(),
+        isScraping: false
+      }
+    })
+
     return NextResponse.json({
       success: true,
       message: `Enrichment complete. Successfully updated ${successCount}/${alertsToEnrich.length} alerts.`,
       processedCount: alertsToEnrich.length,
       successCount,
+      currentSkip: skip,
+      nextSkip: nextSkip,
       details: results
     })
 

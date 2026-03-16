@@ -601,20 +601,36 @@ export class NafdacSimpleScraper {
       // ═══ BATCH NUMBER EXTRACTION ═══
       // Pattern 1: Labeled batch numbers (Batch No: XXX, B/N: XXX, Lot: XXX)
       const labeledBatchPatterns = [
-        /(?:batch\s*(?:no\.?|number|#)?[:\s]+)([A-Z0-9\-\/\.]+)/gi,
-        /(?:lot\s*(?:no\.?|number)?[:\s]+)([A-Z0-9\-\/\.]+)/gi,
-        /(?:b\.?\/?n\.?[:\s]+)([A-Z0-9\-\/\.]+)/gi,
-        /(?:batch\s*nos?\.?[:\s]+)([A-Z0-9\-\/\.\s,and]+)/gi,
+        /(?:batch\s*(?:nos?\.?|number|#)?[:\s]+)([^.\n\r]{2,100})/gi,
+        /(?:lot\s*(?:nos?\.?|number|#)?[:\s]+)([^.\n\r]{2,100})/gi,
+        /(?:b\.?\/?n\.?[:\s]+)([^.\n\r]{2,100})/gi,
       ]
+      
+      const excludeWords = ['the', 'of', 'to', 'and', 'in', 'is', 'for', 'with', 'state', 'zonal', 'office', 'website', 'public', 'recall', 'urges', 'has', 'implores', 'product', 'manufactured', 'by', 'customer', 'focus', 'all', 'any']
+
       for (const pattern of labeledBatchPatterns) {
         let match
         while ((match = pattern.exec(fullContent)) !== null) {
-          // Handle comma/and-separated batches: "0503024, 0501724"
           const batchStr = match[1].trim()
-          const parts = batchStr.split(/[,;]|\band\b/i).map(s => s.trim()).filter(s => s.length > 0 && /[A-Z0-9]/i.test(s))
+          // Split by commas, "and", or spaces to handle lists of batches
+          const parts = batchStr.split(/[,;\s]|\band\b/i).map(s => s.trim())
+          
           for (const part of parts) {
-            const clean = part.replace(/^[\s,]+|[\s,]+$/g, '').trim()
-            if (clean.length >= 2 && !batchNumbers.includes(clean)) {
+            // Clean up punctuation
+            let clean = part.replace(/^[^A-Z0-9]+|[^A-Z0-9]+$/gi, '')
+            
+            // Fix concatenated text issues (e.g. A4-9566Product => A4-9566)
+            clean = clean.replace(/(Product|Manufacture|Batch|Lot|Customer|Notice).*$/i, '')
+            
+            const hasNum = /\d/.test(clean)
+            const hasLetter = /[a-zA-Z]/.test(clean)
+            const isAlphaNumeric = /^[a-zA-Z0-9\-\/\.]+$/.test(clean)
+            
+            if (clean.length >= 2 && clean.length <= 25 &&
+                isAlphaNumeric &&
+                (hasNum || (hasLetter && clean.toUpperCase() === clean)) &&
+                !excludeWords.includes(clean.toLowerCase()) &&
+                !batchNumbers.includes(clean)) {
               batchNumbers.push(clean)
             }
           }
@@ -624,7 +640,7 @@ export class NafdacSimpleScraper {
       // Pattern 2: Standalone alphanumeric codes (360M, 4290M, UI4004)
       const standalonePatterns = [
         /\b(\d{2,5}[A-Z]{1,3})\b/g,     // 360M, 4290M, 826024M
-        /\b([A-Z]{1,4}\d{3,10})\b/g,     // UI4004, ABC12345
+        /\b([A-Z]{1,4}\d{3,10}[A-Z]{0,2})\b/g, // UI4004, ABC12345
         /\b(\d{5,10})\b/g,               // 826024, 39090439, 0503024
       ]
       for (const pattern of standalonePatterns) {
@@ -634,7 +650,8 @@ export class NafdacSimpleScraper {
           // Filter out likely non-batch numbers (years, phone numbers, etc.)
           if (batch.length >= 3 && batch.length <= 15 && 
               !batch.match(/^(19|20)\d{2}$/) && // Not a year
-              !batch.match(/^\d{11,}$/) && // Not a phone number
+              !batch.match(/^\d{10,}$/) && // Not a phone number
+              !excludeWords.includes(batch.toLowerCase()) &&
               !batchNumbers.includes(batch)) {
             batchNumbers.push(batch)
           }
@@ -653,15 +670,18 @@ export class NafdacSimpleScraper {
       }
 
       // ═══ MANUFACTURER EXTRACTION ═══
+      // Requires a colon (e.g. "Manufacturer:") OR explicitly "manufactured by" to prevent capturing wide sentences
       const mfrPatterns = [
-        /(?:manufactur(?:er|ed\s*by)|distribut(?:or|ed\s*by))[:\s]+([^\n\r.]+)/i,
-        /(?:mfg\.?\s*(?:by)?)[:\s]+([^\n\r.]+)/i,
-        /(?:company|produced\s*by|marketed\s*by)[:\s]+([^\n\r.]+)/i,
+        /(?:manufacturer|distributor|company|marketer)[:]+[\s]*([^\n\r.]{3,100})/i,
+        /(?:manufactured\s+by|distributed\s+by|produced\s+by|marketed\s+by)[\s]+([^\n\r.]{3,100})/i,
       ]
       for (const pattern of mfrPatterns) {
         const match = fullContent.match(pattern)
         if (match && match[1]?.trim()) {
-          manufacturer = match[1].trim().substring(0, 200) // Cap length
+          // Clean up HTML artifact words
+          manufacturer = match[1].trim()
+            .replace(/to recall its product.*$/i, '')
+            .substring(0, 150)
           break
         }
       }
