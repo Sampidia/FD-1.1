@@ -938,8 +938,8 @@ export class AIServiceRouter {
             throw new Error('Amazon Nova not available')
           }
           if (request.task === 'ocr' && request.images && request.images.length > 0) {
-            const imageBuffer = Buffer.from(request.images[0], 'base64')
-            result = await this.aiInstances.amazonNova.processVision(imageBuffer)
+            // Pass the data URL string directly - Nova's proxy expects it as-is
+            result = await this.aiInstances.amazonNova.processVision(request.images[0])
           } else {
             result = await this.aiInstances.amazonNova.processText(request)
           }

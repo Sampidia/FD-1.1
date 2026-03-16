@@ -10,14 +10,20 @@ export class AmazonNovaService {
     this.modelName = 'nova-2-lite-v1' // Switch to proxy-supported model name
   }
 
-  async processVision(imageBuffer: Buffer): Promise<AIResponse> {
+  async processVision(imageDataUrl: string): Promise<AIResponse> {
     try {
       if (!this.apiKey) {
         throw new Error('AWS_NOVA_AI API key not configured')
       }
 
-      const mimeType = this.getMimeType(imageBuffer)
-      const base64Image = imageBuffer.toString('base64')
+      // Ensure the image has a proper data URL format
+      let finalDataUrl = imageDataUrl
+      if (!imageDataUrl.startsWith('data:')) {
+        // Raw base64 without data URL prefix - add a default
+        finalDataUrl = `data:image/png;base64,${imageDataUrl}`
+      }
+
+      console.log(`🔍 [Nova Vision] Image data URL prefix: ${finalDataUrl.substring(0, 40)}...`)
 
       const response = await axios.post(
         'https://api.nova.amazon.com/v1/chat/completions',
@@ -30,7 +36,7 @@ export class AmazonNovaService {
                 {
                   type: 'image_url',
                   image_url: {
-                    url: `data:${mimeType};base64,${base64Image}`
+                    url: finalDataUrl
                   }
                 },
                 {
