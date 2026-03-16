@@ -23,7 +23,7 @@ FD is a Next.js web application that helps users identify counterfeit products b
 - **Payments**: Paystack, Flutterwave
 - **Email**: Nodemailer SMTP
 - **Web Scraping**: Cheerio, Axios
-- **OCR Processing**: Gemini, Claude, OpeaAi, Tesseract
+- **OCR Processing**: Gemini, NOVA AI, Claude, OpeaAi, Tesseract
 - **Deployment**: Vercel, Andriod,and IOS
 
 ## 📋 Prerequisites

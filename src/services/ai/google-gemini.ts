@@ -21,6 +21,7 @@ export class GeminiService {
 
       console.log(`✨ Initializing Gemini AI Studio (Google AI SDK)`)
       this.genAI = new GoogleGenerativeAI(apiKey)
+      // Note: version v1 is stable and avoids 404s common with v1beta
       console.log(`✅ Gemini AI Studio initialized successfully`)
     } catch (error) {
       console.error('❌ Failed to initialize Gemini AI Studio:', error)
@@ -30,6 +31,7 @@ export class GeminiService {
   private getModelName(modelName?: string): string {
     const name = modelName || this.config.modelName || 'gemini-1.5-flash'
     // Ensure we use the correct format for AI Studio (not vertex format)
+    if (name.includes('gemini-2.0-flash') || name.includes('2.0') || name.includes('2.5')) return 'gemini-2.0-flash'
     if (name.includes('gemini-1.5-flash') || name.includes('flash')) return 'gemini-1.5-flash'
     if (name.includes('gemini-1.5-pro') || name.includes('pro')) return 'gemini-1.5-pro'
     return name
@@ -55,6 +57,7 @@ export class GeminiService {
       console.log(`💬 [Gemini Vision] Generated prompt: ${prompt.substring(0, 200)}...`)
 
       // Get Gemini model
+      // Using v1 for stability as requested to avoid common 404s on v1beta
       const model = this.genAI.getGenerativeModel({
         model: modelName,
         generationConfig: {
@@ -63,7 +66,7 @@ export class GeminiService {
           topK: 32,
           topP: 1,
         }
-      })
+      }, { apiVersion: 'v1' })
 
       // Prepare content parts
       const parts: any[] = [
@@ -189,14 +192,14 @@ export class GeminiService {
 
       // Get Gemini model for text-only processing
       const model = this.genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash',
+        model: this.getModelName(), // Use smarter model naming
         generationConfig: {
           temperature: this.config.temperature || 0.7,
           maxOutputTokens: Math.min(request.maxTokens || 2048, this.config.maxTokens || 2048),
           topK: 40,
           topP: 0.95,
         }
-      })
+      }, { apiVersion: 'v1' })
 
       // Make API call for text-only request
       console.log(`🌐 [Gemini Text] Calling Google AI SDK: gemini-1.5-flash`)
@@ -727,13 +730,18 @@ MANDATORY: Both productName and batchNumbers must be populated with real extract
 
   async checkHealth(): Promise<boolean> {
     try {
-      // Health check using genAI
       if (!this.genAI) {
         this.initializeAuth()
       }
+      if (!this.genAI) return false
 
-      return this.genAI !== null && this.genAI !== undefined
-    } catch {
+      // Real health check: try to generate a tiny bit of content
+      // Using v1 for health check too
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }, { apiVersion: 'v1' })
+      const result = await model.generateContent('ping')
+      return !!result.response.text()
+    } catch (e) {
+      console.warn(`⚠️ Gemini health check failed:`, e)
       return false
     }
   }

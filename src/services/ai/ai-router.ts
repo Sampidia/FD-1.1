@@ -140,6 +140,18 @@ export class AIServiceRouter {
         console.warn('[AI Router] Failed to initialize Google Vision fallback:', error)
       }
 
+      // 🚀 FORCE NOVA INITIALIZATION: Ensure Nova is ready even without database entry
+      try {
+        const novaApiKey = process.env.AWS_NOVA_AI
+        if (novaApiKey && !this.aiInstances.amazonNova) {
+          console.log('🔑 [AI Router] Initializing Amazon Nova (environment fallback)')
+          this.aiInstances.amazonNova = new AmazonNovaService()
+          console.log('✅ [AI Router] Amazon Nova initialized (fallback)')
+        }
+      } catch (error) {
+        console.warn('[AI Router] Failed to initialize Amazon Nova fallback:', error)
+      }
+
       // Initialize fallback providers if not found in database
       if (!this.aiInstances.tesseract) {
         console.log('⚠️ Tesseract not found in database, initializing fallback...')
@@ -271,55 +283,6 @@ export class AIServiceRouter {
       // 2. Sort by priority (1 = highest priority)
       assignments.sort((a, b) => a.priority - b.priority)
 
-      // Handle preferred provider selection if provided
-      if (request.preferredProvider) {
-        console.log(`🎯 USER PREFERENCE DETECTED: Prioritizing ${request.preferredProvider}`)
-        const requested = request.preferredProvider === 'gemini' ? 'google' : request.preferredProvider
-        
-        // 🚀 CRITICAL: If the preferred provider is NOT in the assignments, inject it
-        // This ensures new providers like Nova work even if not yet in database assignments
-        if (!assignments.some(a => a.provider === requested)) {
-          console.log(`➕ Injecting missing preferred provider: ${requested}`)
-          
-          if (requested === 'amazon-nova' && this.aiInstances.amazonNova) {
-            assignments.unshift({
-              planId: userPlan?.id || 'free',
-              aiType: request.task as any,
-              provider: 'amazon-nova',
-              priority: 0, // Top priority
-              config: {
-                apiKey: '',
-                modelName: 'amazon.nova-lite-v1:0',
-                temperature: 0.1,
-                maxTokens: 2000,
-                costInput: 0.00000025,
-                costOutput: 0.000001
-              }
-            })
-          } else if (requested === 'google' && this.aiInstances.gemini) {
-            assignments.unshift({
-              planId: userPlan?.id || 'free',
-              aiType: request.task as any,
-              provider: 'google',
-              priority: 0, // Top priority
-              config: {
-                apiKey: '',
-                modelName: 'gemini-1.5-flash',
-                temperature: 0.7,
-                maxTokens: 2048,
-                costInput: 0.00000025,
-                costOutput: 0.000001
-              }
-            })
-          }
-        }
-
-        assignments.sort((a, b) => {
-          if (a.provider === requested) return -1
-          if (b.provider === requested) return 1
-          return a.priority - b.priority
-        })
-      }
 
       // 🔧 FORCE STANDARD PLAN PRIORITY: Ensure Gemini is ALWAYS first for OCR tasks
       const currentPlanId = userPlan?.id || 'free'
@@ -331,10 +294,36 @@ export class AIServiceRouter {
           if (b.provider === 'google' && b.aiType === 'ocr') return 1
           return a.priority - b.priority
         })
-        console.log(`🎯 STANDARD PLAN OCR FIX: Final order:`)
-        assignments.forEach((assignment, index) => {
-          console.log(`   ${index + 1}. ${assignment.provider} (${assignment.aiType}) - Priority: ${assignment.priority}`)
+      }
+
+      // 🎯 PREFERRED PROVIDER OVERRIDE (FINAL): Ensure user selection always wins
+      if (request.preferredProvider) {
+        console.log(`🎯 USER PREFERENCE DETECTED: Prioritizing ${request.preferredProvider}`)
+        const requested = request.preferredProvider === 'gemini' ? 'google' : request.preferredProvider
+        
+        // Inject if missing (ensures new providers work immediately)
+        if (!assignments.some(a => a.provider === requested)) {
+          console.log(`➕ Injecting missing preferred provider: ${requested}`)
+          const fallbackConfig = this.getFallbackConfigForProvider(requested, request.task)
+          if (fallbackConfig) {
+            assignments.unshift({
+              planId: userPlan?.id || 'free',
+              aiType: request.task as any,
+              provider: requested as any,
+              priority: 0,
+              config: fallbackConfig
+            })
+          }
+        }
+
+        // Sort again to ensure it's absolutely first
+        assignments.sort((a, b) => {
+          if (a.provider === requested) return -1
+          if (b.provider === requested) return 1
+          return a.priority - b.priority
         })
+
+        console.log(`🎯 FINAL PROVIDER ORDER (PREFERRING ${requested}):`, assignments.map(a => a.provider).join(' > '))
       }
 
       // 3. Try providers in order
@@ -1415,6 +1404,31 @@ export class AIServiceRouter {
 
     // Close any connections if needed
     console.log('✅ AI Router shut down successfully')
+  }
+
+  // Helper to provide default configuration for injected providers
+  private getFallbackConfigForProvider(provider: string, task: string) {
+    if (provider === 'amazon-nova') {
+      return {
+        apiKey: '', // Handled by environment variable in AmazonNovaService
+        modelName: 'amazon.nova-lite-v1:0',
+        temperature: 0.1,
+        maxTokens: 2048,
+        costInput: 0.00000025,
+        costOutput: 0.000001
+      }
+    }
+    if (provider === 'google') {
+      return {
+        apiKey: '', // Handled by environment variable in GeminiService
+        modelName: 'gemini-1.5-flash',
+        temperature: 0.1,
+        maxTokens: 2048,
+        costInput: 0.00000025,
+        costOutput: 0.000001
+      }
+    }
+    return null
   }
 }
 
