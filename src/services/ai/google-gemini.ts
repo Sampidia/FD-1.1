@@ -31,7 +31,8 @@ export class GeminiService {
   private getModelName(modelName?: string): string {
     const name = modelName || this.config.modelName || 'gemini-1.5-flash'
     // Ensure we use the correct format for AI Studio (not vertex format)
-    if (name.includes('gemini-2.0-flash') || name.includes('2.0') || name.includes('2.5')) return 'gemini-2.0-flash'
+    if (name.includes('gemini-2.0-flash') || name.includes('2.0')) return 'gemini-2.0-flash'
+    if (name.includes('gemini-2.5-flash') || name.includes('2.5')) return 'gemini-1.5-flash' // Map 2.5 to 1.5 as requested
     if (name.includes('gemini-1.5-flash') || name.includes('flash')) return 'gemini-1.5-flash'
     if (name.includes('gemini-1.5-pro') || name.includes('pro')) return 'gemini-1.5-pro'
     return name
