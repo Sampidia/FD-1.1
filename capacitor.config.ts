@@ -26,6 +26,10 @@ const config: CapacitorConfig = {
     },
     AndroidEdgeToEdgeSupport: {
       enabled: true
+    },
+    AdMob: {
+      appId: 'ca-app-pub-1169009766287256~1198481965',
+      initializeOnProgess: true
     }
   }
 };
