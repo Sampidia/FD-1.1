@@ -665,8 +665,12 @@ export function UploadForm() {
           <div className="mb-6 bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-4 shadow-sm ring-1 ring-indigo-200/50">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-sm shadow-sm ring-1 ring-white/20">
-                  {selectedAI === 'gemini' ? '✨' : '🚀'}
+                <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-sm ring-1 ring-black/5 p-1.5 transition-transform duration-300">
+                  <img 
+                    src={selectedAI === 'gemini' ? '/gemini-logo.png' : '/nova-logo.png'} 
+                    alt="AI Logo" 
+                    className="w-full h-full object-contain"
+                  />
                 </div>
                 <div>
                   <span className="text-xs font-bold text-indigo-700 uppercase tracking-wider block">Intelligence Provider</span>
@@ -685,7 +689,7 @@ export function UploadForm() {
                     : 'bg-indigo-100/40 text-indigo-400 hover:bg-indigo-100/80 grayscale'
                 }`}
               >
-                <span className="text-xl mb-1">✨</span>
+                <img src="/gemini-logo.png" alt="Gemini" className={`w-8 h-8 mb-1 object-contain transition-all duration-300 ${selectedAI === 'gemini' ? '' : 'grayscale opacity-60'}`} />
                 Gemini AI
                 <span className="text-[9px] font-normal opacity-70">Deep Analysis</span>
               </button>
@@ -699,10 +703,10 @@ export function UploadForm() {
                 }`}
               >
                 {/* Modern Corner Ribbon */}
-                <div className="absolute top-2.5 -right-6 w-24 bg-indigo-600 text-white text-center rotate-45 text-[8px] font-bold py-[2px] shadow-sm uppercase tracking-wider pointer-events-none whitespace-nowrap">
+                <div className="absolute top-2 -right-8 w-28 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-center rotate-45 text-[7px] font-black py-1 shadow-lg uppercase tracking-normal pointer-events-none whitespace-nowrap flex items-center justify-center border-b border-white/20">
                   Staff Pick
                 </div>
-                <span className="text-xl mb-1">🚀</span>
+                <img src="/nova-logo.png" alt="Nova" className={`w-8 h-8 mb-1 object-contain transition-all duration-300 ${selectedAI === 'amazon-nova' ? '' : 'grayscale opacity-60'}`} />
                 Nova AI
                 <span className="text-[9px] font-normal opacity-70">Lightning Speed</span>
               </button>
@@ -869,7 +873,7 @@ export function UploadForm() {
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   <span className="text-2xl">🔍</span>
-                  Smart Image Analysis
+                  Product Image Ai Analysis
                 </h3>
                 {(imageAnalysis.isAnalyzing || aiAnalysis.isAnalyzing) && (
                   <div className="text-sm text-blue-600 font-medium">
@@ -899,14 +903,14 @@ export function UploadForm() {
               {imageAnalysis.result && (
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-medium text-gray-800">🎯 Enhanced Analysis Results:</h4>
-                    <div className={`px-2 py-1 rounded text-xs font-medium ${
-                      imageAnalysis.result.validation.quality === 'excellent' ? 'bg-green-100 text-green-800' :
-                      imageAnalysis.result.validation.quality === 'good' ? 'bg-blue-100 text-blue-800' :
-                      imageAnalysis.result.validation.quality === 'fair' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
+                    <h4 className="font-medium text-gray-800">🎯 Product Details Extracted:</h4>
+                    <div className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider shadow-sm border ${
+                      imageAnalysis.result.validation.quality === 'excellent' ? 'bg-green-100 text-green-800 border-green-200' :
+                      imageAnalysis.result.validation.quality === 'good' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                      imageAnalysis.result.validation.quality === 'fair' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
+                      'bg-red-100 text-red-800 border-red-200'
                     }`}>
-                      {imageAnalysis.result.validation.quality.toUpperCase()} QUALITY
+                      {imageAnalysis.result.validation.quality === 'excellent' ? 'Extraction Successful' : `${imageAnalysis.result.validation.quality} Quality`}
                     </div>
                   </div>
 

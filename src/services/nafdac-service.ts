@@ -508,6 +508,9 @@ export class EnhancedNafdacService {
     }
 
     try {
+      console.warn('Skipping Tesseract OCR in serverless environment to prevent worker crashes');
+      return metadata;
+
       // Add timeout wrapper to prevent hanging
       const withTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> =>
         Promise.race([

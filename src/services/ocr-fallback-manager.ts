@@ -548,7 +548,7 @@ export class OCRFallbackManager {
         this.geminiOCR = new GeminiService({
           id: 'gemini-fallback',
           apiKey: process.env.GOOGLE_AI_API_KEY || '',
-          modelName: 'gemini-1.5-pro', // Use the production-compatible model
+          modelName: 'gemini-1.5-flash', // Use the working model
           provider: 'google',
           temperature: 0.1,
           maxTokens: 1024,
@@ -634,30 +634,8 @@ export class OCRFallbackManager {
    */
   private async tryTesseractOCR(images: string[], startTime: number): Promise<OCRResult | null> {
     try {
-      // Use existing Tesseract implementation
-      const { createWorker } = await import('tesseract.js')
-      const worker = await createWorker('eng')
-
-      let combinedText = ''
-      for (let i = 0; i < Math.min(images.length, 2); i++) {
-        const { data: { text } } = await worker.recognize(images[i])
-        combinedText += text + ' '
-      }
-
-      await worker.terminate()
-
-      const parsedData = this.parseBasicResponse(combinedText)
-
-      return {
-        productName: parsedData.productName,
-        batchNumber: parsedData.batchNumber,
-        expiryDate: parsedData.expiryDate,
-        manufacturer: parsedData.manufacturer,
-        confidence: parsedData.confidence || 0.3, // Lower confidence for Tesseract
-        rawText: combinedText,
-        strategy: 'tesseract',
-        processingTime: Date.now() - startTime
-      }
+      console.warn('Skipping Tesseract OCR in server process to prevent worker crash');
+      return null;
     } catch (error) {
       console.warn('Tesseract OCR failed:', error)
       return null
