@@ -121,6 +121,7 @@ export interface OCRFallbackOptions {
   enablePreprocessingRetry?: boolean
   minConfidence?: number
   enableManualFallback?: boolean
+  preferredProvider?: string
 }
 
 export class OCRFallbackManager {
@@ -159,7 +160,7 @@ export class OCRFallbackManager {
     const {
       maxAttempts = 5,
       maxTime = 30000, // 30 seconds
-      strategies: defaultStrategies = ['claude', 'gemini', 'openai', 'tesseract'],
+      strategies: defaultStrategies = ['claude', 'gemini', 'amazon-nova', 'openai', 'tesseract'],
       userPlan = 'free',
       enablePreprocessingRetry = true,
       minConfidence = 0.6,
@@ -200,7 +201,14 @@ export class OCRFallbackManager {
       } else if (userPlan === 'basic') {
         strategies = ['gemini', 'tesseract']
       } else {
-        strategies = ['gemini', 'tesseract'] // Free plan
+        strategies = ['gemini', 'amazon-nova', 'tesseract'] // Free plan
+      }
+
+      // Support explicit provider choice
+      if (options.preferredProvider) {
+        console.log(`🎯 USER PREFERENCE DETECTED: Prioritizing ${options.preferredProvider}`)
+        const preferred = options.preferredProvider === 'gemini' ? 'gemini' : options.preferredProvider
+        strategies = [preferred, ...strategies.filter(s => s !== preferred)]
       }
  
       const primaryResult = await this.multiStrategyAnalysis(images, strategies, userPlan, maxAttempts)

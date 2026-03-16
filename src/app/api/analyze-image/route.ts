@@ -11,7 +11,8 @@ const analyzeImageSchema = z.object({
   images: z.array(z.string())
     .min(1, 'At least one image is required')
     .max(5, 'Maximum 5 images allowed'),
-  analysisType: z.enum(['basic', 'comprehensive']).default('comprehensive')
+  analysisType: z.enum(['basic', 'comprehensive']).default('comprehensive'),
+  preferredProvider: z.string().optional()
 })
 
 // Enhanced extraction result interface
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { images, analysisType } = validationResult.data
+    const { images, analysisType, preferredProvider } = validationResult.data
 
     // Initialize AI router
     await aiRouter.initializeProviders()
@@ -140,7 +141,8 @@ Return structured JSON with confidence scores.`
       text: ocrPrompt,
       task: 'ocr' as const,
       images: images,
-      maxTokens: analysisType === 'comprehensive' ? 2048 : 1024
+      maxTokens: analysisType === 'comprehensive' ? 2048 : 1024,
+      preferredProvider: preferredProvider
     }
 
     const ocrResponse = await aiRouter.processRequest(ocrRequest, userId)

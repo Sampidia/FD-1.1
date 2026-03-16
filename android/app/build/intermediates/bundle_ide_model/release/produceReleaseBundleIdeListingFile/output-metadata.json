@@ -1,0 +1,18 @@
+{
+  "version": 3,
+  "artifactType": {
+    "type": "BUNDLE",
+    "kind": "RegularFile"
+  },
+  "applicationId": "com.sampidia.fakeproductdetector",
+  "variantName": "release",
+  "elements": [
+    {
+      "type": "SINGLE",
+      "filters": [],
+      "attributes": [],
+      "outputFile": "../../../../../../../../../Mobile App Fake Detector/release/release/New folder/release/app-release.aab"
+    }
+  ],
+  "elementType": "File"
+}

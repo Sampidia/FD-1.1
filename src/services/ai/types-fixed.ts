@@ -3,7 +3,7 @@ export interface AIProviderConfig {
   id: string
   apiKey: string
   modelName: string
-  provider: 'google' | 'google-vision' | 'openai' | 'anthropic'
+  provider: 'google' | 'google-vision' | 'openai' | 'anthropic' | 'amazon-nova'
   temperature?: number
   maxTokens: number
   costInput: number
@@ -17,6 +17,7 @@ export interface AIRequest {
   temperature?: number
   options?: Record<string, unknown>
   images?: string[] // Base64 encoded images for vision tasks
+  preferredProvider?: string // Added for explicit provider selection
 }
 
 export interface AIResponse {
@@ -29,6 +30,7 @@ export interface AIResponse {
 export interface ExtractionResult {
   productNames?: string[]
   batchNumbers?: string[]
+  nafdacNumbers?: string[]
   expiryDate?: string
   manufacturers?: string[]
   confidence?: number

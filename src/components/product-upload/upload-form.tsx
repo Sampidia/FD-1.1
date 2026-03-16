@@ -109,6 +109,7 @@ export function UploadForm() {
 
   // New state for insufficient points mode
   const [isInsufficientPointsMode, setIsInsufficientPointsMode] = useState(false)
+  const [selectedAI, setSelectedAI] = useState<'gemini' | 'amazon-nova'>('gemini')
   const [isClaimingDaily, setIsClaimingDaily] = useState(false)
   const [isUpgrading, setIsUpgrading] = useState(false)
   const [canClaimDaily, setCanClaimDaily] = useState(false)
@@ -373,7 +374,8 @@ export function UploadForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           images: imageData,
-          analysisType: 'comprehensive'
+          analysisType: 'comprehensive',
+          preferredProvider: selectedAI
         })
       })
 
@@ -540,7 +542,8 @@ export function UploadForm() {
         productName: finalProductName,
         productDescription: finalDescription,
         userBatchNumber: finalBatchNumber,
-        images: imageData.filter(item => item.data !== null).map(item => item.data)
+        images: imageData.filter(item => item.data !== null).map(item => item.data),
+        preferredProvider: selectedAI
       }
 
       console.log('Submitting product check:', payload)
@@ -756,6 +759,38 @@ export function UploadForm() {
                 onImageSelect={(file) => handleImageSelect('back', file)}
               />
               <p className="text-xs text-gray-500 mt-2 text-center">Batch number should be visible</p>
+            </div>
+          </div>
+
+          {/* ✨ AI PROVIDER TOGGLE CARD - FOR FREE USERS TO CHOOSE ✨ */}
+          <div className="mb-4 bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-3 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-indigo-700 uppercase tracking-wider">Select AI Intelligence</span>
+              <span className="text-[10px] bg-indigo-200 text-indigo-800 px-1.5 py-0.5 rounded-full font-semibold">FREE OPTION</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedAI('gemini')}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                  selectedAI === 'gemini' 
+                    ? 'bg-white text-indigo-600 shadow-md scale-[1.02] ring-2 ring-indigo-400' 
+                    : 'bg-indigo-100/50 text-indigo-400 hover:bg-indigo-100'
+                }`}
+              >
+                <span>✨</span> Gemini AI
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedAI('amazon-nova')}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                  selectedAI === 'amazon-nova' 
+                    ? 'bg-white text-purple-600 shadow-md scale-[1.02] ring-2 ring-purple-400' 
+                    : 'bg-purple-100/50 text-purple-400 hover:bg-purple-100'
+                }`}
+              >
+                <span>🚀</span> Nova AI
+              </button>
             </div>
           </div>
 

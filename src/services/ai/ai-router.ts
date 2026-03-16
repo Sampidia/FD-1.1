@@ -4,6 +4,7 @@ import { GoogleVisionService } from './google-vision'
 import { OpenAIService } from './openai-gpt'
 import { AnthropicClaudeService } from './anthropic-claude'
 import { ClaudeVisionOCR } from './claude-vision'
+import { AmazonNovaService } from './amazon-nova'
 import prisma from '@/lib/prisma'
 import { EmailService } from '@/lib/email'
 import { systemHealthMonitor } from '../system-health-monitor'
@@ -23,12 +24,13 @@ interface AIProviderInstance {
   claude?: AnthropicClaudeService
   claudeVision?: ClaudeVisionOCR
   tesseract?: TesseractService
+  amazonNova?: AmazonNovaService
 }
 
 interface PlanAIAssignment {
   planId: string
   aiType: 'ocr' | 'verification' | 'extraction'
-  provider: 'google' | 'google-vision' | 'openai' | 'anthropic' | 'tesseract'
+  provider: 'google' | 'google-vision' | 'openai' | 'anthropic' | 'tesseract' | 'amazon-nova'
   priority: number
   config: {
     apiKey: string
@@ -75,7 +77,7 @@ export class AIServiceRouter {
             id: provider.id,
             apiKey,
             modelName: provider.modelName,
-            provider: provider.provider as 'google' | 'google-vision' | 'openai' | 'anthropic',
+            provider: provider.provider as 'google' | 'google-vision' | 'openai' | 'anthropic' | 'amazon-nova',
             temperature: 0.7, // Default temperature
             maxTokens: 2048, // Default max tokens
             costInput: 0.00000025, // Default cost
@@ -103,6 +105,10 @@ export class AIServiceRouter {
               // Also initialize Claude Vision for OCR tasks
               this.aiInstances.claudeVision = new ClaudeVisionOCR()
               console.log('✅ Anthropic Claude Vision initialized')
+              break
+            case 'amazon-nova':
+              this.aiInstances.amazonNova = new AmazonNovaService()
+              console.log('✅ Amazon Nova initialized')
               break
           }
         } catch (error) {
@@ -264,6 +270,18 @@ export class AIServiceRouter {
 
       // 2. Sort by priority (1 = highest priority)
       assignments.sort((a, b) => a.priority - b.priority)
+
+      // Handle preferred provider selection if provided
+      if (request.preferredProvider) {
+        console.log(`🎯 USER PREFERENCE DETECTED: Prioritizing ${request.preferredProvider}`)
+        assignments.sort((a, b) => {
+          // Note: map 'amazon-nova' to 'amazon-nova' and 'gemini' to 'google' to match assignment provider field
+          const requested = request.preferredProvider === 'gemini' ? 'google' : request.preferredProvider
+          if (a.provider === requested) return -1
+          if (b.provider === requested) return 1
+          return a.priority - b.priority
+        })
+      }
 
       // 🔧 FORCE STANDARD PLAN PRIORITY: Ensure Gemini is ALWAYS first for OCR tasks
       const currentPlanId = userPlan?.id || 'free'
@@ -467,7 +485,7 @@ export class AIServiceRouter {
       }) => ({
         planId: assignment.planId,
         aiType: this.assignAIBasedOnTask(assignment.aiProvider.provider, planId, requestTask), // Dynamic assignment
-        provider: assignment.aiProvider.provider as 'google' | 'google-vision' | 'openai' | 'anthropic',
+        provider: assignment.aiProvider.provider as 'google' | 'google-vision' | 'openai' | 'anthropic' | 'amazon-nova',
         priority: assignment.priority,
         config: {
           apiKey: '', // Will be filled by getAPIKey()
@@ -520,6 +538,23 @@ export class AIServiceRouter {
           modelName: 'gemini-1.5-flash',
           temperature: 0.7,
           maxTokens: 2048,
+          costInput: 0.00000025,
+          costOutput: 0.000001
+        }
+      })
+    }
+
+    if (this.aiInstances.amazonNova) {
+      assignments.push({
+        planId: 'free',
+        aiType: task as 'ocr' | 'verification' | 'extraction',
+        provider: 'amazon-nova',
+        priority: 2,
+        config: {
+          apiKey: '',
+          modelName: 'amazon.nova-lite-v1:0',
+          temperature: 0.1,
+          maxTokens: 2000,
           costInput: 0.00000025,
           costOutput: 0.000001
         }
@@ -868,6 +903,18 @@ export class AIServiceRouter {
             }
             console.log('📝 Using Claude Text for text-only task')
             result = await this.aiInstances.claude.processText(request)
+          }
+          break
+
+        case 'amazon-nova':
+          if (!this.aiInstances.amazonNova) {
+            throw new Error('Amazon Nova not available')
+          }
+          if (request.task === 'ocr' && request.images && request.images.length > 0) {
+            const imageBuffer = Buffer.from(request.images[0], 'base64')
+            result = await this.aiInstances.amazonNova.processVision(imageBuffer)
+          } else {
+            result = await this.aiInstances.amazonNova.processText(request)
           }
           break
 

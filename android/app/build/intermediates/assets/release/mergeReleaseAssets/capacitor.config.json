@@ -1,0 +1,30 @@
+{
+	"appId": "com.sampidia.fakeproductdetector",
+	"appName": "Fake Detector",
+	"server": {
+		"url": "https://scan.sampidia.com"
+	},
+	"plugins": {
+		"AdMob": {},
+		"StatusBar": {
+			"style": "DARK",
+			"backgroundColor": "#2563eb",
+			"overlaysWebView": true
+		},
+		"SplashScreen": {
+			"launchShowDuration": 2000,
+			"launchAutoHide": true,
+			"launchFadeOutDuration": 800,
+			"splashFullScreen": true,
+			"splashImmersive": true,
+			"backgroundColor": "#ffffff",
+			"showSpinner": true,
+			"spinnerColor": "#2563eb"
+		},
+		"AndroidEdgeToEdgeSupport": {
+			"enabled": true
+		},
+		"Camera": {},
+		"Browser": {}
+	}
+}

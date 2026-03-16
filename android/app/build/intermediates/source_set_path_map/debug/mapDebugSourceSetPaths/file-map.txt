@@ -1,0 +1,73 @@
+com.sampidia.fakeproductdetector.app-activity-ktx-1.9.3-0 C:\Users\SAM\.gradle\caches\8.13\transforms\064d4fd1d46fa18baed07cdbeb962f49\transformed\activity-ktx-1.9.3\res
+com.sampidia.fakeproductdetector.app-datastore-core-release-1 C:\Users\SAM\.gradle\caches\8.13\transforms\0ae2b34bd3951b5847d6cb7bbc022d16\transformed\datastore-core-release\res
+com.sampidia.fakeproductdetector.app-appcompat-resources-1.7.0-2 C:\Users\SAM\.gradle\caches\8.13\transforms\175e64f8fc7f3630ffd41f2b53d92441\transformed\appcompat-resources-1.7.0\res
+com.sampidia.fakeproductdetector.app-fragment-1.8.4-3 C:\Users\SAM\.gradle\caches\8.13\transforms\1e3095217ed3c1c81ffb1586200229f2\transformed\fragment-1.8.4\res
+com.sampidia.fakeproductdetector.app-browser-1.8.0-4 C:\Users\SAM\.gradle\caches\8.13\transforms\232bfd22aed13ba8aea2d1380bfa970e\transformed\browser-1.8.0\res
+com.sampidia.fakeproductdetector.app-lifecycle-runtime-ktx-2.6.2-5 C:\Users\SAM\.gradle\caches\8.13\transforms\27ffee2c5d9bdd98a1882bb63d18d3e7\transformed\lifecycle-runtime-ktx-2.6.2\res
+com.sampidia.fakeproductdetector.app-credentials-play-services-auth-1.2.0-rc01-6 C:\Users\SAM\.gradle\caches\8.13\transforms\2afbbec8009eba0312b697d051d199f3\transformed\credentials-play-services-auth-1.2.0-rc01\res
+com.sampidia.fakeproductdetector.app-datastore-preferences-release-7 C:\Users\SAM\.gradle\caches\8.13\transforms\357d146c41afd63aa62988a4f8e4db27\transformed\datastore-preferences-release\res
+com.sampidia.fakeproductdetector.app-emoji2-1.3.0-8 C:\Users\SAM\.gradle\caches\8.13\transforms\3709a8b24121862f6a299ab58f45d6f9\transformed\emoji2-1.3.0\res
+com.sampidia.fakeproductdetector.app-credentials-1.2.0-rc01-9 C:\Users\SAM\.gradle\caches\8.13\transforms\38647fd98f9377b571a35fbba6f412c8\transformed\credentials-1.2.0-rc01\res
+com.sampidia.fakeproductdetector.app-lifecycle-runtime-2.6.2-10 C:\Users\SAM\.gradle\caches\8.13\transforms\38e783779884d4854018b52d482dc9c1\transformed\lifecycle-runtime-2.6.2\res
+com.sampidia.fakeproductdetector.app-play-services-auth-20.7.0-11 C:\Users\SAM\.gradle\caches\8.13\transforms\3a90d8a1dd5780b6ed636b002d4458b1\transformed\play-services-auth-20.7.0\res
+com.sampidia.fakeproductdetector.app-viewpager2-1.0.0-12 C:\Users\SAM\.gradle\caches\8.13\transforms\48cabce972a69d395290332fdd36fb8d\transformed\viewpager2-1.0.0\res
+com.sampidia.fakeproductdetector.app-drawerlayout-1.1.1-13 C:\Users\SAM\.gradle\caches\8.13\transforms\4a82f766bc893dff00fd3dff8dd6ebdf\transformed\drawerlayout-1.1.1\res
+com.sampidia.fakeproductdetector.app-datastore-release-14 C:\Users\SAM\.gradle\caches\8.13\transforms\4c637612473c2916dd3ab32618dcecf1\transformed\datastore-release\res
+com.sampidia.fakeproductdetector.app-firebase-crashlytics-20.0.2-15 C:\Users\SAM\.gradle\caches\8.13\transforms\551160d51629d2e14e9047c5bc978a38\transformed\firebase-crashlytics-20.0.2\res
+com.sampidia.fakeproductdetector.app-lifecycle-viewmodel-savedstate-2.6.2-16 C:\Users\SAM\.gradle\caches\8.13\transforms\57bea8a3f56d7395b5deb1725c36819d\transformed\lifecycle-viewmodel-savedstate-2.6.2\res
+com.sampidia.fakeproductdetector.app-lifecycle-livedata-2.6.2-17 C:\Users\SAM\.gradle\caches\8.13\transforms\57c2894a97db6ce531f923e4df810e4a\transformed\lifecycle-livedata-2.6.2\res
+com.sampidia.fakeproductdetector.app-play-services-base-18.5.0-18 C:\Users\SAM\.gradle\caches\8.13\transforms\58e6f84c50d768d59e9c1507b2ca2436\transformed\play-services-base-18.5.0\res
+com.sampidia.fakeproductdetector.app-work-runtime-2.7.0-19 C:\Users\SAM\.gradle\caches\8.13\transforms\5cca8088ef1b329071bfbb802d5ade6b\transformed\work-runtime-2.7.0\res
+com.sampidia.fakeproductdetector.app-firebase-common-22.0.1-20 C:\Users\SAM\.gradle\caches\8.13\transforms\5d27778f535a8e26d99db6cb489db953\transformed\firebase-common-22.0.1\res
+com.sampidia.fakeproductdetector.app-material-1.12.0-21 C:\Users\SAM\.gradle\caches\8.13\transforms\5de725181c9b94c18a8a6feba5ea2596\transformed\material-1.12.0\res
+com.sampidia.fakeproductdetector.app-emoji2-views-helper-1.3.0-22 C:\Users\SAM\.gradle\caches\8.13\transforms\646c2fbfcd77392ca35a0bc1fd1921d0\transformed\emoji2-views-helper-1.3.0\res
+com.sampidia.fakeproductdetector.app-core-1.15.0-23 C:\Users\SAM\.gradle\caches\8.13\transforms\655f752adef97efcdc5a2f4e62939ffa\transformed\core-1.15.0\res
+com.sampidia.fakeproductdetector.app-annotation-experimental-1.4.1-24 C:\Users\SAM\.gradle\caches\8.13\transforms\6ba42b90c1a91208aefa46cd1752fa08\transformed\annotation-experimental-1.4.1\res
+com.sampidia.fakeproductdetector.app-core-runtime-2.2.0-25 C:\Users\SAM\.gradle\caches\8.13\transforms\6ca24a47e8f31bbebd20f4e5e097eb40\transformed\core-runtime-2.2.0\res
+com.sampidia.fakeproductdetector.app-profileinstaller-1.3.1-26 C:\Users\SAM\.gradle\caches\8.13\transforms\743a3adcea80e7b396e546bf8e7ddaed\transformed\profileinstaller-1.3.1\res
+com.sampidia.fakeproductdetector.app-startup-runtime-1.1.1-27 C:\Users\SAM\.gradle\caches\8.13\transforms\7bbdbfacc301f2324c26da11c9c3f5c4\transformed\startup-runtime-1.1.1\res
+com.sampidia.fakeproductdetector.app-play-services-ads-lite-23.0.0-28 C:\Users\SAM\.gradle\caches\8.13\transforms\82caaeca415db9c917f3a56d00198d9e\transformed\play-services-ads-lite-23.0.0\res
+com.sampidia.fakeproductdetector.app-core-common-2.0.3-29 C:\Users\SAM\.gradle\caches\8.13\transforms\8461ce7de3fd6b5ab3f7994ea24599d3\transformed\core-common-2.0.3\res
+com.sampidia.fakeproductdetector.app-play-services-ads-23.0.0-30 C:\Users\SAM\.gradle\caches\8.13\transforms\949eb7e88ffc3cb243ce522f2e524736\transformed\play-services-ads-23.0.0\res
+com.sampidia.fakeproductdetector.app-constraintlayout-2.0.1-31 C:\Users\SAM\.gradle\caches\8.13\transforms\9558d4afb7f14cec73d3f17b02caff4e\transformed\constraintlayout-2.0.1\res
+com.sampidia.fakeproductdetector.app-transition-1.5.0-32 C:\Users\SAM\.gradle\caches\8.13\transforms\975d2deb029d4f33740fda1149b40df6\transformed\transition-1.5.0\res
+com.sampidia.fakeproductdetector.app-webkit-1.12.1-33 C:\Users\SAM\.gradle\caches\8.13\transforms\9b29eaf1f174acdd2529bb49d0785a6e\transformed\webkit-1.12.1\res
+com.sampidia.fakeproductdetector.app-lifecycle-livedata-core-2.6.2-34 C:\Users\SAM\.gradle\caches\8.13\transforms\9c7f9ba2869a32f572b6f9954b8aae77\transformed\lifecycle-livedata-core-2.6.2\res
+com.sampidia.fakeproductdetector.app-datastore-preferences-core-release-35 C:\Users\SAM\.gradle\caches\8.13\transforms\a116a26b8c26821bc3c0b13a455d9914\transformed\datastore-preferences-core-release\res
+com.sampidia.fakeproductdetector.app-activity-1.9.3-36 C:\Users\SAM\.gradle\caches\8.13\transforms\a73ae58b3cc78d250532045d9908ab22\transformed\activity-1.9.3\res
+com.sampidia.fakeproductdetector.app-core-ktx-1.15.0-37 C:\Users\SAM\.gradle\caches\8.13\transforms\ab084c9126b7e6abce91ee640627e9a4\transformed\core-ktx-1.15.0\res
+com.sampidia.fakeproductdetector.app-savedstate-1.2.1-38 C:\Users\SAM\.gradle\caches\8.13\transforms\b2a16bf7aa55da8c2a66ad5388260724\transformed\savedstate-1.2.1\res
+com.sampidia.fakeproductdetector.app-lifecycle-viewmodel-ktx-2.6.2-39 C:\Users\SAM\.gradle\caches\8.13\transforms\b2bd0563b24c8471a1b6619b73251624\transformed\lifecycle-viewmodel-ktx-2.6.2\res
+com.sampidia.fakeproductdetector.app-savedstate-ktx-1.2.1-40 C:\Users\SAM\.gradle\caches\8.13\transforms\b9b62ca0023c81d7830ac6c5476c7103\transformed\savedstate-ktx-1.2.1\res
+com.sampidia.fakeproductdetector.app-lifecycle-viewmodel-2.6.2-41 C:\Users\SAM\.gradle\caches\8.13\transforms\bac2f73dc24bc16f929855a1e7525cf8\transformed\lifecycle-viewmodel-2.6.2\res
+com.sampidia.fakeproductdetector.app-coordinatorlayout-1.2.0-42 C:\Users\SAM\.gradle\caches\8.13\transforms\c61dd9263beb6cbf238d38eeb2c076f1\transformed\coordinatorlayout-1.2.0\res
+com.sampidia.fakeproductdetector.app-ads-adservices-java-1.1.0-beta11-43 C:\Users\SAM\.gradle\caches\8.13\transforms\c73c50178c7263942578f8635b6d3ca5\transformed\ads-adservices-java-1.1.0-beta11\res
+com.sampidia.fakeproductdetector.app-ads-adservices-1.1.0-beta11-44 C:\Users\SAM\.gradle\caches\8.13\transforms\cb3bee35491437b9f7ac1d1047138399\transformed\ads-adservices-1.1.0-beta11\res
+com.sampidia.fakeproductdetector.app-play-services-basement-18.5.0-45 C:\Users\SAM\.gradle\caches\8.13\transforms\d0d8296ec79d900039c7acf3fc329818\transformed\play-services-basement-18.5.0\res
+com.sampidia.fakeproductdetector.app-lifecycle-service-2.6.2-46 C:\Users\SAM\.gradle\caches\8.13\transforms\d3af357d03762120a00b0c8965cbca8c\transformed\lifecycle-service-2.6.2\res
+com.sampidia.fakeproductdetector.app-recyclerview-1.1.0-47 C:\Users\SAM\.gradle\caches\8.13\transforms\e2144b0a4afb161512ba9cc97e5d8fae\transformed\recyclerview-1.1.0\res
+com.sampidia.fakeproductdetector.app-tracing-1.2.0-48 C:\Users\SAM\.gradle\caches\8.13\transforms\e55484c21c6f5e441a0fea0a5291e5f0\transformed\tracing-1.2.0\res
+com.sampidia.fakeproductdetector.app-cardview-1.0.0-49 C:\Users\SAM\.gradle\caches\8.13\transforms\e9efb80f525049ae7a14a25397d23968\transformed\cardview-1.0.0\res
+com.sampidia.fakeproductdetector.app-core-splashscreen-1.0.1-50 C:\Users\SAM\.gradle\caches\8.13\transforms\eaed86f74e06acf072f33b32dc2dfbaa\transformed\core-splashscreen-1.0.1\res
+com.sampidia.fakeproductdetector.app-appcompat-1.7.0-51 C:\Users\SAM\.gradle\caches\8.13\transforms\f4dd0925f2661c58bcbd64c9748f77aa\transformed\appcompat-1.7.0\res
+com.sampidia.fakeproductdetector.app-lifecycle-process-2.6.2-52 C:\Users\SAM\.gradle\caches\8.13\transforms\f655a4c83a42b59238b84486302aa3aa\transformed\lifecycle-process-2.6.2\res
+com.sampidia.fakeproductdetector.app-res-53 C:\Users\SAM\OneDrive\Documents\Telegram APP\Fake Detector\fake-detector-app\android\app\build\generated\crashlytics\res\debug
+com.sampidia.fakeproductdetector.app-pngs-54 C:\Users\SAM\OneDrive\Documents\Telegram APP\Fake Detector\fake-detector-app\android\app\build\generated\res\pngs\debug
+com.sampidia.fakeproductdetector.app-res-55 C:\Users\SAM\OneDrive\Documents\Telegram APP\Fake Detector\fake-detector-app\android\app\build\generated\res\processDebugGoogleServices
+com.sampidia.fakeproductdetector.app-resValues-56 C:\Users\SAM\OneDrive\Documents\Telegram APP\Fake Detector\fake-detector-app\android\app\build\generated\res\resValues\debug
+com.sampidia.fakeproductdetector.app-updated_navigation_xml-57 C:\Users\SAM\OneDrive\Documents\Telegram APP\Fake Detector\fake-detector-app\android\app\build\generated\updated_navigation_xml\debug
+com.sampidia.fakeproductdetector.app-packageDebugResources-58 C:\Users\SAM\OneDrive\Documents\Telegram APP\Fake Detector\fake-detector-app\android\app\build\intermediates\incremental\debug\packageDebugResources\merged.dir
+com.sampidia.fakeproductdetector.app-packageDebugResources-59 C:\Users\SAM\OneDrive\Documents\Telegram APP\Fake Detector\fake-detector-app\android\app\build\intermediates\incremental\debug\packageDebugResources\stripped.dir
+com.sampidia.fakeproductdetector.app-debug-60 C:\Users\SAM\OneDrive\Documents\Telegram APP\Fake Detector\fake-detector-app\android\app\build\intermediates\merged_res\debug\mergeDebugResources
+com.sampidia.fakeproductdetector.app-debug-61 C:\Users\SAM\OneDrive\Documents\Telegram APP\Fake Detector\fake-detector-app\android\app\src\debug\res
+com.sampidia.fakeproductdetector.app-main-62 C:\Users\SAM\OneDrive\Documents\Telegram APP\Fake Detector\fake-detector-app\android\app\src\main\res
+com.sampidia.fakeproductdetector.app-debug-63 C:\Users\SAM\OneDrive\Documents\Telegram APP\Fake Detector\fake-detector-app\android\capacitor-cordova-android-plugins\build\intermediates\packaged_res\debug\packageDebugResources
+com.sampidia.fakeproductdetector.app-debug-64 C:\Users\SAM\OneDrive\Documents\Telegram APP\Fake Detector\fake-detector-app\node_modules\@capacitor-community\admob\android\build\intermediates\packaged_res\debug\packageDebugResources
+com.sampidia.fakeproductdetector.app-debug-65 C:\Users\SAM\OneDrive\Documents\Telegram APP\Fake Detector\fake-detector-app\node_modules\@capacitor-firebase\crashlytics\android\build\intermediates\packaged_res\debug\packageDebugResources
+com.sampidia.fakeproductdetector.app-debug-66 C:\Users\SAM\OneDrive\Documents\Telegram APP\Fake Detector\fake-detector-app\node_modules\@capacitor\android\capacitor\build\intermediates\packaged_res\debug\packageDebugResources
+com.sampidia.fakeproductdetector.app-debug-67 C:\Users\SAM\OneDrive\Documents\Telegram APP\Fake Detector\fake-detector-app\node_modules\@capacitor\browser\android\build\intermediates\packaged_res\debug\packageDebugResources
+com.sampidia.fakeproductdetector.app-debug-68 C:\Users\SAM\OneDrive\Documents\Telegram APP\Fake Detector\fake-detector-app\node_modules\@capacitor\camera\android\build\intermediates\packaged_res\debug\packageDebugResources
+com.sampidia.fakeproductdetector.app-debug-69 C:\Users\SAM\OneDrive\Documents\Telegram APP\Fake Detector\fake-detector-app\node_modules\@capacitor\filesystem\android\build\intermediates\packaged_res\debug\packageDebugResources
+com.sampidia.fakeproductdetector.app-debug-70 C:\Users\SAM\OneDrive\Documents\Telegram APP\Fake Detector\fake-detector-app\node_modules\@capacitor\splash-screen\android\build\intermediates\packaged_res\debug\packageDebugResources
+com.sampidia.fakeproductdetector.app-debug-71 C:\Users\SAM\OneDrive\Documents\Telegram APP\Fake Detector\fake-detector-app\node_modules\@capacitor\status-bar\android\build\intermediates\packaged_res\debug\packageDebugResources
+com.sampidia.fakeproductdetector.app-debug-72 C:\Users\SAM\OneDrive\Documents\Telegram APP\Fake Detector\fake-detector-app\node_modules\@capawesome\capacitor-android-edge-to-edge-support\android\build\intermediates\packaged_res\debug\packageDebugResources

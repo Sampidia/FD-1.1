@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="default_web_client_id" translatable="false">104134177023-e46bef4f1t0b1loaco03sujt9g2nphjo.apps.googleusercontent.com</string>
+    <string name="gcm_defaultSenderId" translatable="false">104134177023</string>
+    <string name="google_api_key" translatable="false">AIzaSyAGvpYSuZuDx8nerp1R4TkVKlu29pFVrUU</string>
+    <string name="google_app_id" translatable="false">1:104134177023:android:f14f5857272d0711449cca</string>
+    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyAGvpYSuZuDx8nerp1R4TkVKlu29pFVrUU</string>
+    <string name="google_storage_bucket" translatable="false">fake-detector-mobile.firebasestorage.app</string>
+    <string name="project_id" translatable="false">fake-detector-mobile</string>
+</resources>

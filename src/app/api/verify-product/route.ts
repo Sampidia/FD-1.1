@@ -84,7 +84,8 @@ const verifyProductSchema = z.object({
 
   images: z.array(z.string())
     .max(3, 'Maximum 3 images allowed')
-    .optional()
+    .optional(),
+  preferredProvider: z.string().optional()
 })
 
 // Enhanced logging for security events
@@ -243,7 +244,7 @@ export async function POST(request: NextRequest) {
       user_email: user?.email
     })
 
-    const { productName, productDescription, images, userBatchNumber } = requestBody
+    const { productName, productDescription, images, userBatchNumber, preferredProvider } = requestBody
 
     console.log('🔍 VERIFICATION REQUEST:', {
       productName,
@@ -337,9 +338,9 @@ export async function POST(request: NextRequest) {
         console.log('🎯 Basic Plan Detected → Gemini AI Enabled')
       } else {
         userPlan = 'free'
-        aiProvider = 'none'
-        aiEnabled = false
-        console.log('🎯 Free Tier Detected → AI Disabled')
+        aiProvider = preferredProvider === 'amazon-nova' ? 'amazon-nova' : 'google'
+        aiEnabled = !!preferredProvider || true // Default to true if you want free users to have AI
+        console.log(`🎯 Free Tier Detected → AI Enabled with ${aiProvider}`)
       }
 
       if (aiEnabled && process.env.ENABLE_AI_ENHANCEMENT !== 'true') {
@@ -405,7 +406,8 @@ export async function POST(request: NextRequest) {
           userPlan,
           enablePreprocessingRetry: userPlan !== 'free',
           minConfidence: userPlan === 'free' ? 0.4 : 0.6,
-          enableManualFallback: false // We're handling fallbacks in the main logic
+          enableManualFallback: false,
+          preferredProvider
         }
 
         console.log(`🔄 Final OCR strategies for ${userPlan}: ${ocrStrategies.join(' → ')}`)
@@ -937,6 +939,8 @@ export async function POST(request: NextRequest) {
           aiService = aiRouter['aiInstances']?.claude
         } else if (aiProvider === 'openai') {
           aiService = aiRouter['aiInstances']?.openai
+        } else if (aiProvider === 'amazon-nova') {
+          aiService = aiRouter['aiInstances']?.amazonNova
         }
 
         if (!aiService) {
