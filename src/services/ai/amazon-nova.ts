@@ -7,7 +7,7 @@ export class AmazonNovaService {
 
   constructor() {
     this.apiKey = process.env.AWS_NOVA_AI || ''
-    this.modelName = 'amazon.nova-lite-v1:0' // Default to lite for cost-effectiveness
+    this.modelName = 'nova-2-lite-v1' // Switch to proxy-supported model name
   }
 
   async processVision(imageBuffer: Buffer): Promise<AIResponse> {
@@ -19,30 +19,28 @@ export class AmazonNovaService {
       const base64Image = imageBuffer.toString('base64')
 
       const response = await axios.post(
-        `https://bedrock-runtime.us-east-1.amazonaws.com/model/${this.modelName}/invoke`,
+        'https://api.nova.amazon.com/v1/chat/completions',
         {
+          model: this.modelName,
           messages: [
             {
               role: 'user',
               content: [
                 {
-                  image: {
-                    format: 'jpeg',
-                    source: {
-                      bytes: base64Image
-                    }
+                  type: 'image_url',
+                  image_url: {
+                    url: `data:image/jpeg;base64,${base64Image}`
                   }
                 },
                 {
+                  type: 'text',
                   text: 'Extract all visible text from this product image. Focus on Product Name, Batch Number, NAFDAC number, and Expiry Date if present. Return only the raw extracted text.'
                 }
               ]
             }
           ],
-          inferenceConfig: {
-            maxTokens: 2000,
-            temperature: 0.1
-          }
+          max_tokens: 2000,
+          temperature: 0.1
         },
         {
           headers: {
@@ -52,7 +50,7 @@ export class AmazonNovaService {
         }
       )
 
-      const extractedText = response.data.output?.message?.content?.[0]?.text || ''
+      const extractedText = response.data.choices[0]?.message?.content || ''
       const extractionResult = this.parseNovaResult(extractedText)
       extractionResult.confidence = 0.85
 
@@ -94,18 +92,17 @@ export class AmazonNovaService {
       Return ONLY JSON.`
 
       const response = await axios.post(
-        `https://bedrock-runtime.us-east-1.amazonaws.com/model/${this.modelName}/invoke`,
+        'https://api.nova.amazon.com/v1/chat/completions',
         {
+          model: this.modelName,
           messages: [
             {
               role: 'user',
-              content: [{ text: prompt }]
+              content: [{ type: 'text', text: prompt }]
             }
           ],
-          inferenceConfig: {
-            maxTokens: 1000,
-            temperature: 0
-          }
+          max_tokens: 1000,
+          temperature: 0
         },
         {
           headers: {
@@ -115,7 +112,7 @@ export class AmazonNovaService {
         }
       )
 
-      const resultText = response.data.output?.message?.content?.[0]?.text || '{}'
+      const resultText = response.data.choices[0]?.message?.content || '{}'
       const extractionResult = this.parseNovaResult(resultText)
       extractionResult.confidence = 0.9
       
@@ -184,10 +181,11 @@ export class AmazonNovaService {
   async checkHealth(): Promise<boolean> {
     try {
       const response = await axios.post(
-        `https://bedrock-runtime.us-east-1.amazonaws.com/model/${this.modelName}/invoke`,
+        'https://api.nova.amazon.com/v1/chat/completions',
         {
-          messages: [{ role: 'user', content: [{ text: 'ping' }] }],
-          inferenceConfig: { maxTokens: 10 }
+          model: this.modelName,
+          messages: [{ role: 'user', content: [{ type: 'text', text: 'ping' }] }],
+          max_tokens: 10
         },
         {
           headers: {
@@ -197,7 +195,7 @@ export class AmazonNovaService {
           timeout: 5000
         }
       )
-      return !!response.data.output
+      return !!response.data.choices
     } catch {
       return false
     }
