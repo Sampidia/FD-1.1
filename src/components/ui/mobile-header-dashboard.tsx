@@ -246,6 +246,13 @@ export function MobileHeader({
                     </Button>
                   </Link>
 
+                  <Link href="/contact" onClick={() => setIsMenuOpen(false)}>
+                    <Button variant="ghost" className="w-full justify-start h-10">
+                      <MessageCircle className="w-4 h-4 mr-3" />
+                      Contact Us
+                    </Button>
+                  </Link>
+
                   <Link href="/auth/signin" onClick={() => setIsMenuOpen(false)}>
                     <Button variant="ghost" className="w-full justify-start h-10">
                       <User className="w-4 h-4 mr-3" />

@@ -6,8 +6,15 @@ const config: CapacitorConfig = {
   webDir: 'public',
   server: {
     url: 'https://scan.sampidia.com',
-    allowNavigation: ['scan.sampidia.com']
+    allowNavigation: [
+      'scan.sampidia.com',
+      'accounts.google.com',
+      'ssl.gstatic.com',
+      'www.gstatic.com',
+      'fonts.gstatic.com'
+    ]
   },
+  overrideUserAgent: 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36',
   plugins: {
     StatusBar: {
       style: 'DARK',
@@ -15,7 +22,7 @@ const config: CapacitorConfig = {
       overlaysWebView: true
     },
     SplashScreen: {
-      launchShowDuration: 2000,
+      launchShowDuration: 3000,
       launchAutoHide: true,
       launchFadeOutDuration: 800,
       splashFullScreen: true,

@@ -112,6 +112,7 @@ export function UploadForm() {
   const [selectedAI, setSelectedAI] = useState<'gemini' | 'amazon-nova'>('gemini')
   const [isClaimingDaily, setIsClaimingDaily] = useState(false)
   const [isUpgrading, setIsUpgrading] = useState(false)
+  const [isWatchingAd, setIsWatchingAd] = useState(false)
   const [canClaimDaily, setCanClaimDaily] = useState(false)
   const [dailyStatusLoaded, setDailyStatusLoaded] = useState(false)
   const [pointsValidated, setPointsValidated] = useState(false)
@@ -642,6 +643,59 @@ export function UploadForm() {
     setIsUpgrading(true)
     // Redirect to pricing page
     window.location.href = '/pricing'
+  }
+
+  // Handler for watching a rewarded ad to earn points (Native Android only)
+  // Uses @capacitor-community/admob rewarded video ad
+  const handleWatchAd = async () => {
+    try {
+      // Dynamically import Capacitor and AdMob only when running natively
+      // to avoid breaking server-side rendering or web builds
+      const { Capacitor } = await import('@capacitor/core')
+      if (!Capacitor.isNativePlatform()) {
+        console.warn('Watch Ad: Not on native platform, skipping.')
+        return
+      }
+
+      const { AdMob, RewardAdPluginEvents } = await import('@capacitor-community/admob')
+
+      setIsWatchingAd(true)
+
+      // Set up rewarded ad — AdMob ad unit IDs should be in env or a config file
+      const adOptions = {
+        adId: process.env.NEXT_PUBLIC_ADMOB_REWARDED_AD_ID || 'ca-app-pub-3940256099942544/5224354917', // Test ad ID fallback
+        isTesting: process.env.NODE_ENV !== 'production',
+      }
+
+      // Listen for the reward event BEFORE showing the ad
+      const rewardListener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, async () => {
+        console.log('🎬 Ad watched to completion — crediting points...')
+        try {
+          const response = await fetch('/api/user/ad-reward', { method: 'POST' })
+          const data = await response.json()
+          if (data.success) {
+            console.log(`✅ +${data.pointsAdded} points credited!`)
+            setIsInsufficientPointsMode(false)
+            window.location.reload() // Refresh to show updated balance
+          } else {
+            console.warn('Ad reward API returned:', data.message)
+          }
+        } catch (err) {
+          console.error('Failed to credit ad reward:', err)
+        } finally {
+          setIsWatchingAd(false)
+          rewardListener.remove()
+        }
+      })
+
+      // Prepare and show the rewarded video ad
+      await AdMob.prepareRewardVideoAd(adOptions)
+      await AdMob.showRewardVideoAd()
+
+    } catch (error) {
+      console.error('Ad playback error:', error)
+      setIsWatchingAd(false)
+    }
   }
 
   return (
@@ -1190,44 +1244,68 @@ export function UploadForm() {
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 justify-center mb-6">
-              {/* Claim Free Points Button - Smart States */}
-              <Button
-                onClick={handleClaimDailyPoints}
-                disabled={!canClaimDaily || isClaimingDaily}
-                className={`px-6 py-3 transition-all duration-200 ${
-                  canClaimDaily && !isClaimingDaily
-                    ? 'bg-green-600 hover:bg-green-700 text-white hover:scale-105'
-                    : 'bg-gray-400 text-gray-200 cursor-not-allowed opacity-60'
-                }`}
-              >
-                {isClaimingDaily ? (
-                  <span className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Claiming...
-                  </span>
-                ) : !canClaimDaily ? (
-                  <>⏰ Try Again Tomorrow</>
-                ) : (
-                  <>🎁 Claim Free Points</>
-                )}
-              </Button>
+            <div className="flex flex-col gap-3 justify-center mb-6">
+              {/* Watch Ad to Earn Points Button - Native Android only */}
+              {typeof window !== 'undefined' && (window as any).__CAPACITOR_NATIVE__ === true || typeof (window as any).Capacitor?.isNativePlatform === 'function' && (window as any).Capacitor.isNativePlatform() ? (
+                <Button
+                  onClick={handleWatchAd}
+                  disabled={isWatchingAd}
+                  className={`w-full px-6 py-3 transition-all duration-200 ${
+                    !isWatchingAd
+                      ? 'bg-purple-600 hover:bg-purple-700 text-white hover:scale-105'
+                      : 'bg-purple-400 text-white cursor-not-allowed opacity-70'
+                  }`}
+                >
+                  {isWatchingAd ? (
+                    <span className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Loading Ad...
+                    </span>
+                  ) : (
+                    <>📺 Watch Ad for +2 Points</>
+                  )}
+                </Button>
+              ) : null}
 
-              {/* Upgrade Plan Button */}
-              <Button
-                onClick={handleUpgradePlan}
-                disabled={isUpgrading}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3"
-              >
-                {isUpgrading ? (
-                  <span className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Upgrading...
-                  </span>
-                ) : (
-                  <>⭐ Upgrade Plan</>
-                )}
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-3">
+                {/* Claim Free Points Button - Smart States */}
+                <Button
+                  onClick={handleClaimDailyPoints}
+                  disabled={!canClaimDaily || isClaimingDaily}
+                  className={`px-6 py-3 transition-all duration-200 ${
+                    canClaimDaily && !isClaimingDaily
+                      ? 'bg-green-600 hover:bg-green-700 text-white hover:scale-105'
+                      : 'bg-gray-400 text-gray-200 cursor-not-allowed opacity-60'
+                  }`}
+                >
+                  {isClaimingDaily ? (
+                    <span className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Claiming...
+                    </span>
+                  ) : !canClaimDaily ? (
+                    <>⏰ Try Again Tomorrow</>
+                  ) : (
+                    <>🎁 Claim Free Points</>
+                  )}
+                </Button>
+
+                {/* Upgrade Plan Button */}
+                <Button
+                  onClick={handleUpgradePlan}
+                  disabled={isUpgrading}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3"
+                >
+                  {isUpgrading ? (
+                    <span className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Upgrading...
+                    </span>
+                  ) : (
+                    <>⭐ Upgrade Plan</>
+                  )}
+                </Button>
+              </div>
             </div>
 
             {/* Exit Button */}

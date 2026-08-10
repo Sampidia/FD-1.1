@@ -18,6 +18,7 @@ export default function SignInPage() {
   const [emailMethod, setEmailMethod] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isNativeAndroid, setIsNativeAndroid] = useState(false)
   const [formData, setFormData] = useState({
     email: "",
     password: ""
@@ -27,6 +28,19 @@ export default function SignInPage() {
 
   // reCAPTCHA hook
   const { executeRecaptcha, resetRecaptcha, handleRecaptchaLoad } = useRecaptcha()
+
+  // Detect if running on native Capacitor Android
+  useEffect(() => {
+    const detectPlatform = async () => {
+      try {
+        const { Capacitor } = await import('@capacitor/core')
+        setIsNativeAndroid(Capacitor.isNativePlatform())
+      } catch {
+        setIsNativeAndroid(false)
+      }
+    }
+    detectPlatform()
+  }, [])
 
   // Load reCAPTCHA script and initialize
   useEffect(() => {
@@ -54,10 +68,41 @@ export default function SignInPage() {
     setIsLoading(true)
     setError(null)
     try {
-      await signIn("google", {
-        callbackUrl: "/dashboard",
-        redirect: true
-      })
+      if (isNativeAndroid) {
+        // 📱 Native Capacitor Android flow: use @capgo/capacitor-social-login
+        const { SocialLogin } = await import('@capgo/capacitor-social-login')
+
+        await SocialLogin.initialize({
+          google: {
+            webClientId: process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
+          }
+        })
+
+        const result = await SocialLogin.login({ provider: 'google', options: {} })
+
+        const idToken = (result?.result as any)?.idToken
+        if (!idToken) {
+          throw new Error('No ID token returned from native Google Sign-In')
+        }
+
+        // Pass the native ID token to the 'google-native' NextAuth credentials provider
+        const signInResult = await signIn('google-native', {
+          idToken,
+          redirect: false,
+        })
+
+        if (signInResult?.error) {
+          setError('Native Google Sign-In failed. Please try again.')
+        } else if (signInResult?.ok) {
+          router.push('/dashboard')
+        }
+      } else {
+        // 🌐 Web browser flow: standard NextAuth redirect
+        await signIn("google", {
+          callbackUrl: "/dashboard",
+          redirect: true
+        })
+      }
     } catch (error: unknown) {
       console.error("Sign-in error:", error)
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred during sign in. Please try again."

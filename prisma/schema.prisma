@@ -47,6 +47,8 @@ model User {
   planStandardPoints    Int     @default(0)    // Points purchased at standard tier (100₦)
   planBusinessPoints    Int     @default(0)    // Points purchased at business tier (130₦)
   planFreePoints        Int     @default(0)    // Free daily points (reset daily at 9 AM UTC)
+  adRewardsToday        Int     @default(0)    // Number of rewarded ads watched today
+  adRewardsLastReset    String  @default("")   // Date string of last daily ad reward reset
   dailyPointsLastGiven String   @default("")
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt

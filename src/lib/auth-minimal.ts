@@ -4,6 +4,7 @@ import Credentials from "next-auth/providers/credentials"
 import { ensureUserExists } from "@/lib/auth-db"
 import prisma from "@/lib/prisma"
 import bcrypt from "bcryptjs"
+import { OAuth2Client } from "google-auth-library"
 
 // ULTRA MINIMAL NextAuth config - CORRECT exports
 const authOptions = {
@@ -70,6 +71,69 @@ const authOptions = {
           }
         } catch (error) {
           console.error('🔐 Auth error:', error)
+          return null
+        }
+      },
+    }),
+    // Native Google Sign-In provider for Capacitor Android app
+    // Verifies the Google ID token issued by @capgo/capacitor-social-login
+    Credentials({
+      id: "google-native",
+      name: "Google (Native)",
+      credentials: {
+        idToken: { label: "Google ID Token", type: "text" },
+      },
+      authorize: async (credentials: any): Promise<any> => {
+        if (!credentials?.idToken) {
+          console.log('🔐 [google-native] No idToken provided')
+          return null
+        }
+
+        try {
+          // Verify the Google ID token server-side
+          const googleClientId = process.env.GOOGLE_CLIENT_ID!
+          const oauthClient = new OAuth2Client(googleClientId)
+
+          const ticket = await oauthClient.verifyIdToken({
+            idToken: credentials.idToken,
+            audience: googleClientId,
+          })
+
+          const payload = ticket.getPayload()
+          if (!payload || !payload.email) {
+            console.log('🔐 [google-native] Invalid token payload')
+            return null
+          }
+
+          console.log('🔐 [google-native] Token verified for:', payload.email)
+
+          // Upsert user in database (same as standard Google OAuth flow)
+          await ensureUserExists({
+            id: payload.sub,
+            email: payload.email,
+            name: payload.name || payload.email.split('@')[0],
+            image: payload.picture || undefined,
+          })
+
+          // Fetch the user ID from DB
+          const dbUser = await prisma.user.findUnique({
+            where: { email: payload.email },
+            select: { id: true, email: true, name: true, image: true }
+          })
+
+          if (!dbUser) {
+            console.log('🔐 [google-native] User not found after upsert')
+            return null
+          }
+
+          return {
+            id: dbUser.id,
+            email: dbUser.email,
+            name: dbUser.name,
+            image: dbUser.image,
+          }
+        } catch (error) {
+          console.error('🔐 [google-native] Token verification failed:', error)
           return null
         }
       },

@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import AuthProvider from "@/components/providers/session-provider";
 import { MaintenanceModeProvider } from "@/components/maintenance-mode";
+import SplashManager from "@/components/splash-manager";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -60,6 +61,7 @@ export default async function RootLayout({
         {/* Google reCAPTCHA v2 invisible - Loaded conditionally per page */}
       </head>
       <body className="font-sans antialiased">
+        <SplashManager />
         <AuthProvider>
           <MaintenanceModeProvider>
             {children}

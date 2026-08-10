@@ -520,9 +520,20 @@ export async function POST(request: NextRequest) {
     let nameMatches2: AlertSearchResult[] = []
     let nameMatches3: AlertSearchResult[] = []
 
+    // Pharmaceutical dosage form stop-words — these are too generic to use for product matching
+    // and cause false positive counterfeit alerts when a batch number coincidentally matches
+    // (e.g., "syrup" matching a Paracetamol Syrup alert while searching for Amoxicillin Syrup)
+    const DOSAGE_FORM_STOPWORDS = new Set([
+      'syrup', 'tablet', 'tablets', 'capsule', 'capsules', 'suspension',
+      'injection', 'solution', 'ointment', 'cream', 'drops', 'gel',
+      'lotion', 'oral', 'topical', 'inhaler', 'patch', 'suppository',
+      'infusion', 'powder', 'sachet', 'lozenge', 'spray',
+      'mg', 'ml', 'mcg', 'g', 'kg', 'mls', 'iu'
+    ])
+
     const searchTerms = productName.split(/\s+/).filter((term: string) =>
-      term.length > 3 && !['mg', 'ml', 'mcg', 'g', 'kg', 'mls', 'iu'].includes(term.toLowerCase())
-    ).slice(0, 2) // Only first 2 longest keywords
+      term.length > 3 && !DOSAGE_FORM_STOPWORDS.has(term.toLowerCase())
+    ).slice(0, 2) // Only first 2 meaningful keywords (active ingredient / brand name)
 
     console.log('🔍 Extracted search terms (restricted):', searchTerms)
 
