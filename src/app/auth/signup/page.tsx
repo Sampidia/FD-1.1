@@ -15,7 +15,7 @@ import Head from "next/head"
 
 export default function SignUpPage() {
   const [isLoading, setIsLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
+  const [isNativeAndroid, setIsNativeAndroid] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -24,6 +24,63 @@ export default function SignUpPage() {
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const router = useRouter()
+
+  // Detect if running on native Capacitor Android
+  useEffect(() => {
+    const detectPlatform = async () => {
+      try {
+        const { Capacitor } = await import('@capacitor/core')
+        setIsNativeAndroid(Capacitor.isNativePlatform())
+      } catch {
+        setIsNativeAndroid(false)
+      }
+    }
+    detectPlatform()
+  }, [])
+
+  const handleGoogleSignUp = async () => {
+    setIsLoading(true)
+    setErrors({})
+    try {
+      if (isNativeAndroid) {
+        // 📱 Native Capacitor Android flow
+        const { SocialLogin } = await import('@capgo/capacitor-social-login')
+
+        const webClientId = process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+
+        await SocialLogin.initialize({
+          google: webClientId ? { webClientId } : {}
+        })
+
+        const result = await SocialLogin.login({ provider: 'google', options: {} })
+
+        const idToken = (result?.result as any)?.idToken
+        if (!idToken) {
+          throw new Error('No ID token returned from native Google Sign-In')
+        }
+
+        const signInResult = await signIn('google-native', {
+          idToken,
+          redirect: false,
+        })
+
+        if (signInResult?.error) {
+          setErrors({ general: 'Native Google Sign-In failed. Please try again.' })
+        } else if (signInResult?.ok) {
+          router.push('/dashboard')
+        }
+      } else {
+        // 🌐 Web browser flow
+        await signIn("google", { callbackUrl: "/dashboard" })
+      }
+    } catch (error: unknown) {
+      console.error("Sign-up error:", error)
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred during Google sign in. Please try again."
+      setErrors({ general: errorMessage })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // reCAPTCHA hook
   const { executeRecaptcha, resetRecaptcha, handleRecaptchaLoad } = useRecaptcha()
@@ -263,7 +320,7 @@ export default function SignUpPage() {
             </div>
 
             <Button
-              onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+              onClick={handleGoogleSignUp}
               className="w-full bg-white border-2 border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-3 h-auto"
               disabled={isLoading}
             >

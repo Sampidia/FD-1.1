@@ -5,5 +5,5 @@
     <string name="package_name">com.sampidia.fakeproductdetector</string>
     <string name="custom_url_scheme">com.sampidia.fakeproductdetector</string>
     <!-- Google Sign-In web client ID (client_type: 3 from google-services.json) -->
-    <string name="google_client_id">133774994461-d9620v701ou1lk37kh7v8klt5saegu7i.apps.googleusercontent.com</string>
+    <string name="google_client_id">133774994461-o5k6meletpu0fj08p0726pnnhb9g3vba.apps.googleusercontent.com</string>
 </resources>
