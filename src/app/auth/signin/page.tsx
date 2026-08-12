@@ -72,10 +72,13 @@ export default function SignInPage() {
         // 📱 Native Capacitor Android flow: use @capgo/capacitor-social-login
         const { SocialLogin } = await import('@capgo/capacitor-social-login')
 
-        const webClientId = process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+        // webClientId = Web OAuth 2.0 Client ID (confirmed working)
+        const webClientId = process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID
+          || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+          || '133774994461-d9620v701ou1lk37kh7v8klt5saegu7i.apps.googleusercontent.com'
 
         await SocialLogin.initialize({
-          google: webClientId ? { webClientId } : {}
+          google: { webClientId }
         })
 
         const result = await SocialLogin.login({ provider: 'google', options: {} })

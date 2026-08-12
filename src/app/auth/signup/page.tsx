@@ -15,6 +15,7 @@ import Head from "next/head"
 
 export default function SignUpPage() {
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [isNativeAndroid, setIsNativeAndroid] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
@@ -46,10 +47,12 @@ export default function SignUpPage() {
         // 📱 Native Capacitor Android flow
         const { SocialLogin } = await import('@capgo/capacitor-social-login')
 
-        const webClientId = process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+        const webClientId = process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID
+          || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+          || '133774994461-d9620v701ou1lk37kh7v8klt5saegu7i.apps.googleusercontent.com'
 
         await SocialLogin.initialize({
-          google: webClientId ? { webClientId } : {}
+          google: { webClientId }
         })
 
         const result = await SocialLogin.login({ provider: 'google', options: {} })
