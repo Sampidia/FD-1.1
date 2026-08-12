@@ -661,10 +661,10 @@ export function UploadForm() {
 
       setIsWatchingAd(true)
 
-      // Set up rewarded ad — AdMob ad unit IDs should be in env or a config file
+      // Set up rewarded ad with production AdMob unit ID
       const adOptions = {
-        adId: process.env.NEXT_PUBLIC_ADMOB_REWARDED_AD_ID || 'ca-app-pub-3940256099942544/5224354917', // Test ad ID fallback
-        isTesting: process.env.NODE_ENV !== 'production',
+        adId: process.env.NEXT_PUBLIC_ADMOB_REWARDED_AD_ID || 'ca-app-pub-1169009766287256/5704703183',
+        isTesting: false,
       }
 
       // Listen for the reward event BEFORE showing the ad
