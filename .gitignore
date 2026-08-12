@@ -89,6 +89,13 @@ next-env.d.ts
 
 # Backup files
 *.backup
+# Android & iOS Sensitive Files
+android/app/google-services.json
+ios/App/App/GoogleService-Info.plist
+*.jks
+*.keystore
+*.pepk
+
 # Android
 android/build/
 android/.gradle/
