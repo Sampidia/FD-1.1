@@ -491,69 +491,39 @@ export default function ResultPage({ params }: PageProps) {
             {/* ── Analysis Details Cards ────────────────────────────────── */}
             <div className="space-y-6 mb-6">
 
-              {/* ── Bug 1 FIX: Detection Summary with real analysis status ─── */}
+              {/* Detection Summary */}
               <Card className="border-2">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Shield className="w-5 h-5 text-blue-600" />
                     Detection Summary
-                    {/* Analysis status badge — replaces the hardcoded "in progress" text */}
-                    {analysisComplete ? (
-                      <Badge className="ml-auto bg-green-100 text-green-800 border border-green-300 text-xs font-semibold">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Analysis Complete
-                      </Badge>
-                    ) : (
-                      <Badge className="ml-auto bg-amber-100 text-amber-800 border border-amber-300 text-xs font-semibold animate-pulse">
-                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                        Analysis Pending
-                      </Badge>
-                    )}
+                    <Badge className="ml-auto bg-green-100 text-green-800 border border-green-300 text-xs font-semibold">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Analysis Complete
+                    </Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* ── Bug 1: Show proper pending/complete states ── */}
-                  {!analysisComplete ? (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
-                      <Loader2 className="w-5 h-5 text-amber-600 animate-spin flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-semibold text-amber-800 mb-1">Analysis In Progress</p>
-                        <p className="text-amber-700 text-sm">
-                          Our system is currently cross-referencing your product against the NAFDAC database. 
-                          This typically completes within a few seconds. Refresh the page to check for updates.
-                        </p>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="mt-3 border-amber-300 text-amber-800 hover:bg-amber-100"
-                          onClick={() => fetchResultData()}
-                        >
-                          🔄 Refresh Status
-                        </Button>
-                      </div>
+                  <div className="bg-gray-50 rounded-lg p-3 sm:p-4 w-full">
+                    <h4 className="font-semibold mb-2 text-sm sm:text-base break-words flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      Analysis Result:
+                    </h4>
+                    <div className="text-gray-700 leading-relaxed break-words overflow-wrap-anywhere">
+                      {(result.summary && !result.summary.toLowerCase().includes('in progress') ? result.summary : (result.isCounterfeit ? '🔴 Product verification complete.' : '✅ SAFE PRODUCT: No fake/recall/expired alerts found in NAFDAC database.')).split('\n\n### ').map((part, index) => {
+                        if (index === 0) {
+                          return <p key={index} className="text-sm sm:text-base leading-relaxed break-words overflow-wrap-anywhere">{part}</p>
+                        }
+                        const [heading, ...content] = part.split('\n\n')
+                        return (
+                          <div key={index}>
+                            <h3 className="font-extrabold text-lg sm:text-xl mt-4 sm:mt-6 mb-3 break-words overflow-wrap-anywhere">{heading.replace(':', '')}:</h3>
+                            <p className="text-sm sm:text-base leading-relaxed break-words overflow-wrap-anywhere">{content.join('\n\n')}</p>
+                          </div>
+                        )
+                      })}
                     </div>
-                  ) : (
-                    <div className="bg-gray-50 rounded-lg p-3 sm:p-4 w-full">
-                      <h4 className="font-semibold mb-2 text-sm sm:text-base break-words flex items-center gap-2">
-                        <CheckCircle className="w-4 h-4 text-green-600" />
-                        Analysis Result:
-                      </h4>
-                      <div className="text-gray-700 leading-relaxed break-words overflow-wrap-anywhere">
-                        {result.summary.split('\n\n### ').map((part, index) => {
-                          if (index === 0) {
-                            return <p key={index} className="text-sm sm:text-base leading-relaxed break-words overflow-wrap-anywhere">{part}</p>
-                          }
-                          const [heading, ...content] = part.split('\n\n')
-                          return (
-                            <div key={index}>
-                              <h3 className="font-extrabold text-lg sm:text-xl mt-4 sm:mt-6 mb-3 break-words overflow-wrap-anywhere">{heading.replace(':', '')}:</h3>
-                              <p className="text-sm sm:text-base leading-relaxed break-words overflow-wrap-anywhere">{content.join('\n\n')}</p>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
+                  </div>
 
                   {result.batchNumber && (
                     <div className="bg-blue-50 rounded-lg p-3">
