@@ -604,9 +604,64 @@ export default function ResultPage({ params }: PageProps) {
                       </div>
                     </div>
 
-                    {/* ── Bug 4 FIX: AI Narrative vs AI Decision — clearly separated ── */}
+                    {/* Section 1: AI Classification (verdict first — most important) */}
+                    <div className="bg-white rounded-lg p-4 shadow-sm border border-purple-200 mb-4">
+                      <h4 className="font-semibold text-purple-800 mb-1 flex items-center gap-2">
+                        <Shield className="w-4 h-4" />
+                        🏷️ AI Classification
+                        <span className="text-xs font-normal text-gray-500 ml-1">(AI's own verdict)</span>
+                      </h4>
+                      <p className="text-xs text-gray-500 mb-3 italic">
+                        This is the AI's direct categorisation of the alert type for your product, independent of the system's final decision below.
+                      </p>
 
-                    {/* Section 1: AI Narrative/Explanation */}
+                      <div className="flex flex-wrap items-center gap-3">
+                        {/* AI's own verdict */}
+                        <div>
+                          <p className="text-xs font-medium text-gray-600 mb-1">AI Model Verdict:</p>
+                          <Badge variant="outline" className={`text-sm px-3 py-1.5 font-semibold ${
+                            aiOwnAlertType === 'FAKE' ? 'bg-red-100 text-red-800 border-red-300' :
+                            aiOwnAlertType === 'RECALL' ? 'bg-orange-100 text-orange-800 border-orange-300' :
+                            aiOwnAlertType === 'EXPIRED' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+                            aiOwnAlertType === 'CONTAMINATED' ? 'bg-rose-100 text-rose-800 border-rose-300' :
+                            'bg-green-100 text-green-800 border-green-300'
+                          }`}>
+                            🤖 {aiOwnAlertType || 'ANALYZING'}
+                          </Badge>
+                        </div>
+
+                        <div className="text-gray-300 hidden sm:block">|</div>
+
+                        {/* System's final decision */}
+                        <div>
+                          <p className="text-xs font-medium text-gray-600 mb-1">System Final Decision:</p>
+                          <Badge variant="outline" className={`text-sm px-3 py-1.5 font-semibold ${
+                            systemAlertType.includes('COUNTERFEIT') || systemAlertType === 'FAKE' ? 'bg-red-100 text-red-800 border-red-300' :
+                            systemAlertType.includes('RECALL') ? 'bg-orange-100 text-orange-800 border-orange-300' :
+                            systemAlertType.includes('EXPIRED') ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+                            systemAlertType === 'No Alert' ? 'bg-green-100 text-green-800 border-green-300' :
+                            'bg-blue-100 text-blue-800 border-blue-300'
+                          }`}>
+                            🔍 {systemAlertType}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      {/* Explain any discrepancy */}
+                      {aiOwnAlertType && systemAlertType && aiOwnAlertType !== systemAlertType &&
+                       !systemAlertType.toUpperCase().includes(aiOwnAlertType.toUpperCase()) && (
+                        <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
+                          <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                          <p className="text-xs text-blue-700">
+                            <strong>Why do these differ?</strong> The AI model classified this as <strong>{aiOwnAlertType}</strong> based on the raw NAFDAC alert content. 
+                            The system's final decision of <strong>{systemAlertType}</strong> is determined after batch number comparison and correlated alert matching, 
+                            which may override the AI's initial classification for accuracy.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Section 2: AI Narrative/Explanation */}
                     <div className="bg-white rounded-lg p-4 shadow-sm border border-purple-200 mb-4">
                       <h4 className="font-semibold text-purple-800 mb-1 flex items-center gap-2">
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -658,63 +713,6 @@ export default function ResultPage({ params }: PageProps) {
                           )
                         })()}
                       </div>
-                    </div>
-
-                    {/* Section 2: AI Classification (separate from narrative, clearly labeled) */}
-                    <div className="bg-white rounded-lg p-4 shadow-sm border border-purple-200">
-                      <h4 className="font-semibold text-purple-800 mb-1 flex items-center gap-2">
-                        <Shield className="w-4 h-4" />
-                        🏷️ AI Classification
-                        <span className="text-xs font-normal text-gray-500 ml-1">(AI's own verdict)</span>
-                      </h4>
-                      <p className="text-xs text-gray-500 mb-3 italic">
-                        This is the AI model's direct categorisation of the alert type, independent of the system's final decision below.
-                      </p>
-
-                      <div className="flex flex-wrap items-center gap-3">
-                        {/* AI's own verdict */}
-                        <div>
-                          <p className="text-xs font-medium text-gray-600 mb-1">AI Model Verdict:</p>
-                          <Badge variant="outline" className={`text-sm px-3 py-1.5 font-semibold ${
-                            aiOwnAlertType === 'FAKE' ? 'bg-red-100 text-red-800 border-red-300' :
-                            aiOwnAlertType === 'RECALL' ? 'bg-orange-100 text-orange-800 border-orange-300' :
-                            aiOwnAlertType === 'EXPIRED' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
-                            aiOwnAlertType === 'CONTAMINATED' ? 'bg-rose-100 text-rose-800 border-rose-300' :
-                            'bg-green-100 text-green-800 border-green-300'
-                          }`}>
-                            🤖 {aiOwnAlertType || 'ANALYZING'}
-                          </Badge>
-                        </div>
-
-                        <div className="text-gray-300 hidden sm:block">|</div>
-
-                        {/* System's final decision */}
-                        <div>
-                          <p className="text-xs font-medium text-gray-600 mb-1">System Final Decision:</p>
-                          <Badge variant="outline" className={`text-sm px-3 py-1.5 font-semibold ${
-                            systemAlertType.includes('COUNTERFEIT') || systemAlertType === 'FAKE' ? 'bg-red-100 text-red-800 border-red-300' :
-                            systemAlertType.includes('RECALL') ? 'bg-orange-100 text-orange-800 border-orange-300' :
-                            systemAlertType.includes('EXPIRED') ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
-                            systemAlertType === 'No Alert' ? 'bg-green-100 text-green-800 border-green-300' :
-                            'bg-blue-100 text-blue-800 border-blue-300'
-                          }`}>
-                            🔍 {systemAlertType}
-                          </Badge>
-                        </div>
-                      </div>
-
-                      {/* Explain any discrepancy */}
-                      {aiOwnAlertType && systemAlertType && aiOwnAlertType !== systemAlertType &&
-                       !systemAlertType.toUpperCase().includes(aiOwnAlertType.toUpperCase()) && (
-                        <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
-                          <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                          <p className="text-xs text-blue-700">
-                            <strong>Why do these differ?</strong> The AI model classified this as <strong>{aiOwnAlertType}</strong> based on the raw NAFDAC alert content. 
-                            The system's final decision of <strong>{systemAlertType}</strong> is determined after batch number comparison and correlated alert matching, 
-                            which may override the AI's initial classification for accuracy.
-                          </p>
-                        </div>
-                      )}
                     </div>
 
                     {/* Separator */}
