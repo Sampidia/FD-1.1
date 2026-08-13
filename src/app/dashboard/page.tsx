@@ -243,140 +243,166 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Shield className="w-6 h-6 text-blue-600" />
+        {/* Quick Stats (2x2 on mobile, 1x4 on desktop) */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-8">
+          <Card className="border border-gray-100 shadow-sm rounded-2xl hover:shadow-md transition-all bg-white">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-md shadow-blue-500/20 flex-shrink-0">
+                  <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Total Scans</p>
-                  <p className="text-2xl font-bold">{stats.totalScans}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <span className="text-green-600 text-xl">✓</span>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Genuine Products</p>
-                  <p className="text-2xl font-bold">{stats.genuineProducts}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm font-medium text-gray-500 truncate">Total Scans</p>
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.totalScans}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                  <span className="text-red-600 text-xl">⚠</span>
+          <Card className="border border-gray-100 shadow-sm rounded-2xl hover:shadow-md transition-all bg-white">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center flex-shrink-0">
+                  <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" />
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Counterfeit Detected</p>
-                  <p className="text-2xl font-bold">{stats.counterfeitDetected}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm font-medium text-gray-500 truncate">Genuine Products</p>
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.genuineProducts}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                  <CreditCard className="w-6 h-6 text-purple-600" />
+          <Card className="border border-gray-100 shadow-sm rounded-2xl hover:shadow-md transition-all bg-white">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center flex-shrink-0">
+                  <XCircle className="w-5 h-5 sm:w-6 sm:h-6 text-rose-500" />
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Points Balance</p>
-                  <p className="text-2xl font-bold">{stats.pointsBalance}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm font-medium text-gray-500 truncate">Counterfeit Detected</p>
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.counterfeitDetected}</p>
                 </div>
               </div>
- 
+            </CardContent>
+          </Card>
+
+          <Card className="border border-gray-100 shadow-sm rounded-2xl hover:shadow-md transition-all bg-white">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-tr from-purple-500 to-indigo-400 text-white rounded-full flex items-center justify-center shadow-md shadow-purple-500/20 flex-shrink-0">
+                  <CreditCard className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm font-medium text-gray-500 truncate">Points Balance</p>
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.pointsBalance}</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Main Actions */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Scan New Product */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="w-5 h-5" />
-                Scan New Product
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-gray-600">
-                Upload photos from all angles to verify product authenticity with NAFDAC database.
-              </p>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                  <span className="text-sm">Camera ready</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                  <span className="text-sm">4-zone upload</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                  <span className="text-sm">NAFDAC verified</span>
-                </div>
+          {/* Scan New Product Card - Modern Template Design */}
+          <div className="bg-gradient-to-b from-[#1952d6] via-[#1546b8] to-[#0e3085] rounded-3xl p-6 sm:p-8 shadow-xl text-white flex flex-col justify-between items-center text-center relative overflow-hidden">
+            {/* Background subtle radial glow */}
+            <div className="absolute -top-12 -left-12 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-blue-400/20 rounded-full blur-2xl pointer-events-none" />
+
+            <div className="relative z-10 w-full flex flex-col items-center">
+              {/* Camera + Upload Line Art Icon */}
+              <div className="w-20 h-20 sm:w-24 sm:h-24 my-2 flex items-center justify-center text-white">
+                <svg
+                  viewBox="0 0 100 100"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-full h-full text-white"
+                >
+                  {/* Upward Arrow */}
+                  <path
+                    d="M50 10 V36 M38 22 L50 10 L62 22"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  {/* Camera Body */}
+                  <rect
+                    x="18"
+                    y="38"
+                    width="64"
+                    height="46"
+                    rx="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    fill="none"
+                  />
+                  {/* Camera Lens */}
+                  <circle
+                    cx="50"
+                    cy="61"
+                    r="13"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    fill="none"
+                  />
+                </svg>
               </div>
 
-              <Link href="/scan">
-                <Button className="w-full mt-4 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/25 hover:bg-blue-600 hover:border-blue-600">
-                  <Plus className="w-4 h-4 mr-2 transition-transform duration-300 hover:rotate-90" />
-                  Start New Scan
+              {/* Title & Description */}
+              <h2 className="text-xl sm:text-2xl font-extrabold tracking-wider text-white text-center uppercase mt-3 mb-2">
+                SCAN NEW PRODUCT
+              </h2>
+              <p className="text-xs sm:text-sm text-blue-100/90 text-center max-w-sm mx-auto leading-relaxed mb-6 font-normal">
+                Upload photos from all angles to verify and cross-reference product info with NAFDAC
+              </p>
+
+              {/* CTA Button */}
+              <Link href="/scan" className="w-full max-w-xs">
+                <Button className="w-full bg-white hover:bg-gray-100 text-blue-950 font-bold text-base py-6 rounded-xl shadow-lg transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] border-0">
+                  Scan Now
                 </Button>
               </Link>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Daily Points */}
-          <Card>
+          <Card className="rounded-3xl border border-gray-100 shadow-md bg-white flex flex-col justify-between">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Download className="w-5 h-5" />
+              <CardTitle className="flex items-center gap-2 text-gray-900">
+                <Download className="w-5 h-5 text-amber-500" />
                 Daily Points
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {stats.canClaimDaily ? (
-                <div className="mb-1">
-                  <p className="text-gray-600">You haven't claimed today's daily points yet!</p>
+                <div className="mb-1 bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                  <p className="text-amber-900 font-medium">You haven't claimed today's daily points yet!</p>
+                  <p className="text-xs text-amber-700 mt-1">Claim 5 free points every day to keep scanning.</p>
                 </div>
               ) : (
-                <div>
-                  <p className="text-gray-600">Daily points already claimed</p>
-                  <p className="text-sm text-gray-500">Come back tomorrow for 5 more points.</p>
+                <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
+                  <p className="text-gray-800 font-medium">Daily points already claimed</p>
+                  <p className="text-xs text-gray-500 mt-1">Come back tomorrow for 5 more free points.</p>
                 </div>
               )}
-<div className="pt-1">
-                <div className="flex justify-between text-sm">
-                  <span>Current Balance:</span>
-                  <span className="font-semibold">{stats.pointsBalance} points</span>
+              <div className="pt-1">
+                <div className="flex justify-between text-sm py-1 border-b border-gray-100">
+                  <span className="text-gray-600">Current Balance:</span>
+                  <span className="font-semibold text-gray-900">{stats.pointsBalance} points</span>
                 </div>
-                <div className="flex justify-between text-sm mt-2">
-                  <span>Cost per scan:</span>
-                  <span>1 point</span>
+                <div className="flex justify-between text-sm py-1 mt-1">
+                  <span className="text-gray-600">Cost per scan:</span>
+                  <span className="font-medium text-gray-700">1 point</span>
                 </div>
                 {stats.canClaimDaily && (
-                  <Button onClick={claimDailyPoints} className="w-full mt-4 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-amber-500/25 hover:bg-amber-600 hover:border-amber-600">
-                    <Download className="w-4 h-4 mr-2 transition-transform duration-300 hover:translate-y-1" />
+                  <Button onClick={claimDailyPoints} className="w-full mt-4 bg-amber-500 hover:bg-amber-600 text-white font-bold py-5 rounded-xl transition-all duration-300 hover:scale-[1.02] shadow-md shadow-amber-500/20">
+                    <Download className="w-4 h-4 mr-2" />
                     Claim 5 Free Points
                   </Button>
                 )}
               </div>
- 
             </CardContent>
           </Card>
         </div>

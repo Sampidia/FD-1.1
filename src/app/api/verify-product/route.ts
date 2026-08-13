@@ -110,6 +110,46 @@ function sanitizeInput(input: string): string {
     .substring(0, 1000)
 }
 
+// Batch number validation — rejects plain English words, concatenated junk, and non-batch strings.
+// Valid batches must: contain at least one digit, be ≥4 chars, not be a known English stop-word.
+const BATCH_STOPWORDS = new Set([
+  'central', 'database', 'office', 'nafdac', 'alert', 'recall', 'expired',
+  'product', 'batch', 'number', 'nigeria', 'lagos', 'abuja', 'federal',
+  'ministry', 'health', 'food', 'drug', 'administration', 'control',
+  'manufacturing', 'company', 'limited', 'pharmaceutical', 'medicine',
+  'tablet', 'capsule', 'syrup', 'injection', 'solution', 'cream',
+  'registered', 'unregistered', 'falsified', 'counterfeit', 'fake',
+  'import', 'export', 'distribution', 'market', 'supply', 'sample',
+  'analysis', 'report', 'laboratory', 'test', 'result', 'evidence'
+])
+
+function validateBatchNumbers(batches: string[]): string[] {
+  return batches
+    .map(b => {
+      // Strip trailing non-alphanumeric junk (e.g. "L220008Manufacturing" → "L220008")
+      const stripped = b.replace(/[A-Za-z]{8,}$/, '').trim()
+      return stripped || b
+    })
+    .filter(b => {
+      const lower = b.toLowerCase().trim()
+      // Must be at least 4 characters
+      if (b.length < 4) return false
+      // Must contain at least one digit
+      if (!/\d/.test(b)) return false
+      // Must not be a known English stop-word
+      if (BATCH_STOPWORDS.has(lower)) return false
+      // Must not be purely alphabetic (plain words)
+      if (/^[a-zA-Z]+$/.test(b)) return false
+      // Must not have spaces (batch numbers are compact codes)
+      if (/\s/.test(b.trim())) return false
+      // Must not exceed 25 characters (too long = likely a sentence fragment)
+      if (b.length > 25) return false
+      return true
+    })
+    // Remove duplicates (case-insensitive)
+    .filter((b, idx, arr) => arr.findIndex(x => x.toUpperCase() === b.toUpperCase()) === idx)
+}
+
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
   const clientIP = request.headers.get('x-forwarded-for') ||
@@ -1045,10 +1085,12 @@ RESPONSE FORMAT (ONLY RETURN JSON, NO OTHER TEXT):
 
             // Save AI analysis results
             aiEnhanced = true
-            aiBatchNumbers = analysisData.batchNumbers || []
+            // 🔍 Validate and clean batch numbers — removes dictionary words & corrupted entries
+            aiBatchNumbers = validateBatchNumbers(analysisData.batchNumbers || [])
             aiReason = analysisData.reason || 'Product has active NAFDAC alerts requiring attention'
             aiConfidence = analysisData.confidence ?? 80  // Use 80% as meaningful AI default
-            aiAlertType = analysisData.alertType || ''  // Store AI-determined alert type
+            // 🎯 Save the AI's OWN alert classification, NOT the system override
+            aiAlertType = analysisData.alertType || ''  // e.g. "FAKE", "EXPIRED", "RECALL" — from AI
 
             // 🎯 SMART PRODUCT NAME PRESERVATION
             // Only replace user's product name if it doesn't match any alerts
@@ -1341,10 +1383,11 @@ RESPONSE FORMAT (ONLY RETURN JSON, NO OTHER TEXT):
         // 🎯 SAVE AI ANALYSIS DATA (just like free tier data)
         aiEnhanced: aiEnhanced,
         aiProductName: aiProductNames[0] || null,
-        aiBatchNumbers: aiBatchNumbers || [],
+        aiBatchNumbers: validateBatchNumbers(aiBatchNumbers || []),
         aiReason: aiReason,
         aiConfidence: aiConfidence,
-        aiAlertType: alertType
+        // ✅ Save the AI's own alert type (e.g. EXPIRED/FAKE/RECALL), NOT the system override
+        aiAlertType: aiAlertType || alertType
       } as {
         userId: string
         productCheckId: string

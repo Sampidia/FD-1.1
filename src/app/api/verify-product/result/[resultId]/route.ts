@@ -78,11 +78,27 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }
     })
 
-    // Step 3: Get user's current points balance
+    // Step 3: Get user's current points balance (all tiers for priority calculation)
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { pointsBalance: true }
+      select: {
+        pointsBalance: true,
+        planBasicPoints: true,
+        planStandardPoints: true,
+        planBusinessPoints: true,
+        planFreePoints: true
+      }
     })
+
+    // Priority balance logic: business > standard > basic > free > legacy pointsBalance
+    const priorityBalance = (() => {
+      if (!user) return 0
+      if ((user.planBusinessPoints ?? 0) > 0) return user.planBusinessPoints ?? 0
+      if ((user.planStandardPoints ?? 0) > 0) return user.planStandardPoints ?? 0
+      if ((user.planBasicPoints ?? 0) > 0) return user.planBasicPoints ?? 0
+      if ((user.planFreePoints ?? 0) > 0) return user.planFreePoints ?? 0
+      return user.pointsBalance ?? 0
+    })()
 
     // Step 4: Transform and return the complete result WITH AI DATA
     const resultData = {
@@ -94,7 +110,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       batchNumber: checkResult?.batchNumber || productCheck.batchNumber,
       alertType: checkResult?.alertType || 'Analysis Pending',
       confidence: checkResult?.confidence || 0,
-      newBalance: user?.pointsBalance || 0,
+      newBalance: priorityBalance,
       timestamp: checkResult?.scrapedAt?.toISOString() || productCheck.createdAt.toISOString(),
       verificationMethod: 'NAFDAC Database Verification',
       productCheckId: productCheck.id,
@@ -107,6 +123,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       imagesAnalyzed: productCheck.images.length,
       ocrConfidence: null, // OCR confidence if stored separately
       hasResult: !!checkResult, // Indicates if analysis is complete
+      analysisComplete: !!checkResult, // Explicit flag for UI state
 
       // 🎯 AI ANALYSIS DATA FROM DATABASE - FORMAT FOR FRONTEND
       aiAnalysis: checkResult?.aiEnhanced ? {
