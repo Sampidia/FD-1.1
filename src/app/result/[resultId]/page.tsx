@@ -62,23 +62,33 @@ interface ScanStats {
 
 // ─── Batch number client-side validation (mirrors backend logic) ─────────────
 const CLIENT_BATCH_STOPWORDS = new Set([
-  'central', 'database', 'office', 'nafdac', 'alert', 'recall', 'expired',
+  'central', 'database', 'office', 'nafdac', 'alert', 'recall', 'expired', 'expiry',
   'product', 'batch', 'number', 'nigeria', 'lagos', 'abuja', 'federal',
   'ministry', 'health', 'food', 'drug', 'administration', 'control',
   'manufacturing', 'company', 'limited', 'pharmaceutical', 'medicine',
   'tablet', 'capsule', 'syrup', 'injection', 'solution', 'cream',
   'registered', 'unregistered', 'falsified', 'counterfeit', 'fake',
   'import', 'export', 'distribution', 'market', 'supply', 'sample',
-  'analysis', 'report', 'laboratory', 'test', 'result', 'evidence'
+  'analysis', 'report', 'laboratory', 'test', 'result', 'evidence',
+  'details', 'information', 'category', 'status', 'verification'
 ])
 
 function validateBatchNumbers(batches: string[]): string[] {
   return batches
-    .map(b => b.replace(/[A-Za-z]{8,}$/, '').trim() || b)
+    .map(b => {
+      let cleaned = b.replace(/^(?:batch|lot|no|number)[:\s\.\-]+/i, '').trim()
+      cleaned = cleaned.replace(/(?:expiry|expired|exp|mfg|mfd|date|manufacturing|production|serial|batch|number)$/i, '').trim()
+      return cleaned || b
+    })
     .filter(b => {
       const lower = b.toLowerCase().trim()
       if (b.length < 4) return false
       if (!/\d/.test(b)) return false
+      if (/(?:expiry|expired|mfg|mfd|date|manufacturing|production)/i.test(lower)) return false
+      if (/^\d{1,2}[\/\.-]\d{2,4}$/.test(lower)) return false
+      if (/^\d{4}[\/\.-]\d{1,2}$/.test(lower)) return false
+      if (/^\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4}$/.test(lower)) return false
+      if (/^(19|20)\d{2}$/.test(lower)) return false
       if (CLIENT_BATCH_STOPWORDS.has(lower)) return false
       if (/^[a-zA-Z]+$/.test(b)) return false
       if (/\s/.test(b.trim())) return false
@@ -134,6 +144,29 @@ export default function ResultPage({ params }: PageProps) {
   useEffect(() => {
     fetchResultData()
   }, [resultId])
+
+  // Auto-polling mechanism if analysis is still in progress
+  useEffect(() => {
+    if (!result) return
+    const isPending = !result.analysisComplete && (!result.hasResult || result.summary.toLowerCase().includes('in progress'))
+    if (!isPending) return
+
+    console.log('🔄 Analysis in progress, setting up auto-polling...')
+    let attempts = 0
+    const maxAttempts = 12
+
+    const pollInterval = setInterval(async () => {
+      attempts++
+      console.log(`🔄 Polling result attempt ${attempts}/${maxAttempts}...`)
+      await fetchResultData()
+
+      if (attempts >= maxAttempts) {
+        clearInterval(pollInterval)
+      }
+    }, 2500)
+
+    return () => clearInterval(pollInterval)
+  }, [result?.analysisComplete, result?.hasResult, resultId])
 
   // Fetch live user balance
   useEffect(() => {
@@ -615,6 +648,31 @@ export default function ResultPage({ params }: PageProps) {
                       <p className="text-xs text-gray-500 mb-3 italic">
                         This is the AI's narrative explanation — what the model found when comparing your product against NAFDAC alert content.
                       </p>
+
+                      {/* Explicit Batch Impact Banner */}
+                      {result.batchNumber && systemAlertType.includes('DIFFERENT_BATCH') && (
+                        <div className="mb-4 bg-emerald-50 border border-emerald-300 rounded-lg p-3 flex items-start gap-2.5 text-emerald-900 text-sm">
+                          <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-bold text-emerald-900">Your Batch Number "{result.batchNumber}" Is NOT Affected</p>
+                            <p className="text-xs text-emerald-700 mt-0.5">
+                              Although NAFDAC has issued alerts for this product category, your specific batch number was NOT found among the recalled or falsified batches.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      {result.batchNumber && result.isCounterfeit && (
+                        <div className="mb-4 bg-red-50 border border-red-300 rounded-lg p-3 flex items-start gap-2.5 text-red-900 text-sm">
+                          <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-bold text-red-900">Affected / Recalled Batch Detected</p>
+                            <p className="text-xs text-red-700 mt-0.5">
+                              Your batch number "{result.batchNumber}" matches NAFDAC alert records for recalled or falsified products.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="text-gray-700 leading-relaxed">
                         {result.aiAnalysis.reason ? (
                           result.aiAnalysis.reason.split('\n').map((line, index) => (

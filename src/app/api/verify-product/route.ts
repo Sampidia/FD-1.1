@@ -113,37 +113,56 @@ function sanitizeInput(input: string): string {
 // Batch number validation — rejects plain English words, concatenated junk, and non-batch strings.
 // Valid batches must: contain at least one digit, be ≥4 chars, not be a known English stop-word.
 const BATCH_STOPWORDS = new Set([
-  'central', 'database', 'office', 'nafdac', 'alert', 'recall', 'expired',
+  'central', 'database', 'office', 'nafdac', 'alert', 'recall', 'expired', 'expiry',
   'product', 'batch', 'number', 'nigeria', 'lagos', 'abuja', 'federal',
   'ministry', 'health', 'food', 'drug', 'administration', 'control',
   'manufacturing', 'company', 'limited', 'pharmaceutical', 'medicine',
   'tablet', 'capsule', 'syrup', 'injection', 'solution', 'cream',
   'registered', 'unregistered', 'falsified', 'counterfeit', 'fake',
   'import', 'export', 'distribution', 'market', 'supply', 'sample',
-  'analysis', 'report', 'laboratory', 'test', 'result', 'evidence'
+  'analysis', 'report', 'laboratory', 'test', 'result', 'evidence',
+  'details', 'information', 'category', 'status', 'verification'
 ])
 
 function validateBatchNumbers(batches: string[]): string[] {
   return batches
     .map(b => {
-      // Strip trailing non-alphanumeric junk (e.g. "L220008Manufacturing" → "L220008")
-      const stripped = b.replace(/[A-Za-z]{8,}$/, '').trim()
-      return stripped || b
+      // Strip prefixes like "Batch: UI4004" -> "UI4004"
+      let cleaned = b.replace(/^(?:batch|lot|no|number)[:\s\.\-]+/i, '').trim()
+      // Strip common trailing words (e.g. "L220008Manufacturing" → "L220008", "01/2022Expiry" -> "01/2022")
+      cleaned = cleaned.replace(/(?:expiry|expired|exp|mfg|mfd|date|manufacturing|production|serial|batch|number)$/i, '').trim()
+      return cleaned || b
     })
     .filter(b => {
       const lower = b.toLowerCase().trim()
+
       // Must be at least 4 characters
       if (b.length < 4) return false
+
       // Must contain at least one digit
       if (!/\d/.test(b)) return false
+
+      // Reject if it contains expiry or manufacturing labels
+      if (/(?:expiry|expired|mfg|mfd|date|manufacturing|production)/i.test(lower)) return false
+
+      // Reject pure date formats (e.g. "01/2022", "12-2024", "2023/05", "31/12/2025", "2022")
+      if (/^\d{1,2}[\/\.-]\d{2,4}$/.test(lower)) return false
+      if (/^\d{4}[\/\.-]\d{1,2}$/.test(lower)) return false
+      if (/^\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4}$/.test(lower)) return false
+      if (/^(19|20)\d{2}$/.test(lower)) return false
+
       // Must not be a known English stop-word
       if (BATCH_STOPWORDS.has(lower)) return false
-      // Must not be purely alphabetic (plain words)
+
+      // Must not be purely alphabetic
       if (/^[a-zA-Z]+$/.test(b)) return false
-      // Must not have spaces (batch numbers are compact codes)
+
+      // Must not have spaces
       if (/\s/.test(b.trim())) return false
-      // Must not exceed 25 characters (too long = likely a sentence fragment)
+
+      // Must not exceed 25 characters
       if (b.length > 25) return false
+
       return true
     })
     // Remove duplicates (case-insensitive)
@@ -1300,6 +1319,25 @@ RESPONSE FORMAT (ONLY RETURN JSON, NO OTHER TEXT):
       } else {
         console.log(`🔍 POST-AI RESULT: No batch matches found in AI-extracted data, keeping original decision`)
       }
+    }
+
+    // 🎯 REFINE AI REASON FOR MAXIMUM CLARITY AND ACCURACY
+    if (uniqueAlerts.length > 0) {
+      if (userProvidedBatch && !isCounterfeit && alertType.includes('DIFFERENT_BATCH')) {
+        // Scenario A: Product has alerts, user provided batch, BUT user's batch is NOT affected
+        const baseContext = aiReason && !aiReason.includes('Product has active NAFDAC alerts') ? `\n\nAI Context: ${aiReason}` : ''
+        aiReason = `✅ BATCH NOT AFFECTED: While NAFDAC has issued alerts for "${productName}" (e.g. "${uniqueAlerts[0]?.title}"), your batch number "${userBatchNumber}" is NOT listed among the affected batch numbers. Your specific batch appears safe, though you should always purchase from authorized distributors.${baseContext}`
+      } else if (userProvidedBatch && isCounterfeit) {
+        // Scenario B: User batch is affected / counterfeit
+        const baseContext = aiReason && !aiReason.includes('Product has active NAFDAC alerts') ? `\n\nAI Context: ${aiReason}` : ''
+        aiReason = `🔴 RECALLED/COUNTERFEIT BATCH DETECTED: Your batch "${userBatchNumber}" matches NAFDAC Alert records for "${productName}". Do not consume or distribute this product.${baseContext}`
+      } else if (!userProvidedBatch && uniqueAlerts.length > 0) {
+        // Scenario C: Product has alerts, but no batch was provided
+        const baseContext = aiReason && !aiReason.includes('Product has active NAFDAC alerts') ? `\n\nAI Context: ${aiReason}` : ''
+        aiReason = `ℹ️ PRODUCT ALERTS FOUND (BATCH UNVERIFIED): NAFDAC has active alerts for "${productName}" (e.g. "${uniqueAlerts[0]?.title}"). Please check your product packaging for batch numbers to verify if your specific unit is affected.${baseContext}`
+      }
+    } else if (!isCounterfeit) {
+      aiReason = `✅ SAFE PRODUCT: No fake, recall, or expired alerts found for "${productName}" in official NAFDAC records.`
     }
 
     // Point consumption - deduct from the specific plan tier that was used for AI analysis
