@@ -1106,7 +1106,7 @@ RESPONSE FORMAT (ONLY RETURN JSON, NO OTHER TEXT):
             aiEnhanced = true
             // 🔍 Validate and clean batch numbers — removes dictionary words & corrupted entries
             aiBatchNumbers = validateBatchNumbers(analysisData.batchNumbers || [])
-            aiReason = analysisData.reason || 'Product has active NAFDAC alerts requiring attention'
+            aiReason = analysisData.reason || 'Product analysis completed against NAFDAC database.'
             aiConfidence = analysisData.confidence ?? 80  // Use 80% as meaningful AI default
             // 🎯 Save the AI's OWN alert classification, NOT the system override
             aiAlertType = analysisData.alertType || ''  // e.g. "FAKE", "EXPIRED", "RECALL" — from AI
@@ -1323,17 +1323,17 @@ RESPONSE FORMAT (ONLY RETURN JSON, NO OTHER TEXT):
 
     // 🎯 REFINE AI REASON FOR MAXIMUM CLARITY AND ACCURACY
     if (uniqueAlerts.length > 0) {
-      if (userProvidedBatch && !isCounterfeit && alertType.includes('DIFFERENT_BATCH')) {
-        // Scenario A: Product has alerts, user provided batch, BUT user's batch is NOT affected
-        const baseContext = aiReason && !aiReason.includes('Product has active NAFDAC alerts') ? `\n\nAI Context: ${aiReason}` : ''
+      if (userProvidedBatch && !isCounterfeit) {
+        // Scenario A: Product has alerts, user provided batch, BUT user's batch is NOT affected / NOT counterfeit!
+        const baseContext = (aiReason && !aiReason.toLowerCase().includes('requiring attention') && !aiReason.toLowerCase().includes('active nafdac alerts')) ? `\n\nAI Context: ${aiReason}` : ''
         aiReason = `✅ BATCH NOT AFFECTED: While NAFDAC has issued alerts for "${productName}" (e.g. "${uniqueAlerts[0]?.title}"), your batch number "${userBatchNumber}" is NOT listed among the affected batch numbers. Your specific batch appears safe, though you should always purchase from authorized distributors.${baseContext}`
       } else if (userProvidedBatch && isCounterfeit) {
         // Scenario B: User batch is affected / counterfeit
-        const baseContext = aiReason && !aiReason.includes('Product has active NAFDAC alerts') ? `\n\nAI Context: ${aiReason}` : ''
+        const baseContext = (aiReason && !aiReason.toLowerCase().includes('requiring attention') && !aiReason.toLowerCase().includes('active nafdac alerts')) ? `\n\nAI Context: ${aiReason}` : ''
         aiReason = `🔴 RECALLED/COUNTERFEIT BATCH DETECTED: Your batch "${userBatchNumber}" matches NAFDAC Alert records for "${productName}". Do not consume or distribute this product.${baseContext}`
       } else if (!userProvidedBatch && uniqueAlerts.length > 0) {
         // Scenario C: Product has alerts, but no batch was provided
-        const baseContext = aiReason && !aiReason.includes('Product has active NAFDAC alerts') ? `\n\nAI Context: ${aiReason}` : ''
+        const baseContext = (aiReason && !aiReason.toLowerCase().includes('requiring attention') && !aiReason.toLowerCase().includes('active nafdac alerts')) ? `\n\nAI Context: ${aiReason}` : ''
         aiReason = `ℹ️ PRODUCT ALERTS FOUND (BATCH UNVERIFIED): NAFDAC has active alerts for "${productName}" (e.g. "${uniqueAlerts[0]?.title}"). Please check your product packaging for batch numbers to verify if your specific unit is affected.${baseContext}`
       }
     } else if (!isCounterfeit) {

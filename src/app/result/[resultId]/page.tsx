@@ -620,7 +620,7 @@ export default function ResultPage({ params }: PageProps) {
                       </p>
 
                       {/* Explicit Batch Impact Banner */}
-                      {result.batchNumber && systemAlertType.includes('DIFFERENT_BATCH') && (
+                      {result.batchNumber && !result.isCounterfeit && (
                         <div className="mb-4 bg-emerald-50 border border-emerald-300 rounded-lg p-3 flex items-start gap-2.5 text-emerald-900 text-sm">
                           <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
                           <div>
@@ -644,13 +644,19 @@ export default function ResultPage({ params }: PageProps) {
                       )}
 
                       <div className="text-gray-700 leading-relaxed">
-                        {result.aiAnalysis.reason ? (
-                          result.aiAnalysis.reason.split('\n').map((line, index) => (
-                            <p key={index} className="mb-2">{line}</p>
-                          ))
-                        ) : (
-                          <p className="text-gray-500 italic">AI analysis text not available.</p>
-                        )}
+                        {(() => {
+                          let rawReason = result.aiAnalysis.reason || ''
+                          if (!result.isCounterfeit && result.batchNumber && rawReason.toLowerCase().includes('requiring attention')) {
+                            rawReason = `✅ BATCH NOT AFFECTED: While NAFDAC has issued alerts for this product category, your specific batch number "${result.batchNumber}" is NOT listed among the affected batch numbers. Your product unit appears safe, though always purchase from licensed vendors.`
+                          }
+                          return rawReason ? (
+                            rawReason.split('\n').map((line, index) => (
+                              <p key={index} className="mb-2">{line}</p>
+                            ))
+                          ) : (
+                            <p className="text-gray-500 italic">AI analysis text not available.</p>
+                          )
+                        })()}
                       </div>
                     </div>
 
