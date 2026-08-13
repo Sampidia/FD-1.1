@@ -124,50 +124,76 @@ const BATCH_STOPWORDS = new Set([
   'details', 'information', 'category', 'status', 'verification'
 ])
 
+function cleanBatchString(raw: string): string {
+  if (!raw) return ''
+  let s = raw.trim().toLowerCase()
+  s = s.replace(/^(?:batch|lot|no|number|serial)[:\s\.\-]+/i, '').trim()
+  s = s.replace(/(?:expiry|expired|exp|mfg|mfd|date|manufacturing|production|serial|batch|number)$/i, '').trim()
+  return s
+}
+
+function isBatchMatch(alertBatch: string, userBatch: string): boolean {
+  if (!alertBatch || !userBatch) return false
+
+  const rawAlert = alertBatch.trim().toLowerCase()
+  const rawUser = userBatch.trim().toLowerCase()
+
+  // 1. Direct raw match
+  if (rawAlert === rawUser) return true
+
+  // 2. Cleaned string match
+  const cleanedAlert = cleanBatchString(alertBatch)
+  const cleanedUser = cleanBatchString(userBatch)
+
+  if (cleanedAlert && cleanedUser) {
+    if (cleanedAlert === cleanedUser) return true
+
+    // 3. Substring match (for batches of length >= 3)
+    if (cleanedUser.length >= 3 && cleanedAlert.length >= 3) {
+      if (cleanedAlert.includes(cleanedUser) || cleanedUser.includes(cleanedAlert)) return true
+    }
+
+    // 4. Normalized alphanumeric match (strip spaces, hyphens, slashes, dots)
+    const normAlert = cleanedAlert.replace(/[^a-z0-9]/g, '')
+    const normUser = cleanedUser.replace(/[^a-z0-9]/g, '')
+
+    if (normAlert && normUser) {
+      if (normAlert === normUser) return true
+      if (normUser.length >= 3 && normAlert.length >= 3) {
+        if (normAlert.includes(normUser) || normUser.includes(normAlert)) return true
+      }
+    }
+  }
+
+  return false
+}
+
 function validateBatchNumbers(batches: string[]): string[] {
   return batches
     .map(b => {
-      // Strip prefixes like "Batch: UI4004" -> "UI4004"
-      let cleaned = b.replace(/^(?:batch|lot|no|number)[:\s\.\-]+/i, '').trim()
-      // Strip common trailing words (e.g. "L220008Manufacturing" → "L220008", "01/2022Expiry" -> "01/2022")
-      cleaned = cleaned.replace(/(?:expiry|expired|exp|mfg|mfd|date|manufacturing|production|serial|batch|number)$/i, '').trim()
+      let cleaned = cleanBatchString(b)
       return cleaned || b
     })
     .filter(b => {
       const lower = b.toLowerCase().trim()
 
-      // Must be at least 4 characters
-      if (b.length < 4) return false
-
-      // Must contain at least one digit
+      if (b.length < 3) return false
       if (!/\d/.test(b)) return false
-
-      // Reject if it contains expiry or manufacturing labels
       if (/(?:expiry|expired|mfg|mfd|date|manufacturing|production)/i.test(lower)) return false
-
-      // Reject pure date formats (e.g. "01/2022", "12-2024", "2023/05", "31/12/2025", "2022")
       if (/^\d{1,2}[\/\.-]\d{2,4}$/.test(lower)) return false
       if (/^\d{4}[\/\.-]\d{1,2}$/.test(lower)) return false
       if (/^\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4}$/.test(lower)) return false
       if (/^(19|20)\d{2}$/.test(lower)) return false
-
-      // Must not be a known English stop-word
       if (BATCH_STOPWORDS.has(lower)) return false
-
-      // Must not be purely alphabetic
       if (/^[a-zA-Z]+$/.test(b)) return false
-
-      // Must not have spaces
       if (/\s/.test(b.trim())) return false
-
-      // Must not exceed 25 characters
       if (b.length > 25) return false
 
       return true
     })
-    // Remove duplicates (case-insensitive)
     .filter((b, idx, arr) => arr.findIndex(x => x.toUpperCase() === b.toUpperCase()) === idx)
 }
+
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
@@ -788,19 +814,19 @@ export async function POST(request: NextRequest) {
       if (userProvidedBatch) {
         // User provided a batch number - compare against AI-extracted batches
         const exactBatchMatch = aiExtractedBatches.some(aiBatch =>
-          aiBatch.toUpperCase().trim() === userBatchNumber.toUpperCase().trim()
+          isBatchMatch(aiBatch, userBatchNumber)
         )
 
         // Also check database batch numbers as fallback
         const dbBatchMatch = uniqueAlerts.some(alert =>
           alert.batchNumbers?.some((dbBatch: string) =>
-            dbBatch.toUpperCase().trim() === userBatchNumber.toUpperCase().trim()
+            isBatchMatch(dbBatch, userBatchNumber)
           )
         )
 
         userBatchMatch = exactBatchMatch || dbBatchMatch
-        console.log(`� BATCH COMPARISON: User "${userBatchNumber}" vs AI-extracted ${JSON.stringify(aiExtractedBatches)}`)
-        console.log(`🔍 BATCH MATCH RESULT: ${userBatchMatch ? '✅ EXACT MATCH' : '❌ NO MATCH'}`)
+        console.log(` BATCH COMPARISON: User "${userBatchNumber}" vs AI-extracted ${JSON.stringify(aiExtractedBatches)}`)
+        console.log(`🔍 BATCH MATCH RESULT: ${userBatchMatch ? '✅ MATCH FOUND' : '❌ NO MATCH'}`)
       } else {
         // User didn't provide batch - no comparison possible
         console.log(`🔍 NO BATCH COMPARISON POSSIBLE: User didn't provide batch number`)
@@ -826,7 +852,7 @@ export async function POST(request: NextRequest) {
 
           // Check if batch appears in alert
           const batchMatch = alert.batchNumbers?.some((alertBatch: string) =>
-            alertBatch.toLowerCase().trim() === userBatchNumber.toLowerCase().trim()
+            isBatchMatch(alertBatch, userBatchNumber)
           )
 
           return productMatch && batchMatch // BOTH must match in SAME alert!
@@ -836,7 +862,7 @@ export async function POST(request: NextRequest) {
         batchOnlyMatches = uniqueAlerts.filter(alert =>
           !correlatedAlerts.some(ca => ca.id === alert.id) && // Exclude correlated matches
           alert.batchNumbers?.some((batch: string) =>
-            batch.trim().toLowerCase() === userBatchNumber.toLowerCase().trim()
+            isBatchMatch(batch, userBatchNumber)
           )
         )
 
@@ -870,7 +896,7 @@ export async function POST(request: NextRequest) {
 
         // Test batch match manually
         const batchMatch = alert.batchNumbers?.some((alertBatch: string) =>
-          alertBatch.toLowerCase().trim() === userBatchNumber.toLowerCase().trim()
+          isBatchMatch(alertBatch, userBatchNumber)
         )
 
         console.log(`   ✅ Product Match: ${productMatch} (search terms: ${searchTerms.join(', ')})`)
@@ -1266,7 +1292,7 @@ RESPONSE FORMAT (ONLY RETURN JSON, NO OTHER TEXT):
       const aiMatchedAlerts = uniqueAlerts.filter(alert => {
         // Check if AI extracted batches for this alert match user batch
         const aiBatchesForAlert = aiBatchNumbers.filter(batch =>
-          batch.toUpperCase().trim() === userBatchNumber.toUpperCase().trim()
+          isBatchMatch(batch, userBatchNumber)
         )
         return aiBatchesForAlert.length > 0
       })

@@ -704,6 +704,9 @@ export default function ResultPage({ params }: PageProps) {
                           if (!result.isCounterfeit && result.batchNumber && rawReason.toLowerCase().includes('requiring attention')) {
                             rawReason = `✅ BATCH NOT AFFECTED: While NAFDAC has issued alerts for this product category, your specific batch number "${result.batchNumber}" is NOT listed among the affected batch numbers. Your product unit appears safe, though always purchase from licensed vendors.`
                           }
+                          if (result.isCounterfeit && result.batchNumber && (rawReason.toLowerCase().includes('not affected') || rawReason.toLowerCase().includes('appears safe'))) {
+                            rawReason = `🔴 RECALLED/COUNTERFEIT BATCH DETECTED: Your batch "${result.batchNumber}" matches NAFDAC alert records for recalled or falsified products. Do not consume or distribute this product.`
+                          }
                           return rawReason ? (
                             rawReason.split('\n').map((line, index) => (
                               <p key={index} className="mb-2">{line}</p>
